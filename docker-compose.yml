@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  mongodb:
+    build:
+      context: ./
+      dockerfile: .docker/Dockerfile
+    container_name: mongodb
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - type: volume
+        source: mongodb_data
+        target: /data/db
+    networks:
+      - app_network
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+    environment:
+      MONGODB_URI: mongodb://admin:password@mongodb:27017
+
+volumes:
+  mongodb_data:
+    name: mongodb_data
+    driver: local
+
+networks:
+  app_network:
+    driver: bridge
+
