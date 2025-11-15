@@ -4,11 +4,11 @@ import (
     "fmt"
     "log"
 
+    "github.com/gin-gonic/gin"
     "github.com/kuro48/idol-api/internal/config"
     "github.com/kuro48/idol-api/internal/infrastructure/database"
-    "github.com/kuro48/idol-api/internal/interface/handlers"
     "github.com/kuro48/idol-api/internal/infrastructure/repository"
-    "github.com/gin-gonic/gin"
+    "github.com/kuro48/idol-api/internal/interface/handlers"
 )
 
 func main() {

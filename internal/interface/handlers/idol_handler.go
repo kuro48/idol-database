@@ -5,15 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kuro48/idol-api/internal/domain/models"
-	"github.com/kuro48/idol-api/internal/infrastructure/repository"
+	"github.com/kuro48/idol-api/internal/domain/repository"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type IdolHandler struct {
-	repo *repository.IdolRepository
+	repo repository.IdolRepository
 }
 
-func NewIdolHandler(repo *repository.IdolRepository) *IdolHandler {
+func NewIdolHandler(repo repository.IdolRepository) *IdolHandler {
 	return &IdolHandler{repo: repo}
 }
 
