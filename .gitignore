@@ -26,6 +26,8 @@ go.work.sum
 
 # env file
 .env
+.env.atlas
+.env.local
 
 # Editor/IDE
 # .idea/

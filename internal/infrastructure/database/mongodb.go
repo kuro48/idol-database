@@ -18,19 +18,26 @@ type MongoDB struct {
 
 // Connect はMongoDBに接続する
 func Connect(uri, dbName string) (*MongoDB, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
 
-		serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
+	fmt.Println("🔄 MongoDBに接続を試みています...")
+	fmt.Printf("📍 データベース名: %s\n", dbName)
+
+	opts := options.Client().
+		ApplyURI(uri).
+		SetConnectTimeout(10 * time.Second).
+		SetServerSelectionTimeout(10 * time.Second)
 
     // MongoDBに接続
+    fmt.Println("⏳ クライアント接続中...")
     client, err := mongo.Connect(opts)
     if err != nil {
         return nil, fmt.Errorf("MongoDB接続エラー: %w", err)
     }
 
     // 接続確認（Pingを送信）
+    fmt.Println("⏳ Ping送信中...")
     if err := client.Ping(ctx, readpref.Primary()); err != nil {
         return nil, fmt.Errorf("MongoDB Pingエラー: %w", err)
     }
