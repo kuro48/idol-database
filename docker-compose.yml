@@ -10,26 +10,17 @@ services:
     ports:
       - '27017:27017'
     volumes:
-      - type: volume
-        source: mongodb_data
-        target: /data/db
+      - mongodb_data:/data/db
     networks:
       - app_network
-  api:
-    build: .
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mongodb
     environment:
-      MONGODB_URI: mongodb://admin:password@mongodb:27017
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
 
 volumes:
   mongodb_data:
-    name: mongodb_data
     driver: local
 
 networks:
   app_network:
     driver: bridge
-
