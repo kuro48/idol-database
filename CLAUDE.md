@@ -4,63 +4,131 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-アイドル情報を管理するREST APIサーバー。Go 1.24.4、Gin Webフレームワーク、MongoDB v2を使用。
+**ユーザー投稿型アイドル情報データベース**を段階的に構築するプロジェクト。
+
+### 基本情報
+- **言語**: Go 1.24.4
+- **Webフレームワーク**: Gin
+- **データベース**: MongoDB v2
+- **アーキテクチャ**: DDD（ドメイン駆動設計）
+
+### プロジェクト戦略
+1. **Phase 1-2** (0-12ヶ月): ユーザー投稿型プラットフォームで基盤構築
+2. **Phase 3** (6-12ヶ月): 事務所交渉のための実績構築
+3. **Phase 4** (12ヶ月〜): 事務所公式データとのパートナーシップ
+
+### 現在のステータス
+- ✅ DDD構造での基本CRUD実装完了
+- ✅ MongoDB接続・基本インフラ完成
+- 🚧 **Phase 1 Week 1-2**: 法的保護機能を実装中
+
+---
 
 ## 開発コマンド
 
-### ビルドと実行
+### アプリケーション実行
 ```bash
-# アプリケーションの実行
-go run main.go
+# 開発環境での実行
+go run cmd/api/main.go
 
 # ビルド
-go build -o idol-api main.go
+go build -o idol-api cmd/api/main.go
+
+# テスト
+go test ./...
 
 # 依存関係の更新
 go mod tidy
 ```
 
-### Dockerを使用した開発
+### Docker
 ```bash
-# MongoDBコンテナの起動
+# MongoDB起動
 docker-compose up -d
 
-# MongoDBコンテナの停止
+# MongoDB停止
 docker-compose down
 
 # ボリューム含めて削除
 docker-compose down -v
 ```
 
+---
+
 ## アーキテクチャ
 
-### 現在の構造
-- **main.go**: エントリーポイント。MongoDBへの接続とGinサーバーの起動を行う
-- **cmd/api/**: APIサーバーの実行可能ファイル用（将来的に使用予定）
-- **internal/**: 内部パッケージ用（将来的に使用予定）
+### DDD（ドメイン駆動設計）の4層構造
 
-### MongoDB接続
-- MongoDB Atlas（クラウド）を使用
-- 接続文字列はmain.go:19に直接記述（**⚠️ 本番環境では環境変数化が必要**）
-- MongoDB v2 driver使用（`go.mongodb.org/mongo-driver/v2`）
+```
+internal/
+├── domain/              # ドメイン層（ビジネスロジック）
+│   └── idol/
+│       ├── value_object.go  # 値オブジェクト
+│       ├── idol.go          # エンティティ（Aggregate Root）
+│       ├── repository.go    # リポジトリインターフェース
+│       └── service.go       # ドメインサービス
+│
+├── application/         # アプリケーション層（ユースケース）
+│   └── idol/
+│       ├── command.go       # コマンドDTO
+│       ├── query.go         # クエリDTO
+│       └── service.go       # アプリケーションサービス
+│
+├── infrastructure/      # インフラ層（技術的詳細）
+│   └── persistence/mongodb/
+│       └── idol_repository.go
+│
+└── interface/           # プレゼンテーション層（外部I/F）
+    └── handlers/
+        └── idol_handler_ddd.go
+```
 
-### サーバー設定
-- デフォルトポート: 8081
-- フレームワーク: Gin（`github.com/gin-gonic/gin`）
+### 設計原則
+- **値オブジェクト**: イミュータブル、自己検証
+- **エンティティ**: IDで識別、ビジネスルールをカプセル化
+- **Aggregate Root**: Idol が集約のルート
+- **リポジトリ**: データアクセスを抽象化
+- **ドメインサービス**: 複数エンティティにまたがるビジネスロジック
 
-## 重要な注意事項
+---
 
-### セキュリティ
-1. **main.go:19の認証情報**: MongoDB接続文字列にユーザー名とパスワードがハードコードされています。環境変数に移行する必要があります
-2. Dockerの`MONGO_INITDB_ROOT_USERNAME/PASSWORD`は開発環境用の設定
+## 重要な実装ガイドライン
 
-### プロジェクト段階
-このプロジェクトは初期段階で、以下が未実装です：
-- ハンドラー層の分離
-- リポジトリパターン
-- ビジネスロジック層
-- テストコード
-- 環境変数管理
-- エラーハンドリング戦略
+### 1. 法的コンプライアンス
 
-将来的には`cmd/api`と`internal`ディレクトリを使用した標準的なGo Project Layoutへの移行が想定されます。
+**プロバイダ責任制限法に基づく設計**:
+- ユーザー投稿型プラットフォーム
+- 運営者はデータ収集しない
+- 削除申請に24時間以内対応
+- 画像の直接ホスティング禁止（外部URLのみ）
+
+### 2. DDD実装パターン
+
+**新機能追加の手順**:
+1. ドメイン層: エンティティ・値オブジェクト定義
+2. ドメイン層: リポジトリインターフェース定義
+3. アプリケーション層: コマンド・クエリDTO定義
+4. アプリケーション層: アプリケーションサービス実装
+5. インフラ層: リポジトリ実装（MongoDB）
+6. プレゼンテーション層: HTTPハンドラー実装
+7. テスト: 各層のユニットテスト
+
+---
+
+## 次のステップ（Phase 1 Week 1-2）
+
+**実装優先順位**:
+1. 削除申請機能（3日）
+2. 利用規約・プライバシーポリシー（2日）
+3. モデレーション機能（3日）
+
+詳細は `docs/implementation-roadmap.md` を参照。
+
+---
+
+## 重要なリンク
+
+- [README](README.md) - プロジェクト概要
+- [実装ロードマップ](docs/implementation-roadmap.md) - 詳細な実装計画
+- [法的ガイドライン](docs/legal-guidelines.md) - 法的リスクと対策
+- [API仕様](docs/api-specification.md) - API詳細仕様
