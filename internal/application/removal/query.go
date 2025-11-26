@@ -5,7 +5,8 @@ import "time"
 // RemovalRequestDTO は削除申請のデータ転送オブジェクト
 type RemovalRequestDTO struct {
 	ID          string    `json:"id"`
-	IdolID      string    `json:"idol_id"`
+	TargetID    string    `json:"target_id"`
+	TargetType  string    `json:"target_type"`
 	Requester   string    `json:"requester"`
 	Reason      string    `json:"reason"`
 	ContactInfo string    `json:"contact_info"`

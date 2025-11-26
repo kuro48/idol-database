@@ -3,13 +3,14 @@ package removal
 import (
 	"time"
 
-	"github.com/kuro48/idol-api/internal/domain/idol"
+
 )
 
 // RemovalRequest は削除申請のエンティティ（Aggregate Root）
 type RemovalRequest struct {
 	id          RemovalID
-	idolID      idol.IdolID
+	targetID    string
+	targetType  TargetType
 	requester   Requester
 	reason      RemovalReason
 	contactInfo ContactInfo
@@ -22,7 +23,8 @@ type RemovalRequest struct {
 
 // NewRemovalRequest は新しい削除申請を作成する
 func NewRemovalRequest(
-	idolID idol.IdolID,
+	targetID string,
+	targetType TargetType,
 	requester Requester,
 	reason RemovalReason,
 	contactInfo ContactInfo,
@@ -33,7 +35,8 @@ func NewRemovalRequest(
 
 	return &RemovalRequest{
 		// IDは空（保存時に生成される）
-		idolID:      idolID,
+		targetID:    targetID,
+		targetType:  targetType,
 		requester:   requester,
 		reason:      reason,
 		contactInfo: contactInfo,
@@ -48,7 +51,8 @@ func NewRemovalRequest(
 // Reconstruct は既存の削除申請を再構築する（リポジトリから取得時に使用）
 func Reconstruct(
 	id RemovalID,
-	idolID idol.IdolID,
+	targetID string,
+	targetType TargetType,
 	requester Requester,
 	reason RemovalReason,
 	contactInfo ContactInfo,
@@ -60,7 +64,8 @@ func Reconstruct(
 ) *RemovalRequest {
 	return &RemovalRequest{
 		id:          id,
-		idolID:      idolID,
+		targetID:    targetID,
+		targetType:  targetType,
 		requester:   requester,
 		reason:      reason,
 		contactInfo: contactInfo,
@@ -77,9 +82,14 @@ func (r *RemovalRequest) ID() RemovalID {
 	return r.id
 }
 
-// IdolID は対象アイドルIDを返す
-func (r *RemovalRequest) IdolID() idol.IdolID {
-	return r.idolID
+// TargetID は対象IDを返す
+func (r *RemovalRequest) TargetID() string {
+	return r.targetID
+}
+
+// TargetType は対象タイプを返す
+func (r *RemovalRequest) TargetType() TargetType {
+	return r.targetType
 }
 
 // Requester は申請者情報を返す

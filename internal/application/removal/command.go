@@ -2,7 +2,8 @@ package removal
 
 // CreateRemovalRequestCommand は削除申請作成コマンド
 type CreateRemovalRequestCommand struct {
-	IdolID      string `json:"idol_id" binding:"required"`
+	TargetType  string `json:"target_type" binding:"required"`
+	TargetID    string `json:"target_id" binding:"required"`
 	Requester   string `json:"requester" binding:"required"`
 	Reason      string `json:"reason" binding:"required"`
 	ContactInfo string `json:"contact_info" binding:"required,email"`

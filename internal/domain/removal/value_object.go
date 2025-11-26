@@ -14,6 +14,25 @@ const (
 	RequesterThirdParty   RequesterType = "third_party"   // 第三者
 )
 
+// TargetType は削除対象のタイプ
+type TargetType string
+
+const (
+	TargetTypeIdol  TargetType = "idol"
+	TargetTypeGroup TargetType = "group"
+)
+
+// NewTargetType は新しいターゲットタイプを作成する
+func NewTargetType(targetType string) (TargetType, error) {
+	tt := TargetType(targetType)
+	switch tt {
+	case TargetTypeIdol, TargetTypeGroup:
+		return tt, nil
+	default:
+		return "", errors.New("無効なターゲットタイプです")
+	}
+}
+
 // Requester は申請者情報
 type Requester struct {
 	requesterType RequesterType

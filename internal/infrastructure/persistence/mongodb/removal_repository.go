@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kuro48/idol-api/internal/domain/idol"
 	"github.com/kuro48/idol-api/internal/domain/removal"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -27,7 +26,8 @@ func NewRemovalRepository(db *mongo.Database) *RemovalRepository {
 // removalDocument はMongoDBに保存するドキュメント構造
 type removalDocument struct {
 	ID          bson.ObjectID `bson:"_id,omitempty"`
-	IdolID      string        `bson:"idol_id"`
+	TargetID    string        `bson:"target_id"`
+	TargetType  string        `bson:"target_type"`
 	Requester   string        `bson:"requester"`
 	Reason      string        `bson:"reason"`
 	ContactInfo string        `bson:"contact_info"`
@@ -48,7 +48,8 @@ func toRemovalDocument(r *removal.RemovalRequest) *removalDocument {
 
 	return &removalDocument{
 		ID:          objectID,
-		IdolID:      r.IdolID().Value(),
+		TargetID:    r.TargetID(),
+		TargetType:  string(r.TargetType()),
 		Requester:   string(r.Requester().Type()),
 		Reason:      r.Reason().Value(),
 		ContactInfo: r.ContactInfo().Value(),
@@ -67,7 +68,7 @@ func toRemovalDomain(doc *removalDocument) (*removal.RemovalRequest, error) {
 		return nil, err
 	}
 
-	idolID, err := idol.NewIdolID(doc.IdolID)
+	targetType, err := removal.NewTargetType(doc.TargetType)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +105,8 @@ func toRemovalDomain(doc *removalDocument) (*removal.RemovalRequest, error) {
 
 	return removal.Reconstruct(
 		id,
-		idolID,
+		doc.TargetID,
+		targetType,
 		requester,
 		reason,
 		contactInfo,
@@ -216,7 +218,8 @@ func (r *RemovalRepository) Update(ctx context.Context, request *removal.Removal
 
 	updateDoc := bson.M{
 		"$set": bson.M{
-			"idol_id":      doc.IdolID,
+			"target_id":    doc.TargetID,
+			"target_type":  doc.TargetType,
 			"requester":    doc.Requester,
 			"reason":       doc.Reason,
 			"contact_info": doc.ContactInfo,

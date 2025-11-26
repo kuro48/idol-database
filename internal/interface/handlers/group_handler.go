@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kuro48/idol-api/internal/application/group"
+	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
 type GroupHandler struct {
@@ -12,31 +13,31 @@ type GroupHandler struct {
 }
 
 func NewGroupHandler(appService *group.ApplicationService) *GroupHandler {
-	return  &GroupHandler{
+	return &GroupHandler{
 		appService: appService,
 	}
 }
 
 type CreateGroupRequest struct {
-	Name string `json:"name" binding:"required"`
-	FormationDate  *string `json:"formation_date"`
-	DisbandDate    *string `json:"disband_date"`
+	Name          string  `json:"name" binding:"required,min=1,max=100"`
+	FormationDate *string `json:"formation_date" binding:"omitempty,datetime=2006-01-02"`
+	DisbandDate   *string `json:"disband_date" binding:"omitempty,datetime=2006-01-02"`
 }
 
 type UpdateGroupRequest struct {
-	Name           *string `json:"name"`
-	FormationDate  *string `json:"formation_date"`
-	DisbandDate    *string `json:"disband_date"`
+	Name          *string `json:"name" binding:"omitempty,min=1,max=100"`
+	FormationDate *string `json:"formation_date" binding:"omitempty,datetime=2006-01-02"`
+	DisbandDate   *string `json:"disband_date" binding:"omitempty,datetime=2006-01-02"`
 }
 
 func (h *GroupHandler) CreateGroup(c *gin.Context) {
 	var req CreateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
 		return
 	}
 
-	cmd := group.CreateGroupCommand {
+	cmd := group.CreateGroupCommand{
 		Name:          req.Name,
 		FormationDate: req.FormationDate,
 		DisbandDate:   req.DisbandDate,
@@ -44,7 +45,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 
 	dto, err := h.appService.CreateGroup(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの作成に失敗しました"))
 		return
 	}
 
@@ -53,11 +54,16 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 
 func (h *GroupHandler) GetGroup(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
+
 	query := group.GetGroupQuery{ID: id}
 
 	dto, err := h.appService.GetGroup(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("グループ"))
 		return
 	}
 
@@ -69,7 +75,7 @@ func (h *GroupHandler) ListGroup(c *gin.Context) {
 
 	dtos, err := h.appService.ListGroup(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループ一覧の取得に失敗しました"))
 		return
 	}
 
@@ -78,10 +84,14 @@ func (h *GroupHandler) ListGroup(c *gin.Context) {
 
 func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
 
 	var req UpdateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
 		return
 	}
 
@@ -94,7 +104,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 
 	err := h.appService.UpdateGroup(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの更新に失敗しました"))
 		return
 	}
 
@@ -104,15 +114,18 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 // DeleteGroup はグループを削除する
 func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
 
 	cmd := group.DeleteGroupCommand{ID: id}
 
 	err := h.appService.DeleteGroup(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの削除に失敗しました"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "グループが削除されました"})
+	c.JSON(http.StatusNoContent, nil)
 }
-
