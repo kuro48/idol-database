@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kuro48/idol-api/internal/application/idol"
+	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
 // IdolHandler はDDD構造を使用したアイドルハンドラー
@@ -21,21 +22,21 @@ func NewIdolHandler(appService *idol.ApplicationService) *IdolHandler {
 
 // CreateIdolRequest はアイドル作成リクエスト
 type CreateIdolRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Birthdate   string `json:"birthdate"`
+	Name      string `json:"name" binding:"required,min=1,max=100"`
+	Birthdate string `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
 }
 
 // UpdateIdolRequest はアイドル更新リクエスト
 type UpdateIdolRequest struct {
-	Name        *string `json:"name"`
-	Birthdate   *string `json:"birthdate"`
+	Name      *string `json:"name" binding:"omitempty,min=1,max=100"`
+	Birthdate *string `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
 }
 
 // CreateIdol はアイドルを作成する
 func (h *IdolHandler) CreateIdol(c *gin.Context) {
 	var req CreateIdolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
 		return
 	}
 
@@ -46,7 +47,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 
 	dto, err := h.appService.CreateIdol(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの作成に失敗しました"))
 		return
 	}
 
@@ -56,12 +57,16 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 // GetIdol はアイドルを取得する
 func (h *IdolHandler) GetIdol(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
 
 	query := idol.GetIdolQuery{ID: id}
 
 	dto, err := h.appService.GetIdol(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("アイドル"))
 		return
 	}
 
@@ -74,7 +79,7 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 
 	dtos, err := h.appService.ListIdols(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドル一覧の取得に失敗しました"))
 		return
 	}
 
@@ -84,10 +89,14 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 // UpdateIdol はアイドルを更新する
 func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
 
 	var req UpdateIdolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
 		return
 	}
 
@@ -99,7 +108,7 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 
 	err := h.appService.UpdateIdol(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの更新に失敗しました"))
 		return
 	}
 
@@ -109,14 +118,18 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 // DeleteIdol はアイドルを削除する
 func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
 
 	cmd := idol.DeleteIdolCommand{ID: id}
 
 	err := h.appService.DeleteIdol(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの削除に失敗しました"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "アイドルが削除されました"})
+	c.JSON(http.StatusNoContent, nil)
 }

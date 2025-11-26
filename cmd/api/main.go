@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kuro48/idol-api/internal/application/group"
 	"github.com/kuro48/idol-api/internal/application/idol"
@@ -12,6 +13,7 @@ import (
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
+	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
 func main() {
@@ -39,16 +41,39 @@ func main() {
 
 	// アプリケーション層: アプリケーションサービス
 	idolAppService := idol.NewApplicationService(idolRepo)
-	removalAppService := removal.NewApplicationService(removalRepo, idolRepo)
+	removalAppService := removal.NewApplicationService(removalRepo, idolRepo, groupRepo)
 	groupAppService := group.NewApplicationService(groupRepo)
 
 	// プレゼンテーション層: ハンドラー
 	idolHandler := handlers.NewIdolHandler(idolAppService)
 	removalHandler := handlers.NewRemovalHandler(removalAppService)
 	groupHandler := handlers.NewGroupHandler(groupAppService)
+	termHandler := handlers.NewTermHandler("./static")
 
-	// Ginルーターのセットアップ
-	router := gin.Default()
+	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
+	router := gin.New()
+
+	// ミドルウェア設定（順序重要）
+	router.Use(gin.Recovery())                   // パニック回復
+	router.Use(middleware.Logger())              // 構造化ログ
+	router.Use(middleware.ErrorHandler())        // エラーハンドリング
+
+	// CORS設定
+	corsConfig := cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:8080"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}
+	router.Use(cors.New(corsConfig))
+
+	// セキュリティヘッダー設定
+	router.Use(middleware.SecurityHeaders())
+
+	// レート制限設定（10リクエスト/秒、バースト20）
+	rateLimiter := middleware.NewRateLimiter(10, 20)
+	router.Use(rateLimiter.Limit())
 
 	// ヘルスチェックエンドポイント
 	router.GET("/health", func(c *gin.Context) {
@@ -85,6 +110,12 @@ func main() {
 			groups.GET("/:id", groupHandler.GetGroup)
 			groups.PUT("/:id", groupHandler.UpdateGroup)
 			groups.DELETE("/:id", groupHandler.DeleteGroup)
+		}
+
+		terms := v1.Group("/terms")
+		{
+			terms.GET("/service", termHandler.ShowTermsOfService)
+			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
 		}
 	}
 

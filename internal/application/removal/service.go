@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kuro48/idol-api/internal/domain/group"
 	"github.com/kuro48/idol-api/internal/domain/idol"
 	"github.com/kuro48/idol-api/internal/domain/removal"
 )
@@ -12,28 +13,50 @@ import (
 type ApplicationService struct {
 	removalRepo removal.Repository
 	idolRepo    idol.Repository
+	groupRepo   group.Repository
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
-func NewApplicationService(removalRepo removal.Repository, idolRepo idol.Repository) *ApplicationService {
+func NewApplicationService(
+	removalRepo removal.Repository,
+	idolRepo idol.Repository,
+	groupRepo group.Repository,
+) *ApplicationService {
 	return &ApplicationService{
 		removalRepo: removalRepo,
 		idolRepo:    idolRepo,
+		groupRepo:   groupRepo,
 	}
 }
 
 // CreateRemovalRequest は新しい削除申請を作成する
 func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalRequestCommand) (*RemovalRequestDTO, error) {
-	// アイドルIDの検証
-	idolID, err := idol.NewIdolID(cmd.IdolID)
+	// ターゲットタイプの検証
+	targetType, err := removal.NewTargetType(cmd.TargetType)
 	if err != nil {
-		return nil, fmt.Errorf("無効なアイドルIDです: %w", err)
+		return nil, fmt.Errorf("無効なターゲットタイプです: %w", err)
 	}
 
-	// アイドルの存在確認
-	_, err = s.idolRepo.FindByID(ctx, idolID)
-	if err != nil {
-		return nil, fmt.Errorf("指定されたアイドルが見つかりません: %w", err)
+	// ターゲットの存在確認
+	switch targetType {
+	case removal.TargetTypeIdol:
+		idolID, err := idol.NewIdolID(cmd.TargetID)
+		if err != nil {
+			return nil, fmt.Errorf("無効なアイドルIDです: %w", err)
+		}
+		_, err = s.idolRepo.FindByID(ctx, idolID)
+		if err != nil {
+			return nil, fmt.Errorf("指定されたアイドルが見つかりません: %w", err)
+		}
+	case removal.TargetTypeGroup:
+		groupID, err := group.NewGroupID(cmd.TargetID)
+		if err != nil {
+			return nil, fmt.Errorf("無効なグループIDです: %w", err)
+		}
+		_, err = s.groupRepo.FindByID(ctx, groupID)
+		if err != nil {
+			return nil, fmt.Errorf("指定されたグループが見つかりません: %w", err)
+		}
 	}
 
 	// 申請者情報の作成
@@ -68,7 +91,8 @@ func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, cmd Creat
 
 	// 削除申請エンティティの作成
 	request := removal.NewRemovalRequest(
-		idolID,
+		cmd.TargetID,
+		targetType,
 		requester,
 		reason,
 		contactInfo,
@@ -140,6 +164,26 @@ func (s *ApplicationService) UpdateStatus(ctx context.Context, cmd UpdateStatusC
 		if err := request.Approve(); err != nil {
 			return nil, fmt.Errorf("承認に失敗しました: %w", err)
 		}
+
+		// 承認時は対象データを物理削除
+		switch request.TargetType() {
+		case removal.TargetTypeIdol:
+			idolID, err := idol.NewIdolID(request.TargetID())
+			if err != nil {
+				return nil, fmt.Errorf("アイドルIDの変換に失敗しました: %w", err)
+			}
+			if err := s.idolRepo.Delete(ctx, idolID); err != nil {
+				return nil, fmt.Errorf("アイドルの削除に失敗しました: %w", err)
+			}
+		case removal.TargetTypeGroup:
+			groupID, err := group.NewGroupID(request.TargetID())
+			if err != nil {
+				return nil, fmt.Errorf("グループIDの変換に失敗しました: %w", err)
+			}
+			if err := s.groupRepo.Delete(ctx, groupID); err != nil {
+				return nil, fmt.Errorf("グループの削除に失敗しました: %w", err)
+			}
+		}
 	case "rejected":
 		if err := request.Reject(); err != nil {
 			return nil, fmt.Errorf("却下に失敗しました: %w", err)
@@ -160,7 +204,8 @@ func (s *ApplicationService) UpdateStatus(ctx context.Context, cmd UpdateStatusC
 func toDTO(request *removal.RemovalRequest) *RemovalRequestDTO {
 	return &RemovalRequestDTO{
 		ID:          request.ID().Value(),
-		IdolID:      request.IdolID().Value(),
+		TargetID:    request.TargetID(),
+		TargetType:  string(request.TargetType()),
 		Requester:   string(request.Requester().Type()),
 		Reason:      request.Reason().Value(),
 		ContactInfo: request.ContactInfo().Value(),
