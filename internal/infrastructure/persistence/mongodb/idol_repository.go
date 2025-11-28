@@ -280,3 +280,53 @@ func (r *IdolRepository) Count(ctx context.Context, criteria idol.SearchCriteria
     filter := buildMongoFilter(criteria)
     return r.collection.CountDocuments(ctx, filter)
 }
+
+// EnsureIndexes は検索パフォーマンス向上のためのインデックスを作成
+func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
+    indexes := []mongo.IndexModel{
+        // 名前インデックス（部分一致検索用）
+        {
+            Keys: bson.D{
+                {Key: "name", Value: 1},
+            },
+        },
+        // 国籍インデックス（フィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "nationality", Value: 1},
+            },
+        },
+        // グループIDインデックス（フィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "group_id", Value: 1},
+            },
+        },
+        // 生年月日インデックス（年齢範囲検索・ソート用）
+        {
+            Keys: bson.D{
+                {Key: "birthdate", Value: 1},
+            },
+        },
+        // 作成日時インデックス（デフォルトソート用）
+        {
+            Keys: bson.D{
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス（国籍＋生年月日での検索最適化）
+        {
+            Keys: bson.D{
+                {Key: "nationality", Value: 1},
+                {Key: "birthdate", Value: 1},
+            },
+        },
+    }
+
+    _, err := r.collection.Indexes().CreateMany(ctx, indexes)
+    if err != nil {
+        return fmt.Errorf("インデックス作成エラー: %w", err)
+    }
+
+    return nil
+}

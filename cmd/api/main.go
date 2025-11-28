@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -38,6 +39,14 @@ func main() {
 	idolRepo := mongodb.NewIdolRepository(db.Database)
 	removalRepo := mongodb.NewRemovalRepository(db.Database)
 	groupRepo := mongodb.NewGroupRepository(db.Database)
+
+	// MongoDBインデックスの作成
+	ctx := context.Background()
+	if err := idolRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  インデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ MongoDBインデックスを作成しました")
+	}
 
 	// アプリケーション層: アプリケーションサービス
 	idolAppService := idol.NewApplicationService(idolRepo)
