@@ -9,6 +9,7 @@ import (
 	"github.com/kuro48/idol-api/internal/domain/idol"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // IdolRepository はMongoDBを使用したアイドルリポジトリの実装
@@ -189,4 +190,93 @@ func (r *IdolRepository) ExistsByName(ctx context.Context, name idol.IdolName) (
 	}
 
 	return count > 0, nil
+}
+
+func (r *IdolRepository) Search(ctx context.Context, criteria idol.SearchCriteria) ([]*idol.Idol, error) {
+    filter := buildMongoFilter(criteria)
+
+    opts := options.Find()
+
+    // ソート設定
+    sortOrder := 1
+    if criteria.Order == "desc" {
+        sortOrder = -1
+    }
+    opts.SetSort(bson.D{{Key: criteria.Sort, Value: sortOrder}})
+
+    // ページネーション
+    opts.SetSkip(int64(criteria.Offset))
+    opts.SetLimit(int64(criteria.Limit))
+
+    cursor, err := r.collection.Find(ctx, filter, opts)
+    if err != nil {
+        return nil, err
+    }
+    defer cursor.Close(ctx)
+
+    var idols []*idol.Idol
+    if err := cursor.All(ctx, &idols); err != nil {
+        return nil, err
+    }
+
+    return idols, nil
+}
+
+func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
+    filter := bson.M{}
+
+    // 名前検索（部分一致）
+    if criteria.Name != nil {
+        filter["name"] = bson.M{"$regex": *criteria.Name, "$options": "i"}
+    }
+
+    // 国籍（完全一致）
+    if criteria.Nationality != nil {
+        filter["nationality"] = *criteria.Nationality
+    }
+
+    // グループID
+    if criteria.GroupID != nil {
+        filter["group_id"] = *criteria.GroupID
+    }
+
+    // 年齢範囲（生年月日から逆算）
+    if criteria.AgeMin != nil || criteria.AgeMax != nil {
+        now := time.Now()
+        birthdateFilter := bson.M{}
+
+        if criteria.AgeMax != nil {
+            // AgeMax歳より若い → 生年月日がこれより後
+            minBirthdate := now.AddDate(-*criteria.AgeMax-1, 0, 0)
+            birthdateFilter["$gte"] = minBirthdate
+        }
+        if criteria.AgeMin != nil {
+            // AgeMin歳以上 → 生年月日がこれより前
+            maxBirthdate := now.AddDate(-*criteria.AgeMin, 0, 0)
+            birthdateFilter["$lte"] = maxBirthdate
+        }
+
+        if len(birthdateFilter) > 0 {
+            filter["birthdate"] = birthdateFilter
+        }
+    }
+
+    // 生年月日範囲
+    if criteria.BirthdateFrom != nil || criteria.BirthdateTo != nil {
+        birthdateFilter := bson.M{}
+        if criteria.BirthdateFrom != nil {
+            birthdateFilter["$gte"] = *criteria.BirthdateFrom
+        }
+        if criteria.BirthdateTo != nil {
+            birthdateFilter["$lte"] = *criteria.BirthdateTo
+        }
+        filter["birthdate"] = birthdateFilter
+    }
+
+    return filter
+}
+
+func (r *IdolRepository) Count(ctx context.Context, criteria idol.SearchCriteria) (int64, error) {
+    filter := buildMongoFilter(criteria)
+    return r.collection.CountDocuments(ctx, filter)
 }
