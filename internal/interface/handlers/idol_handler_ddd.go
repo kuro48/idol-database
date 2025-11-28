@@ -73,17 +73,33 @@ func (h *IdolHandler) GetIdol(c *gin.Context) {
 	c.JSON(http.StatusOK, dto)
 }
 
-// ListIdols はアイドル一覧を取得する
+// ListIdols はアイドル一覧を取得する（検索機能付き）
 func (h *IdolHandler) ListIdols(c *gin.Context) {
-	query := idol.ListIdolsQuery{}
+	var query idol.ListIdolsQuery
 
-	dtos, err := h.appService.ListIdols(c.Request.Context(), query)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドル一覧の取得に失敗しました"))
+	// クエリパラメータをバインド
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("無効なクエリパラメータです: "+err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos)
+	// デフォルト値を適用
+	query.ApplyDefaults()
+
+	// バリデーション
+	if err := query.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
+		return
+	}
+
+	// 検索実行
+	result, err := h.appService.SearchIdols(c.Request.Context(), query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("検索に失敗しました"))
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // UpdateIdol はアイドルを更新する

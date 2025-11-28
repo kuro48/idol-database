@@ -3,6 +3,8 @@ package idol
 import (
 	"context"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/idol"
 )
@@ -148,6 +150,85 @@ func (s *ApplicationService) DeleteIdol(ctx context.Context, cmd DeleteIdolComma
 	}
 
 	return nil
+}
+
+// SearchIdols は条件を指定してアイドルを検索する
+func (s *ApplicationService) SearchIdols(ctx context.Context, query ListIdolsQuery) (*SearchResult, error) {
+	// SearchCriteriaに変換
+	criteria := s.queryToCriteria(query)
+
+	// 総件数を取得
+	total, err := s.repository.Count(ctx, criteria)
+	if err != nil {
+		return nil, fmt.Errorf("件数取得エラー: %w", err)
+	}
+
+	// 検索実行
+	idols, err := s.repository.Search(ctx, criteria)
+	if err != nil {
+		return nil, fmt.Errorf("検索エラー: %w", err)
+	}
+
+	// DTOに変換
+	dtos := make([]*IdolDTO, 0, len(idols))
+	for _, i := range idols {
+		dtos = append(dtos, s.toDTO(i))
+	}
+
+	// ページネーション情報を計算
+	meta := s.calculatePaginationMeta(total, *query.Page, *query.Limit)
+
+	return &SearchResult{
+		Data:  dtos,
+		Meta:  meta,
+		Links: nil, // リンクは後で実装
+	}, nil
+}
+
+// queryToCriteria はListIdolsQueryをSearchCriteriaに変換
+func (s *ApplicationService) queryToCriteria(query ListIdolsQuery) idol.SearchCriteria {
+	criteria := idol.SearchCriteria{
+		Name:        query.Name,
+		Nationality: query.Nationality,
+		GroupID:     query.GroupID,
+		AgeMin:      query.AgeMin,
+		AgeMax:      query.AgeMax,
+		Sort:        *query.Sort,
+		Order:       *query.Order,
+		Offset:      (*query.Page - 1) * *query.Limit,
+		Limit:       *query.Limit,
+	}
+
+	// 生年月日範囲の変換（YYYY-MM-DDからtime.Timeへ）
+	if query.BirthdateFrom != nil {
+		if t, err := time.Parse("2006-01-02", *query.BirthdateFrom); err == nil {
+			criteria.BirthdateFrom = &t
+		}
+	}
+	if query.BirthdateTo != nil {
+		if t, err := time.Parse("2006-01-02", *query.BirthdateTo); err == nil {
+			criteria.BirthdateTo = &t
+		}
+	}
+
+	return criteria
+}
+
+// calculatePaginationMeta はページネーション情報を計算
+func (s *ApplicationService) calculatePaginationMeta(total int64, page, perPage int) *PaginationMeta {
+	totalPages := int(math.Ceil(float64(total) / float64(perPage)))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	return &PaginationMeta{
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
 }
 
 // toDTO はドメインモデルをDTOに変換する
