@@ -10,6 +10,7 @@ type Idol struct {
 	id          IdolID
 	name        IdolName
 	birthdate   *Birthdate
+	agencyID    *string    // 所属事務所ID（オプショナル）
 	createdAt   time.Time
 	updatedAt   time.Time
 }
@@ -34,6 +35,7 @@ func Reconstruct(
 	id IdolID,
 	name IdolName,
 	birthdate *Birthdate,
+	agencyID *string,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Idol {
@@ -41,6 +43,7 @@ func Reconstruct(
 		id:          id,
 		name:        name,
 		birthdate:   birthdate,
+		agencyID:    agencyID,
 		createdAt:   createdAt,
 		updatedAt:   updatedAt,
 	}
@@ -58,6 +61,10 @@ func (i *Idol) Name() IdolName {
 
 func (i *Idol) Birthdate() *Birthdate {
 	return i.birthdate
+}
+
+func (i *Idol) AgencyID() *string {
+	return i.agencyID
 }
 
 func (i *Idol) CreatedAt() time.Time {
@@ -83,6 +90,12 @@ func (i *Idol) ChangeName(name IdolName) error {
 // UpdateBirthdate は生年月日を更新する
 func (i *Idol) UpdateBirthdate(birthdate *Birthdate) {
 	i.birthdate = birthdate
+	i.updatedAt = time.Now()
+}
+
+// UpdateAgency は所属事務所を更新する
+func (i *Idol) UpdateAgency(agencyID *string) {
+	i.agencyID = agencyID
 	i.updatedAt = time.Now()
 }
 
