@@ -51,7 +51,7 @@ func main() {
 	}
 
 	// アプリケーション層: アプリケーションサービス
-	idolAppService := idol.NewApplicationService(idolRepo)
+	idolAppService := idol.NewApplicationService(idolRepo, agencyRepo)
 	removalAppService := removal.NewApplicationService(removalRepo, idolRepo, groupRepo)
 	groupAppService := group.NewApplicationService(groupRepo)
 	agencyAppService := agency.NewApplicationService(agencyRepo)

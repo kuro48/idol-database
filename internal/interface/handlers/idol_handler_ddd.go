@@ -22,14 +22,16 @@ func NewIdolHandler(appService *idol.ApplicationService) *IdolHandler {
 
 // CreateIdolRequest はアイドル作成リクエスト
 type CreateIdolRequest struct {
-	Name      string `json:"name" binding:"required,min=1,max=100"`
-	Birthdate string `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
+	Name      string  `json:"name" binding:"required,min=1,max=100"`
+	Birthdate string  `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
+	AgencyID  *string `json:"agency_id" binding:"omitempty"`
 }
 
 // UpdateIdolRequest はアイドル更新リクエスト
 type UpdateIdolRequest struct {
 	Name      *string `json:"name" binding:"omitempty,min=1,max=100"`
 	Birthdate *string `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
+	AgencyID  *string `json:"agency_id" binding:"omitempty"`
 }
 
 // CreateIdol はアイドルを作成する
@@ -43,6 +45,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 	cmd := idol.CreateIdolCommand{
 		Name:      req.Name,
 		Birthdate: &req.Birthdate,
+		AgencyID:  req.AgencyID,
 	}
 
 	dto, err := h.appService.CreateIdol(c.Request.Context(), cmd)
@@ -120,6 +123,7 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 		ID:        id,
 		Name:      req.Name,
 		Birthdate: req.Birthdate,
+		AgencyID:  req.AgencyID,
 	}
 
 	err := h.appService.UpdateIdol(c.Request.Context(), cmd)

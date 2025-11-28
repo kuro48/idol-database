@@ -6,23 +6,27 @@ import (
 	"math"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/kuro48/idol-api/internal/domain/agency"
 	"github.com/kuro48/idol-api/internal/domain/idol"
 )
 
 // ApplicationService はアイドルアプリケーションサービス
 type ApplicationService struct {
-	repository    idol.Repository
-	domainService *idol.DomainService
+	repository       idol.Repository
+	domainService    *idol.DomainService
+	agencyRepository agency.Repository
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
-func NewApplicationService(repository idol.Repository) *ApplicationService {
+func NewApplicationService(repository idol.Repository, agencyRepository agency.Repository) *ApplicationService {
 	return &ApplicationService{
-		repository:    repository,
-		domainService: idol.NewDomainService(repository),
+		repository:       repository,
+		domainService:    idol.NewDomainService(repository),
+		agencyRepository: agencyRepository,
 	}
 }
 
@@ -54,6 +58,11 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, cmd CreateIdolComma
 		return nil, fmt.Errorf("アイドルの生成エラー: %w", err)
 	}
 
+	// 事務所IDの設定
+	if cmd.AgencyID != nil {
+		newIdol.UpdateAgency(cmd.AgencyID)
+	}
+
 	// 保存
 	if err := s.repository.Save(ctx, newIdol); err != nil {
 		return nil, fmt.Errorf("アイドルの保存エラー: %w", err)
@@ -74,7 +83,17 @@ func (s *ApplicationService) GetIdol(ctx context.Context, query GetIdolQuery) (*
 		return nil, fmt.Errorf("アイドルの取得エラー: %w", err)
 	}
 
-	return s.toDTO(foundIdol), nil
+	dto := s.toDTO(foundIdol)
+
+	// includeパラメータの処理
+	if query.Include != nil {
+		includes := strings.Split(*query.Include, ",")
+		if err := s.loadIncludes(ctx, dto, includes); err != nil {
+			return nil, fmt.Errorf("関連データの読み込みエラー: %w", err)
+		}
+	}
+
+	return dto, nil
 }
 
 // ListIdols はアイドル一覧を取得する
@@ -131,6 +150,10 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, cmd UpdateIdolComma
 			return fmt.Errorf("生年月日の生成エラー: %w", err)
 		}
 		existingIdol.UpdateBirthdate(&bd)
+	}
+
+	if cmd.AgencyID != nil {
+		existingIdol.UpdateAgency(cmd.AgencyID)
 	}
 
 	// 更新の保存
@@ -196,6 +219,16 @@ func (s *ApplicationService) SearchIdols(ctx context.Context, query ListIdolsQue
 		dtos = append(dtos, s.toDTO(i))
 	}
 
+	// includeパラメータの処理
+	if query.Include != nil {
+		includes := strings.Split(*query.Include, ",")
+		for _, dto := range dtos {
+			if err := s.loadIncludes(ctx, dto, includes); err != nil {
+				return nil, fmt.Errorf("関連データの読み込みエラー: %w", err)
+			}
+		}
+	}
+
 	// ページネーション情報を計算
 	meta := s.calculatePaginationMeta(total, *query.Page, *query.Limit)
 
@@ -215,6 +248,7 @@ func (s *ApplicationService) queryToCriteria(query ListIdolsQuery) idol.SearchCr
 		Name:        query.Name,
 		Nationality: query.Nationality,
 		GroupID:     query.GroupID,
+		AgencyID:    query.AgencyID,
 		AgeMin:      query.AgeMin,
 		AgeMax:      query.AgeMax,
 		Sort:        *query.Sort,
@@ -274,6 +308,12 @@ func (s *ApplicationService) generatePaginationLinks(query ListIdolsQuery, total
 		if query.GroupID != nil {
 			params.Set("group_id", *query.GroupID)
 		}
+		if query.AgencyID != nil {
+			params.Set("agency_id", *query.AgencyID)
+		}
+		if query.Include != nil {
+			params.Set("include", *query.Include)
+		}
 		if query.AgeMin != nil {
 			params.Set("age_min", strconv.Itoa(*query.AgeMin))
 		}
@@ -316,6 +356,37 @@ func (s *ApplicationService) generatePaginationLinks(query ListIdolsQuery, total
 	return links
 }
 
+// loadIncludes は関連データを読み込んでDTOに展開する
+func (s *ApplicationService) loadIncludes(ctx context.Context, dto *IdolDTO, includes []string) error {
+	for _, include := range includes {
+		switch strings.TrimSpace(include) {
+		case "agency":
+			if dto.AgencyID != nil {
+				agencyID, err := agency.NewAgencyID(*dto.AgencyID)
+				if err != nil {
+					return fmt.Errorf("事務所IDの生成エラー: %w", err)
+				}
+				foundAgency, err := s.agencyRepository.FindByID(ctx, agencyID)
+				if err != nil {
+					// 事務所が見つからない場合はnilのまま（エラーにしない）
+					continue
+				}
+				// Agencyを簡易DTOに変換して格納
+				dto.Agency = map[string]interface{}{
+					"id":               foundAgency.ID().Value(),
+					"name":             foundAgency.Name().Value(),
+					"name_en":          foundAgency.NameEn(),
+					"country":          foundAgency.Country().Value(),
+					"official_website": foundAgency.OfficialWebsite(),
+					"logo_url":         foundAgency.LogoURL(),
+				}
+			}
+		// 将来的に他のinclude対象（groups, events等）を追加可能
+		}
+	}
+	return nil
+}
+
 // toDTO はドメインモデルをDTOに変換する
 func (s *ApplicationService) toDTO(i *idol.Idol) *IdolDTO {
 	var birthdateStr string
@@ -333,6 +404,7 @@ func (s *ApplicationService) toDTO(i *idol.Idol) *IdolDTO {
 		Name:        i.Name().Value(),
 		Birthdate:   birthdateStr,
 		Age:         age,
+		AgencyID:    i.AgencyID(),
 		CreatedAt:   i.CreatedAt().Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   i.UpdatedAt().Format("2006-01-02T15:04:05Z07:00"),
 	}

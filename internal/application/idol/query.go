@@ -4,17 +4,20 @@ import "errors"
 
 // GetIdolQuery はアイドル取得クエリ
 type GetIdolQuery struct {
-	ID string
+	ID      string
+	Include *string `form:"include"` // カンマ区切り: "agency,groups"
 }
 
 // IdolDTO はアイドルのデータ転送オブジェクト
 type IdolDTO struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Birthdate   string `json:"birthdate,omitempty"`
-	Age         *int   `json:"age,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Birthdate   string      `json:"birthdate,omitempty"`
+	Age         *int        `json:"age,omitempty"`
+	AgencyID    *string     `json:"agency_id,omitempty"`
+	Agency      interface{} `json:"agency,omitempty"` // include=agency時に展開
+	CreatedAt   string      `json:"created_at"`
+	UpdatedAt   string      `json:"updated_at"`
 }
 
 // ListIdolsQuery はアイドル一覧取得クエリ
@@ -23,7 +26,7 @@ type ListIdolsQuery struct {
     Name        *string `form:"name"`         // 部分一致検索
     Nationality *string `form:"nationality"`  // 完全一致
     GroupID     *string `form:"group_id"`     // グループIDフィルター
-    AgencyID    *string `form:"agency_id"`    // 事務所IDフィルター（後で実装）
+    AgencyID    *string `form:"agency_id"`    // 事務所IDフィルター
 
     // 年齢範囲
     AgeMin      *int    `form:"age_min"`
@@ -35,6 +38,9 @@ type ListIdolsQuery struct {
 
     // タグ（将来実装）
     Tags        []string `form:"tags"`
+
+    // 関連データの読み込み
+    Include     *string `form:"include"` // カンマ区切り: "agency,groups"
 
     // ソート
     Sort        *string `form:"sort"`   // name, birthdate, created_at

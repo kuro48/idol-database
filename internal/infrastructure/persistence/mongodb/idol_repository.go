@@ -29,6 +29,7 @@ type idolDocument struct {
 	ID          bson.ObjectID `bson:"_id,omitempty"`
 	Name        string        `bson:"name"`
 	Birthdate   time.Time     `bson:"birthdate"`
+	AgencyID    *string       `bson:"agency_id,omitempty"`
 	CreatedAt   time.Time     `bson:"created_at"`
 	UpdatedAt   time.Time     `bson:"updated_at"`
 }
@@ -42,6 +43,7 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 		ID:          objectID,
 		Name:        i.Name().Value(),
 		Birthdate:   i.Birthdate().Value(),
+		AgencyID:    i.AgencyID(),
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
 	}
@@ -66,8 +68,7 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		return nil, err
 	}
 
-
-	return idol.Reconstruct(id, name, &birthdate, doc.CreatedAt, doc.UpdatedAt), nil
+	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // Save は新しいアイドルを保存する
@@ -147,6 +148,7 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 		"$set": bson.M{
 			"name":        doc.Name,
 			"birthdate":   doc.Birthdate,
+			"agency_id":   doc.AgencyID,
 			"updated_at":  doc.UpdatedAt,
 		},
 	}
@@ -190,6 +192,31 @@ func (r *IdolRepository) ExistsByName(ctx context.Context, name idol.IdolName) (
 	}
 
 	return count > 0, nil
+}
+
+// FindByAgencyID は事務所IDでアイドルを検索する
+func (r *IdolRepository) FindByAgencyID(ctx context.Context, agencyID string) ([]*idol.Idol, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"agency_id": agencyID})
+	if err != nil {
+		return nil, fmt.Errorf("事務所IDによるアイドル検索エラー: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var docs []idolDocument
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, fmt.Errorf("データ変換エラー: %w", err)
+	}
+
+	idols := make([]*idol.Idol, 0, len(docs))
+	for _, doc := range docs {
+		i, err := toDomain(&doc)
+		if err != nil {
+			return nil, fmt.Errorf("ドメインモデル変換エラー: %w", err)
+		}
+		idols = append(idols, i)
+	}
+
+	return idols, nil
 }
 
 func (r *IdolRepository) Search(ctx context.Context, criteria idol.SearchCriteria) ([]*idol.Idol, error) {
@@ -238,6 +265,11 @@ func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
     // グループID
     if criteria.GroupID != nil {
         filter["group_id"] = *criteria.GroupID
+    }
+
+    // 事務所ID
+    if criteria.AgencyID != nil {
+        filter["agency_id"] = *criteria.AgencyID
     }
 
     // 年齢範囲（生年月日から逆算）
@@ -300,6 +332,12 @@ func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
         {
             Keys: bson.D{
                 {Key: "group_id", Value: 1},
+            },
+        },
+        // 事務所IDインデックス（フィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "agency_id", Value: 1},
             },
         },
         // 生年月日インデックス（年齢範囲検索・ソート用）
