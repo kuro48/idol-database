@@ -1,11 +1,7 @@
-version: '3.8'
-
 services:
   mongodb:
-    build:
-      context: ./
-      dockerfile: .docker/Dockerfile
-    container_name: mongodb
+    image: mongo:6
+    container_name: idol-api-mongodb
     restart: always
     ports:
       - '27017:27017'
@@ -16,6 +12,30 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: idol-api
+    restart: always
+    ports:
+      - '27018:27018'
+    networks:
+      - app_network
+    environment:
+      MONGODB_URI: mongodb://admin:password@mongodb:27017
+      MONGODB_DATABASE: idol_database
+      SERVER_PORT: 27018
+      GIN_MODE: debug
+    depends_on:
+      mongodb:
+        condition: service_healthy
 
 volumes:
   mongodb_data:
