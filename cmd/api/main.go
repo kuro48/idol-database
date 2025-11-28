@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/kuro48/idol-api/internal/application/agency"
 	"github.com/kuro48/idol-api/internal/application/group"
 	"github.com/kuro48/idol-api/internal/application/idol"
 	"github.com/kuro48/idol-api/internal/application/removal"
@@ -39,6 +40,7 @@ func main() {
 	idolRepo := mongodb.NewIdolRepository(db.Database)
 	removalRepo := mongodb.NewRemovalRepository(db.Database)
 	groupRepo := mongodb.NewGroupRepository(db.Database)
+	agencyRepo := mongodb.NewAgencyRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -52,11 +54,13 @@ func main() {
 	idolAppService := idol.NewApplicationService(idolRepo)
 	removalAppService := removal.NewApplicationService(removalRepo, idolRepo, groupRepo)
 	groupAppService := group.NewApplicationService(groupRepo)
+	agencyAppService := agency.NewApplicationService(agencyRepo)
 
 	// プレゼンテーション層: ハンドラー
 	idolHandler := handlers.NewIdolHandler(idolAppService)
 	removalHandler := handlers.NewRemovalHandler(removalAppService)
 	groupHandler := handlers.NewGroupHandler(groupAppService)
+	agencyHandler := handlers.NewAgencyHandler(agencyAppService)
 	termHandler := handlers.NewTermHandler("./static")
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
@@ -119,6 +123,15 @@ func main() {
 			groups.GET("/:id", groupHandler.GetGroup)
 			groups.PUT("/:id", groupHandler.UpdateGroup)
 			groups.DELETE("/:id", groupHandler.DeleteGroup)
+		}
+
+		agencies := v1.Group("/agencies")
+		{
+			agencies.POST("", agencyHandler.CreateAgency)
+			agencies.GET("", agencyHandler.ListAgencies)
+			agencies.GET("/:id", agencyHandler.GetAgency)
+			agencies.PUT("/:id", agencyHandler.UpdateAgency)
+			agencies.DELETE("/:id", agencyHandler.DeleteAgency)
 		}
 
 		terms := v1.Group("/terms")
