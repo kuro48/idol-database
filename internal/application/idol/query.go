@@ -94,3 +94,28 @@ func contains(slice []string, item string) bool {
     }
     return false
 }
+
+// SearchResult は検索結果のレスポンス構造
+type SearchResult struct {
+    Data  []*IdolDTO       `json:"data"`
+    Meta  *PaginationMeta  `json:"meta"`
+    Links *PaginationLinks `json:"links,omitempty"`
+}
+
+// PaginationMeta はページネーション情報
+type PaginationMeta struct {
+    Total      int64 `json:"total"`
+    Page       int   `json:"page"`
+    PerPage    int   `json:"per_page"`
+    TotalPages int   `json:"total_pages"`
+    HasNext    bool  `json:"has_next"`
+    HasPrev    bool  `json:"has_prev"`
+}
+
+// PaginationLinks はページネーションリンク
+type PaginationLinks struct {
+    First string  `json:"first"`
+    Prev  *string `json:"prev"`
+    Next  *string `json:"next"`
+    Last  string  `json:"last"`
+}
