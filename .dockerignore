@@ -1,0 +1,38 @@
+# Git関連
+.git
+.gitignore
+
+# ドキュメント
+*.md
+docs/
+claudedocs/
+
+# ビルド成果物
+main
+*.exe
+*.dll
+*.so
+*.dylib
+
+# テスト関連
+*.test
+*.out
+
+# 環境設定（Docker内で設定するため）
+.env
+.env.local
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS関連
+.DS_Store
+Thumbs.db
+
+# その他
+tmp/
+temp/
