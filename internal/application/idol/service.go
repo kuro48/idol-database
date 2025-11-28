@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/url"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/idol"
@@ -152,21 +155,39 @@ func (s *ApplicationService) DeleteIdol(ctx context.Context, cmd DeleteIdolComma
 	return nil
 }
 
-// SearchIdols は条件を指定してアイドルを検索する
+// SearchIdols は条件を指定してアイドルを検索する（並行処理版）
 func (s *ApplicationService) SearchIdols(ctx context.Context, query ListIdolsQuery) (*SearchResult, error) {
 	// SearchCriteriaに変換
 	criteria := s.queryToCriteria(query)
 
-	// 総件数を取得
-	total, err := s.repository.Count(ctx, criteria)
-	if err != nil {
-		return nil, fmt.Errorf("件数取得エラー: %w", err)
-	}
+	// 並行処理: データ取得と件数取得を同時実行
+	var idols []*idol.Idol
+	var total int64
+	var errSearch, errCount error
 
-	// 検索実行
-	idols, err := s.repository.Search(ctx, criteria)
-	if err != nil {
-		return nil, fmt.Errorf("検索エラー: %w", err)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// データ取得
+	go func() {
+		defer wg.Done()
+		idols, errSearch = s.repository.Search(ctx, criteria)
+	}()
+
+	// 総件数取得
+	go func() {
+		defer wg.Done()
+		total, errCount = s.repository.Count(ctx, criteria)
+	}()
+
+	wg.Wait()
+
+	// エラーチェック
+	if errSearch != nil {
+		return nil, fmt.Errorf("検索エラー: %w", errSearch)
+	}
+	if errCount != nil {
+		return nil, fmt.Errorf("件数取得エラー: %w", errCount)
 	}
 
 	// DTOに変換
@@ -178,10 +199,13 @@ func (s *ApplicationService) SearchIdols(ctx context.Context, query ListIdolsQue
 	// ページネーション情報を計算
 	meta := s.calculatePaginationMeta(total, *query.Page, *query.Limit)
 
+	// ページネーションリンクを生成
+	links := s.generatePaginationLinks(query, meta.TotalPages)
+
 	return &SearchResult{
 		Data:  dtos,
 		Meta:  meta,
-		Links: nil, // リンクは後で実装
+		Links: links,
 	}, nil
 }
 
@@ -229,6 +253,67 @@ func (s *ApplicationService) calculatePaginationMeta(total int64, page, perPage 
 		HasNext:    page < totalPages,
 		HasPrev:    page > 1,
 	}
+}
+
+// generatePaginationLinks はページネーションリンクを生成
+func (s *ApplicationService) generatePaginationLinks(query ListIdolsQuery, totalPages int) *PaginationLinks {
+	baseURL := "/api/v1/idols"
+
+	// クエリパラメータを構築
+	buildURL := func(page int) string {
+		params := url.Values{}
+		params.Set("page", strconv.Itoa(page))
+		params.Set("limit", strconv.Itoa(*query.Limit))
+
+		if query.Name != nil {
+			params.Set("name", *query.Name)
+		}
+		if query.Nationality != nil {
+			params.Set("nationality", *query.Nationality)
+		}
+		if query.GroupID != nil {
+			params.Set("group_id", *query.GroupID)
+		}
+		if query.AgeMin != nil {
+			params.Set("age_min", strconv.Itoa(*query.AgeMin))
+		}
+		if query.AgeMax != nil {
+			params.Set("age_max", strconv.Itoa(*query.AgeMax))
+		}
+		if query.BirthdateFrom != nil {
+			params.Set("birthdate_from", *query.BirthdateFrom)
+		}
+		if query.BirthdateTo != nil {
+			params.Set("birthdate_to", *query.BirthdateTo)
+		}
+		if query.Sort != nil {
+			params.Set("sort", *query.Sort)
+		}
+		if query.Order != nil {
+			params.Set("order", *query.Order)
+		}
+
+		return baseURL + "?" + params.Encode()
+	}
+
+	links := &PaginationLinks{
+		First: buildURL(1),
+		Last:  buildURL(totalPages),
+	}
+
+	// 次ページリンク
+	if *query.Page < totalPages {
+		next := buildURL(*query.Page + 1)
+		links.Next = &next
+	}
+
+	// 前ページリンク
+	if *query.Page > 1 {
+		prev := buildURL(*query.Page - 1)
+		links.Prev = &prev
+	}
+
+	return links
 }
 
 // toDTO はドメインモデルをDTOに変換する
