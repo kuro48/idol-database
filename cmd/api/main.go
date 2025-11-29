@@ -8,6 +8,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kuro48/idol-api/internal/application/agency"
+	"github.com/kuro48/idol-api/internal/application/event"
 	"github.com/kuro48/idol-api/internal/application/group"
 	"github.com/kuro48/idol-api/internal/application/idol"
 	"github.com/kuro48/idol-api/internal/application/removal"
@@ -41,13 +42,19 @@ func main() {
 	removalRepo := mongodb.NewRemovalRepository(db.Database)
 	groupRepo := mongodb.NewGroupRepository(db.Database)
 	agencyRepo := mongodb.NewAgencyRepository(db.Database)
+	eventRepo := mongodb.NewEventRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
 	if err := idolRepo.EnsureIndexes(ctx); err != nil {
-		log.Printf("⚠️  インデックス作成エラー（続行します）: %v", err)
+		log.Printf("⚠️  Idolインデックス作成エラー（続行します）: %v", err)
 	} else {
-		log.Println("✅ MongoDBインデックスを作成しました")
+		log.Println("✅ Idol MongoDBインデックスを作成しました")
+	}
+	if err := eventRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  Eventインデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ Event MongoDBインデックスを作成しました")
 	}
 
 	// アプリケーション層: アプリケーションサービス
@@ -55,12 +62,14 @@ func main() {
 	removalAppService := removal.NewApplicationService(removalRepo, idolRepo, groupRepo)
 	groupAppService := group.NewApplicationService(groupRepo)
 	agencyAppService := agency.NewApplicationService(agencyRepo)
+	eventAppService := event.NewApplicationService(eventRepo)
 
 	// プレゼンテーション層: ハンドラー
 	idolHandler := handlers.NewIdolHandler(idolAppService)
 	removalHandler := handlers.NewRemovalHandler(removalAppService)
 	groupHandler := handlers.NewGroupHandler(groupAppService)
 	agencyHandler := handlers.NewAgencyHandler(agencyAppService)
+	eventHandler := handlers.NewEventHandler(eventAppService)
 	termHandler := handlers.NewTermHandler("./static")
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
@@ -138,6 +147,18 @@ func main() {
 		{
 			terms.GET("/service", termHandler.ShowTermsOfService)
 			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
+		}
+
+		events := v1.Group("/events")
+		{
+			events.POST("", eventHandler.CreateEvent)                               // イベント作成
+			events.GET("", eventHandler.ListEvents)                                 // イベント一覧取得（検索機能付き）
+			events.GET("/upcoming", eventHandler.GetUpcomingEvents)                 // 今後のイベント取得
+			events.GET("/:id", eventHandler.GetEvent)                               // イベント詳細取得
+			events.PUT("/:id", eventHandler.UpdateEvent)                            // イベント更新
+			events.DELETE("/:id", eventHandler.DeleteEvent)                         // イベント削除
+			events.POST("/:id/performers", eventHandler.AddPerformer)               // パフォーマー追加
+			events.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
 		}
 	}
 
