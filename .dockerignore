@@ -4,8 +4,8 @@
 
 # ドキュメント
 *.md
-docs/
 claudedocs/
+# docs/ は Swagger生成ファイルを含むため除外しない
 
 # ビルド成果物
 main
