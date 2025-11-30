@@ -1,0 +1,915 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "包括的アイドル情報API - アイドル、グループ、事務所、イベント情報を提供",
+        "title": "Idol API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "email": "support@idol-api.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:27018",
+    "basePath": "/api/v1",
+    "paths": {
+        "/events": {
+            "get": {
+                "description": "条件を指定してイベント一覧を取得（検索・フィルタリング・ページネーション対応）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "イベント一覧取得",
+                "parameters": [
+                    {
+                        "enum": [
+                            "live",
+                            "handshake",
+                            "release",
+                            "fan_meeting",
+                            "online"
+                        ],
+                        "type": "string",
+                        "description": "イベントタイプ",
+                        "name": "event_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "開始日FROM (YYYY-MM-DD)",
+                        "name": "start_date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "開始日TO (YYYY-MM-DD)",
+                        "name": "start_date_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "会場ID",
+                        "name": "venue_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "パフォーマーID",
+                        "name": "performer_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "タグ（複数可）",
+                        "name": "tags",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "start_date_time",
+                            "created_at"
+                        ],
+                        "type": "string",
+                        "default": "start_date_time",
+                        "description": "ソート項目",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "asc",
+                        "description": "ソート順",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "ページ番号",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "1ページあたりの件数",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.SearchResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいイベント/ライブを作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "イベント作成",
+                "parameters": [
+                    {
+                        "description": "イベント作成リクエスト",
+                        "name": "event",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.CreateEventCommand"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/events/{id}": {
+            "get": {
+                "description": "IDを指定してイベント情報を取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "events"
+                ],
+                "summary": "イベント詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "イベントID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/idols": {
+            "get": {
+                "description": "条件を指定してアイドル一覧を取得（検索・フィルタリング・ページネーション対応）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "アイドル一覧取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "名前（部分一致）",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "国籍（完全一致）",
+                        "name": "nationality",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "グループID",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "事務所ID",
+                        "name": "agency_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最小年齢",
+                        "name": "age_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最大年齢",
+                        "name": "age_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "生年月日FROM (YYYY-MM-DD)",
+                        "name": "birthdate_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "生年月日TO (YYYY-MM-DD)",
+                        "name": "birthdate_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "関連データ読み込み (カンマ区切り: agency,groups)",
+                        "name": "include",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "name",
+                            "birthdate",
+                            "created_at"
+                        ],
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "ソート項目",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "ソート順",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "ページ番号",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "1ページあたりの件数",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.SearchResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいアイドルを作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "アイドル作成",
+                "parameters": [
+                    {
+                        "description": "アイドル作成リクエスト",
+                        "name": "idol",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interface_handlers.CreateIdolRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/idols/{id}": {
+            "get": {
+                "description": "IDを指定してアイドル情報を取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "アイドル詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "関連データ読み込み (カンマ区切り: agency,groups)",
+                        "name": "include",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "IDを指定してアイドル情報を更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "アイドル更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "アイドル更新リクエスト",
+                        "name": "idol",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interface_handlers.UpdateIdolRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "IDを指定してアイドルを削除する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "アイドル削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/idols/{id}/social-links": {
+            "put": {
+                "description": "アイドルのSNS/外部リンク情報を更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "SNS/外部リンク更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "SNS/外部リンク更新リクエスト",
+                        "name": "social_links",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.UpdateSocialLinksCommand"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_kuro48_idol-api_internal_application_event.CreateEventCommand": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "endDateTime": {
+                    "description": "RFC3339形式（オプション）",
+                    "type": "string"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "officialURL": {
+                    "type": "string"
+                },
+                "performerIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "startDateTime": {
+                    "description": "RFC3339形式",
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ticketURL": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "venueID": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_event.EventDTO": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "end_date_time": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "official_url": {
+                    "type": "string"
+                },
+                "performer_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "start_date_time": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ticket_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "venue_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_event.PaginationLinks": {
+            "type": "object",
+            "properties": {
+                "first": {
+                    "type": "string"
+                },
+                "last": {
+                    "type": "string"
+                },
+                "next": {
+                    "type": "string"
+                },
+                "prev": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_event.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_prev": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_event.SearchResult": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO"
+                    }
+                },
+                "links": {
+                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.PaginationLinks"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.PaginationMeta"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_idol.IdolDTO": {
+            "type": "object",
+            "properties": {
+                "age": {
+                    "type": "integer"
+                },
+                "agency": {
+                    "description": "include=agency時に展開"
+                },
+                "agency_id": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "social_links": {
+                    "description": "SNS/外部リンク"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_idol.PaginationLinks": {
+            "type": "object",
+            "properties": {
+                "first": {
+                    "type": "string"
+                },
+                "last": {
+                    "type": "string"
+                },
+                "next": {
+                    "type": "string"
+                },
+                "prev": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_idol.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_prev": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_idol.SearchResult": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO"
+                    }
+                },
+                "links": {
+                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.PaginationLinks"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.PaginationMeta"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_idol.UpdateSocialLinksCommand": {
+            "type": "object",
+            "properties": {
+                "facebook": {
+                    "type": "string"
+                },
+                "fan_club": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instagram": {
+                    "type": "string"
+                },
+                "official_website": {
+                    "type": "string"
+                },
+                "tiktok": {
+                    "type": "string"
+                },
+                "twitter": {
+                    "type": "string"
+                },
+                "youtube": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "details": {},
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_interface_handlers.CreateIdolRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "agency_id": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
+        "internal_interface_handlers.UpdateIdolRequest": {
+            "type": "object",
+            "properties": {
+                "agency_id": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        }
+    }
+}
