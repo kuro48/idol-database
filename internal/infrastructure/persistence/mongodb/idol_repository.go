@@ -424,11 +424,39 @@ func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
                 {Key: "created_at", Value: -1},
             },
         },
-        // 複合インデックス（国籍＋生年月日での検索最適化）
+        // タグIDインデックス（タグフィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "tag_ids", Value: 1},
+            },
+        },
+        // 複合インデックス1: 国籍 + 生年月日 + 作成日時（フィルタ + ソート最適化）
         {
             Keys: bson.D{
                 {Key: "nationality", Value: 1},
                 {Key: "birthdate", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス2: 事務所ID + 作成日時（事務所別一覧取得の最適化）
+        {
+            Keys: bson.D{
+                {Key: "agency_id", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス3: グループID + 作成日時（グループ別一覧取得の最適化）
+        {
+            Keys: bson.D{
+                {Key: "group_id", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス4: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
+        {
+            Keys: bson.D{
+                {Key: "birthdate", Value: 1},
+                {Key: "created_at", Value: -1},
             },
         },
     }

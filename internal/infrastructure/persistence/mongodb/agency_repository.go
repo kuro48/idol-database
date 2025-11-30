@@ -166,3 +166,54 @@ func fromAgencyDocument(doc *agencyDocument) (*agency.Agency, error) {
 
 	return a, nil
 }
+
+// EnsureIndexes はMongoDBのインデックスを作成する
+func (r *AgencyRepository) EnsureIndexes(ctx context.Context) error {
+	indexes := []mongo.IndexModel{
+		// 事務所名インデックス（検索用）
+		{
+			Keys: bson.D{
+				{Key: "name", Value: 1},
+			},
+		},
+		// 国インデックス（フィルタリング用）
+		{
+			Keys: bson.D{
+				{Key: "country", Value: 1},
+			},
+		},
+		// 設立日インデックス（時系列検索用）
+		{
+			Keys: bson.D{
+				{Key: "founded_date", Value: 1},
+			},
+		},
+		// 作成日時インデックス（デフォルトソート用）
+		{
+			Keys: bson.D{
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// 複合インデックス: 国 + 作成日時（国別一覧の最適化）
+		{
+			Keys: bson.D{
+				{Key: "country", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// 複合インデックス: 設立日 + 作成日時（時系列検索 + ソート最適化）
+		{
+			Keys: bson.D{
+				{Key: "founded_date", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+	}
+
+	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		return fmt.Errorf("インデックス作成エラー: %w", err)
+	}
+
+	return nil
+}

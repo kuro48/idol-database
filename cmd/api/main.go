@@ -84,6 +84,16 @@ func main() {
 	} else {
 		log.Println("✅ Tag MongoDBインデックスを作成しました")
 	}
+	if err := groupRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  Groupインデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ Group MongoDBインデックスを作成しました")
+	}
+	if err := agencyRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  Agencyインデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ Agency MongoDBインデックスを作成しました")
+	}
 
 	// アプリケーション層: アプリケーションサービス
 	idolAppService := idol.NewApplicationService(idolRepo, agencyRepo)
