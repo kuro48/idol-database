@@ -1,3 +1,19 @@
+// @title           Idol API
+// @version         1.0
+// @description     包括的アイドル情報API - アイドル、グループ、事務所、イベント情報を提供
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.email  support@idol-api.com
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:27018
+// @BasePath  /api/v1
+
+// @schemes http https
+
 package main
 
 import (
@@ -17,6 +33,11 @@ import (
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+
+	_ "github.com/kuro48/idol-api/docs" // Swagger docs
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -104,6 +125,9 @@ func main() {
 			"message": "Idol API is running with DDD architecture",
 		})
 	})
+
+	// Swagger UI
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	v1 := router.Group("/api/v1")
 	{

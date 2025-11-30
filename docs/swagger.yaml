@@ -1,0 +1,612 @@
+basePath: /api/v1
+definitions:
+  github_com_kuro48_idol-api_internal_application_event.CreateEventCommand:
+    properties:
+      description:
+        type: string
+      endDateTime:
+        description: RFC3339形式（オプション）
+        type: string
+      eventType:
+        type: string
+      officialURL:
+        type: string
+      performerIDs:
+        items:
+          type: string
+        type: array
+      startDateTime:
+        description: RFC3339形式
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      ticketURL:
+        type: string
+      title:
+        type: string
+      venueID:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_application_event.EventDTO:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      end_date_time:
+        type: string
+      event_type:
+        type: string
+      id:
+        type: string
+      official_url:
+        type: string
+      performer_ids:
+        items:
+          type: string
+        type: array
+      start_date_time:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      ticket_url:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      venue_id:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_application_event.PaginationLinks:
+    properties:
+      first:
+        type: string
+      last:
+        type: string
+      next:
+        type: string
+      prev:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_application_event.PaginationMeta:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_kuro48_idol-api_internal_application_event.SearchResult:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO'
+        type: array
+      links:
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_event.PaginationLinks'
+      meta:
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_event.PaginationMeta'
+    type: object
+  github_com_kuro48_idol-api_internal_application_idol.IdolDTO:
+    properties:
+      age:
+        type: integer
+      agency:
+        description: include=agency時に展開
+      agency_id:
+        type: string
+      birthdate:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      social_links:
+        description: SNS/外部リンク
+      updated_at:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_application_idol.PaginationLinks:
+    properties:
+      first:
+        type: string
+      last:
+        type: string
+      next:
+        type: string
+      prev:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_application_idol.PaginationMeta:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_kuro48_idol-api_internal_application_idol.SearchResult:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO'
+        type: array
+      links:
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_idol.PaginationLinks'
+      meta:
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_idol.PaginationMeta'
+    type: object
+  github_com_kuro48_idol-api_internal_application_idol.UpdateSocialLinksCommand:
+    properties:
+      facebook:
+        type: string
+      fan_club:
+        type: string
+      id:
+        type: string
+      instagram:
+        type: string
+      official_website:
+        type: string
+      tiktok:
+        type: string
+      twitter:
+        type: string
+      youtube:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  internal_interface_handlers.CreateIdolRequest:
+    properties:
+      agency_id:
+        type: string
+      birthdate:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  internal_interface_handlers.UpdateIdolRequest:
+    properties:
+      agency_id:
+        type: string
+      birthdate:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    type: object
+host: localhost:27018
+info:
+  contact:
+    email: support@idol-api.com
+    name: API Support
+  description: 包括的アイドル情報API - アイドル、グループ、事務所、イベント情報を提供
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Idol API
+  version: "1.0"
+paths:
+  /events:
+    get:
+      consumes:
+      - application/json
+      description: 条件を指定してイベント一覧を取得（検索・フィルタリング・ページネーション対応）
+      parameters:
+      - description: イベントタイプ
+        enum:
+        - live
+        - handshake
+        - release
+        - fan_meeting
+        - online
+        in: query
+        name: event_type
+        type: string
+      - description: 開始日FROM (YYYY-MM-DD)
+        in: query
+        name: start_date_from
+        type: string
+      - description: 開始日TO (YYYY-MM-DD)
+        in: query
+        name: start_date_to
+        type: string
+      - description: 会場ID
+        in: query
+        name: venue_id
+        type: string
+      - description: パフォーマーID
+        in: query
+        name: performer_id
+        type: string
+      - collectionFormat: csv
+        description: タグ（複数可）
+        in: query
+        items:
+          type: string
+        name: tags
+        type: array
+      - default: start_date_time
+        description: ソート項目
+        enum:
+        - start_date_time
+        - created_at
+        in: query
+        name: sort
+        type: string
+      - default: asc
+        description: ソート順
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_event.SearchResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: イベント一覧取得
+      tags:
+      - events
+    post:
+      consumes:
+      - application/json
+      description: 新しいイベント/ライブを作成する
+      parameters:
+      - description: イベント作成リクエスト
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_event.CreateEventCommand'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: イベント作成
+      tags:
+      - events
+  /events/{id}:
+    get:
+      consumes:
+      - application/json
+      description: IDを指定してイベント情報を取得する
+      parameters:
+      - description: イベントID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: イベント詳細取得
+      tags:
+      - events
+  /idols:
+    get:
+      consumes:
+      - application/json
+      description: 条件を指定してアイドル一覧を取得（検索・フィルタリング・ページネーション対応）
+      parameters:
+      - description: 名前（部分一致）
+        in: query
+        name: name
+        type: string
+      - description: 国籍（完全一致）
+        in: query
+        name: nationality
+        type: string
+      - description: グループID
+        in: query
+        name: group_id
+        type: string
+      - description: 事務所ID
+        in: query
+        name: agency_id
+        type: string
+      - description: 最小年齢
+        in: query
+        name: age_min
+        type: integer
+      - description: 最大年齢
+        in: query
+        name: age_max
+        type: integer
+      - description: 生年月日FROM (YYYY-MM-DD)
+        in: query
+        name: birthdate_from
+        type: string
+      - description: 生年月日TO (YYYY-MM-DD)
+        in: query
+        name: birthdate_to
+        type: string
+      - description: '関連データ読み込み (カンマ区切り: agency,groups)'
+        in: query
+        name: include
+        type: string
+      - default: created_at
+        description: ソート項目
+        enum:
+        - name
+        - birthdate
+        - created_at
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: ソート順
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_idol.SearchResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: アイドル一覧取得
+      tags:
+      - idols
+    post:
+      consumes:
+      - application/json
+      description: 新しいアイドルを作成する
+      parameters:
+      - description: アイドル作成リクエスト
+        in: body
+        name: idol
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interface_handlers.CreateIdolRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: アイドル作成
+      tags:
+      - idols
+  /idols/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: IDを指定してアイドルを削除する
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: アイドル削除
+      tags:
+      - idols
+    get:
+      consumes:
+      - application/json
+      description: IDを指定してアイドル情報を取得する
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: '関連データ読み込み (カンマ区切り: agency,groups)'
+        in: query
+        name: include
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: アイドル詳細取得
+      tags:
+      - idols
+    put:
+      consumes:
+      - application/json
+      description: IDを指定してアイドル情報を更新する
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: アイドル更新リクエスト
+        in: body
+        name: idol
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interface_handlers.UpdateIdolRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: アイドル更新
+      tags:
+      - idols
+  /idols/{id}/social-links:
+    put:
+      consumes:
+      - application/json
+      description: アイドルのSNS/外部リンク情報を更新する
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: SNS/外部リンク更新リクエスト
+        in: body
+        name: social_links
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_idol.UpdateSocialLinksCommand'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: SNS/外部リンク更新
+      tags:
+      - idols
+schemes:
+- http
+- https
+swagger: "2.0"

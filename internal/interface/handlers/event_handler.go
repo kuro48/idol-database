@@ -21,6 +21,16 @@ func NewEventHandler(appService *event.ApplicationService) *EventHandler {
 }
 
 // CreateEvent はイベントを作成する
+// @Summary      イベント作成
+// @Description  新しいイベント/ライブを作成する
+// @Tags         events
+// @Accept       json
+// @Produce      json
+// @Param        event body event.CreateEventCommand true "イベント作成リクエスト"
+// @Success      201 {object} event.EventDTO
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /events [post]
 func (h *EventHandler) CreateEvent(c *gin.Context) {
 	var cmd event.CreateEventCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
@@ -38,6 +48,16 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 }
 
 // GetEvent はイベントを取得する
+// @Summary      イベント詳細取得
+// @Description  IDを指定してイベント情報を取得する
+// @Tags         events
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "イベントID"
+// @Success      200 {object} event.EventDTO
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Router       /events/{id} [get]
 func (h *EventHandler) GetEvent(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -57,6 +77,25 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 }
 
 // ListEvents はイベント一覧を取得する（検索機能付き）
+// @Summary      イベント一覧取得
+// @Description  条件を指定してイベント一覧を取得（検索・フィルタリング・ページネーション対応）
+// @Tags         events
+// @Accept       json
+// @Produce      json
+// @Param        event_type query string false "イベントタイプ" Enums(live, handshake, release, fan_meeting, online)
+// @Param        start_date_from query string false "開始日FROM (YYYY-MM-DD)"
+// @Param        start_date_to query string false "開始日TO (YYYY-MM-DD)"
+// @Param        venue_id query string false "会場ID"
+// @Param        performer_id query string false "パフォーマーID"
+// @Param        tags query []string false "タグ（複数可）"
+// @Param        sort query string false "ソート項目" Enums(start_date_time, created_at) default(start_date_time)
+// @Param        order query string false "ソート順" Enums(asc, desc) default(asc)
+// @Param        page query int false "ページ番号" default(1)
+// @Param        limit query int false "1ページあたりの件数" default(20)
+// @Success      200 {object} event.SearchResult
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /events [get]
 func (h *EventHandler) ListEvents(c *gin.Context) {
 	var query event.ListEventsQuery
 
