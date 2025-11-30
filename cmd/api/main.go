@@ -109,11 +109,12 @@ func main() {
 	{
 		idols := v1.Group("/idols")
 		{
-			idols.POST("", idolHandler.CreateIdol)       // 新規作成
-			idols.GET("", idolHandler.ListIdols)         // 一覧取得
-			idols.GET("/:id", idolHandler.GetIdol)       // 詳細取得
-			idols.PUT("/:id", idolHandler.UpdateIdol)    // 更新
-			idols.DELETE("/:id", idolHandler.DeleteIdol) // 削除
+			idols.POST("", idolHandler.CreateIdol)                     // 新規作成
+			idols.GET("", idolHandler.ListIdols)                       // 一覧取得
+			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得
+			idols.PUT("/:id", idolHandler.UpdateIdol)                  // 更新
+			idols.DELETE("/:id", idolHandler.DeleteIdol)               // 削除
+			idols.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
 		}
 
 		removalRequests := v1.Group("/removal-requests")

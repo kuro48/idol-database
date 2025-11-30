@@ -178,6 +178,72 @@ func (s *ApplicationService) DeleteIdol(ctx context.Context, cmd DeleteIdolComma
 	return nil
 }
 
+// UpdateSocialLinks はSNS/外部リンクを更新する
+func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, cmd UpdateSocialLinksCommand) error {
+	id, err := idol.NewIdolID(cmd.ID)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	existingIdol, err := s.repository.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("アイドルの取得エラー: %w", err)
+	}
+
+	// SocialLinksの作成と設定
+	links := idol.NewSocialLinks()
+
+	if cmd.Twitter != nil && *cmd.Twitter != "" {
+		if err := links.SetTwitter(*cmd.Twitter); err != nil {
+			return fmt.Errorf("Twitter URLエラー: %w", err)
+		}
+	}
+
+	if cmd.Instagram != nil && *cmd.Instagram != "" {
+		if err := links.SetInstagram(*cmd.Instagram); err != nil {
+			return fmt.Errorf("Instagram URLエラー: %w", err)
+		}
+	}
+
+	if cmd.TikTok != nil && *cmd.TikTok != "" {
+		if err := links.SetTikTok(*cmd.TikTok); err != nil {
+			return fmt.Errorf("TikTok URLエラー: %w", err)
+		}
+	}
+
+	if cmd.YouTube != nil && *cmd.YouTube != "" {
+		if err := links.SetYouTube(*cmd.YouTube); err != nil {
+			return fmt.Errorf("YouTube URLエラー: %w", err)
+		}
+	}
+
+	if cmd.Facebook != nil && *cmd.Facebook != "" {
+		if err := links.SetFacebook(*cmd.Facebook); err != nil {
+			return fmt.Errorf("Facebook URLエラー: %w", err)
+		}
+	}
+
+	if cmd.OfficialWebsite != nil && *cmd.OfficialWebsite != "" {
+		if err := links.SetOfficial(*cmd.OfficialWebsite); err != nil {
+			return fmt.Errorf("公式サイトURLエラー: %w", err)
+		}
+	}
+
+	if cmd.FanClub != nil && *cmd.FanClub != "" {
+		if err := links.SetFanClub(*cmd.FanClub); err != nil {
+			return fmt.Errorf("ファンクラブURLエラー: %w", err)
+		}
+	}
+
+	existingIdol.UpdateSocialLinks(links)
+
+	if err := s.repository.Update(ctx, existingIdol); err != nil {
+		return fmt.Errorf("アイドルの更新エラー: %w", err)
+	}
+
+	return nil
+}
+
 // SearchIdols は条件を指定してアイドルを検索する（並行処理版）
 func (s *ApplicationService) SearchIdols(ctx context.Context, query ListIdolsQuery) (*SearchResult, error) {
 	// SearchCriteriaに変換
@@ -399,12 +465,26 @@ func (s *ApplicationService) toDTO(i *idol.Idol) *IdolDTO {
 		age = &ageValue
 	}
 
+	var socialLinksMap interface{}
+	if i.SocialLinks() != nil {
+		socialLinksMap = map[string]interface{}{
+			"twitter":          i.SocialLinks().Twitter(),
+			"instagram":        i.SocialLinks().Instagram(),
+			"tiktok":           i.SocialLinks().TikTok(),
+			"youtube":          i.SocialLinks().YouTube(),
+			"facebook":         i.SocialLinks().Facebook(),
+			"official_website": i.SocialLinks().Official(),
+			"fan_club":         i.SocialLinks().FanClub(),
+		}
+	}
+
 	return &IdolDTO{
 		ID:          i.ID().Value(),
 		Name:        i.Name().Value(),
 		Birthdate:   birthdateStr,
 		Age:         age,
 		AgencyID:    i.AgencyID(),
+		SocialLinks: socialLinksMap,
 		CreatedAt:   i.CreatedAt().Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   i.UpdatedAt().Format("2006-01-02T15:04:05Z07:00"),
 	}

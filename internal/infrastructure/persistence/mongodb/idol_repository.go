@@ -26,12 +26,24 @@ func NewIdolRepository(db *mongo.Database) *IdolRepository {
 
 // idolDocument はMongoDBに保存するドキュメント構造
 type idolDocument struct {
-	ID          bson.ObjectID `bson:"_id,omitempty"`
-	Name        string        `bson:"name"`
-	Birthdate   time.Time     `bson:"birthdate"`
-	AgencyID    *string       `bson:"agency_id,omitempty"`
-	CreatedAt   time.Time     `bson:"created_at"`
-	UpdatedAt   time.Time     `bson:"updated_at"`
+	ID          bson.ObjectID        `bson:"_id,omitempty"`
+	Name        string               `bson:"name"`
+	Birthdate   time.Time            `bson:"birthdate"`
+	AgencyID    *string              `bson:"agency_id,omitempty"`
+	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
+	CreatedAt   time.Time            `bson:"created_at"`
+	UpdatedAt   time.Time            `bson:"updated_at"`
+}
+
+// socialLinksDocument はSNS/外部リンクのドキュメント構造
+type socialLinksDocument struct {
+	Twitter   *string `bson:"twitter,omitempty"`
+	Instagram *string `bson:"instagram,omitempty"`
+	TikTok    *string `bson:"tiktok,omitempty"`
+	YouTube   *string `bson:"youtube,omitempty"`
+	Facebook  *string `bson:"facebook,omitempty"`
+	Official  *string `bson:"official,omitempty"`
+	FanClub   *string `bson:"fan_club,omitempty"`
 }
 
 // toDocument はドメインモデルをMongoDBドキュメントに変換する
@@ -39,13 +51,32 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 	// IDの文字列をObjectIDに変換
 	objectID, _ := bson.ObjectIDFromHex(i.ID().Value())
 
+	var socialLinksDoc *socialLinksDocument
+	if i.SocialLinks() != nil {
+		socialLinksDoc = toSocialLinksDocument(i.SocialLinks())
+	}
+
 	return &idolDocument{
 		ID:          objectID,
 		Name:        i.Name().Value(),
 		Birthdate:   i.Birthdate().Value(),
 		AgencyID:    i.AgencyID(),
+		SocialLinks: socialLinksDoc,
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
+	}
+}
+
+// toSocialLinksDocument はSocialLinksをドキュメントに変換する
+func toSocialLinksDocument(links *idol.SocialLinks) *socialLinksDocument {
+	return &socialLinksDocument{
+		Twitter:   links.Twitter(),
+		Instagram: links.Instagram(),
+		TikTok:    links.TikTok(),
+		YouTube:   links.YouTube(),
+		Facebook:  links.Facebook(),
+		Official:  links.Official(),
+		FanClub:   links.FanClub(),
 	}
 }
 
@@ -68,7 +99,41 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		return nil, err
 	}
 
-	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, doc.CreatedAt, doc.UpdatedAt), nil
+	var socialLinks *idol.SocialLinks
+	if doc.SocialLinks != nil {
+		socialLinks = toSocialLinksDomain(doc.SocialLinks)
+	}
+
+	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, doc.CreatedAt, doc.UpdatedAt), nil
+}
+
+// toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
+func toSocialLinksDomain(doc *socialLinksDocument) *idol.SocialLinks {
+	links := idol.NewSocialLinks()
+
+	if doc.Twitter != nil {
+		_ = links.SetTwitter(*doc.Twitter)
+	}
+	if doc.Instagram != nil {
+		_ = links.SetInstagram(*doc.Instagram)
+	}
+	if doc.TikTok != nil {
+		_ = links.SetTikTok(*doc.TikTok)
+	}
+	if doc.YouTube != nil {
+		_ = links.SetYouTube(*doc.YouTube)
+	}
+	if doc.Facebook != nil {
+		_ = links.SetFacebook(*doc.Facebook)
+	}
+	if doc.Official != nil {
+		_ = links.SetOfficial(*doc.Official)
+	}
+	if doc.FanClub != nil {
+		_ = links.SetFanClub(*doc.FanClub)
+	}
+
+	return links
 }
 
 // Save は新しいアイドルを保存する

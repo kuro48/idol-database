@@ -16,6 +16,7 @@ type IdolDTO struct {
 	Age         *int        `json:"age,omitempty"`
 	AgencyID    *string     `json:"agency_id,omitempty"`
 	Agency      interface{} `json:"agency,omitempty"` // include=agency時に展開
+	SocialLinks interface{} `json:"social_links,omitempty"` // SNS/外部リンク
 	CreatedAt   string      `json:"created_at"`
 	UpdatedAt   string      `json:"updated_at"`
 }
