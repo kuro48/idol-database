@@ -31,6 +31,7 @@ type idolDocument struct {
 	Birthdate   time.Time            `bson:"birthdate"`
 	AgencyID    *string              `bson:"agency_id,omitempty"`
 	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
+	TagIDs      []string             `bson:"tag_ids,omitempty"`
 	CreatedAt   time.Time            `bson:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"`
 }
@@ -62,6 +63,7 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 		Birthdate:   i.Birthdate().Value(),
 		AgencyID:    i.AgencyID(),
 		SocialLinks: socialLinksDoc,
+		TagIDs:      i.TagIDs(),
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
 	}
@@ -104,7 +106,12 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		socialLinks = toSocialLinksDomain(doc.SocialLinks)
 	}
 
-	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, doc.CreatedAt, doc.UpdatedAt), nil
+	tagIDs := doc.TagIDs
+	if tagIDs == nil {
+		tagIDs = []string{}
+	}
+
+	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する

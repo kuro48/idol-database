@@ -28,6 +28,7 @@ import (
 	"github.com/kuro48/idol-api/internal/application/group"
 	"github.com/kuro48/idol-api/internal/application/idol"
 	"github.com/kuro48/idol-api/internal/application/removal"
+	"github.com/kuro48/idol-api/internal/application/tag"
 	"github.com/kuro48/idol-api/internal/config"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
@@ -64,6 +65,7 @@ func main() {
 	groupRepo := mongodb.NewGroupRepository(db.Database)
 	agencyRepo := mongodb.NewAgencyRepository(db.Database)
 	eventRepo := mongodb.NewEventRepository(db.Database)
+	tagRepo := mongodb.NewTagRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -77,6 +79,11 @@ func main() {
 	} else {
 		log.Println("✅ Event MongoDBインデックスを作成しました")
 	}
+	if err := tagRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  Tagインデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ Tag MongoDBインデックスを作成しました")
+	}
 
 	// アプリケーション層: アプリケーションサービス
 	idolAppService := idol.NewApplicationService(idolRepo, agencyRepo)
@@ -84,6 +91,7 @@ func main() {
 	groupAppService := group.NewApplicationService(groupRepo)
 	agencyAppService := agency.NewApplicationService(agencyRepo)
 	eventAppService := event.NewApplicationService(eventRepo)
+	tagAppService := tag.NewApplicationService(tagRepo)
 
 	// プレゼンテーション層: ハンドラー
 	idolHandler := handlers.NewIdolHandler(idolAppService)
@@ -91,6 +99,7 @@ func main() {
 	groupHandler := handlers.NewGroupHandler(groupAppService)
 	agencyHandler := handlers.NewAgencyHandler(agencyAppService)
 	eventHandler := handlers.NewEventHandler(eventAppService)
+	tagHandler := handlers.NewTagHandler(tagAppService)
 	termHandler := handlers.NewTermHandler("./static")
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
@@ -184,6 +193,15 @@ func main() {
 			events.DELETE("/:id", eventHandler.DeleteEvent)                         // イベント削除
 			events.POST("/:id/performers", eventHandler.AddPerformer)               // パフォーマー追加
 			events.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
+		}
+
+		tags := v1.Group("/tags")
+		{
+			tags.POST("", tagHandler.CreateTag)       // タグ作成
+			tags.GET("", tagHandler.ListTags)         // タグ一覧取得
+			tags.GET("/:id", tagHandler.GetTag)       // タグ詳細取得
+			tags.PUT("/:id", tagHandler.UpdateTag)    // タグ更新
+			tags.DELETE("/:id", tagHandler.DeleteTag) // タグ削除
 		}
 	}
 
