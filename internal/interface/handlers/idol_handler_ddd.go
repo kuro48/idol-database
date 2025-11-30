@@ -153,3 +153,28 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 
 	c.JSON(http.StatusNoContent, nil)
 }
+
+// UpdateSocialLinks はSNS/外部リンクを更新する
+func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
+
+	var cmd idol.UpdateSocialLinksCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
+		return
+	}
+
+	cmd.ID = id
+
+	err := h.appService.UpdateSocialLinks(c.Request.Context(), cmd)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "SNSリンクが更新されました"})
+}

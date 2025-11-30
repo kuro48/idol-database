@@ -10,7 +10,8 @@ type Idol struct {
 	id          IdolID
 	name        IdolName
 	birthdate   *Birthdate
-	agencyID    *string    // 所属事務所ID（オプショナル）
+	agencyID    *string      // 所属事務所ID（オプショナル）
+	socialLinks *SocialLinks // SNS/外部リンク（オプショナル）
 	createdAt   time.Time
 	updatedAt   time.Time
 }
@@ -36,6 +37,7 @@ func Reconstruct(
 	name IdolName,
 	birthdate *Birthdate,
 	agencyID *string,
+	socialLinks *SocialLinks,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Idol {
@@ -44,6 +46,7 @@ func Reconstruct(
 		name:        name,
 		birthdate:   birthdate,
 		agencyID:    agencyID,
+		socialLinks: socialLinks,
 		createdAt:   createdAt,
 		updatedAt:   updatedAt,
 	}
@@ -65,6 +68,10 @@ func (i *Idol) Birthdate() *Birthdate {
 
 func (i *Idol) AgencyID() *string {
 	return i.agencyID
+}
+
+func (i *Idol) SocialLinks() *SocialLinks {
+	return i.socialLinks
 }
 
 func (i *Idol) CreatedAt() time.Time {
@@ -96,6 +103,12 @@ func (i *Idol) UpdateBirthdate(birthdate *Birthdate) {
 // UpdateAgency は所属事務所を更新する
 func (i *Idol) UpdateAgency(agencyID *string) {
 	i.agencyID = agencyID
+	i.updatedAt = time.Now()
+}
+
+// UpdateSocialLinks はSNS/外部リンクを更新する
+func (i *Idol) UpdateSocialLinks(links *SocialLinks) {
+	i.socialLinks = links
 	i.updatedAt = time.Now()
 }
 
