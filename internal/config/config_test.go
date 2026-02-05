@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,16 +9,10 @@ import (
 func TestLoad(t *testing.T) {
 	t.Run("with environment variables", func(t *testing.T) {
 		// 環境変数を設定
-		os.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
-		os.Setenv("MONGODB_DATABASE", "test_database")
-		os.Setenv("SERVER_PORT", "9000")
-		os.Setenv("GIN_MODE", "release")
-		defer func() {
-			os.Unsetenv("MONGODB_URI")
-			os.Unsetenv("MONGODB_DATABASE")
-			os.Unsetenv("SERVER_PORT")
-			os.Unsetenv("GIN_MODE")
-		}()
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "9000")
+		t.Setenv("GIN_MODE", "release")
 
 		cfg, err := Load()
 
@@ -33,10 +26,10 @@ func TestLoad(t *testing.T) {
 
 	t.Run("with default values", func(t *testing.T) {
 		// 環境変数をクリア
-		os.Unsetenv("MONGODB_URI")
-		os.Unsetenv("MONGODB_DATABASE")
-		os.Unsetenv("SERVER_PORT")
-		os.Unsetenv("GIN_MODE")
+		t.Setenv("MONGODB_URI", "")
+		t.Setenv("MONGODB_DATABASE", "")
+		t.Setenv("SERVER_PORT", "")
+		t.Setenv("GIN_MODE", "")
 
 		cfg, err := Load()
 
@@ -50,12 +43,8 @@ func TestLoad(t *testing.T) {
 
 	t.Run("partial environment variables", func(t *testing.T) {
 		// 一部の環境変数のみ設定
-		os.Setenv("MONGODB_URI", "mongodb://custom:custom@localhost:27017")
-		os.Setenv("SERVER_PORT", "3000")
-		defer func() {
-			os.Unsetenv("MONGODB_URI")
-			os.Unsetenv("SERVER_PORT")
-		}()
+		t.Setenv("MONGODB_URI", "mongodb://custom:custom@localhost:27017")
+		t.Setenv("SERVER_PORT", "3000")
 
 		cfg, err := Load()
 
@@ -72,8 +61,7 @@ func TestGetEnv(t *testing.T) {
 	t.Run("existing environment variable", func(t *testing.T) {
 		key := "TEST_ENV_VAR"
 		value := "test_value"
-		os.Setenv(key, value)
-		defer os.Unsetenv(key)
+		t.Setenv(key, value)
 
 		result := getEnv(key, "default_value")
 
@@ -83,7 +71,7 @@ func TestGetEnv(t *testing.T) {
 	t.Run("non-existing environment variable", func(t *testing.T) {
 		key := "NON_EXISTING_VAR"
 		defaultValue := "default_value"
-		os.Unsetenv(key)
+		t.Setenv(key, "")
 
 		result := getEnv(key, defaultValue)
 
@@ -93,8 +81,7 @@ func TestGetEnv(t *testing.T) {
 	t.Run("empty environment variable", func(t *testing.T) {
 		key := "EMPTY_VAR"
 		defaultValue := "default_value"
-		os.Setenv(key, "")
-		defer os.Unsetenv(key)
+		t.Setenv(key, "")
 
 		result := getEnv(key, defaultValue)
 

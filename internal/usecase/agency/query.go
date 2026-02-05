@@ -3,12 +3,12 @@ package agency
 // GetAgencyQuery は事務所取得クエリ
 type GetAgencyQuery struct {
 	ID      string   `uri:"id" binding:"required"`
-	Include []string `form:"include"` // idols, groups
+	Include []string `form:"include"` // (未実装) idols, groups
 }
 
 // ListAgenciesQuery は事務所一覧取得クエリ
 type ListAgenciesQuery struct {
-	Include []string `form:"include"` // idols
+	Include []string `form:"include"` // (未実装) idols
 }
 
 // AgencyDTO は事務所のデータ転送オブジェクト

@@ -41,7 +41,10 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 
 	dto, err := h.usecase.CreateTag(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "タグ",
+			Message:  "タグの作成に失敗しました",
+		})
 		return
 	}
 
@@ -68,7 +71,7 @@ func (h *TagHandler) GetTag(c *gin.Context) {
 
 	dto, err := h.usecase.GetTag(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("タグが見つかりません"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "タグ"})
 		return
 	}
 
@@ -113,7 +116,9 @@ func (h *TagHandler) ListTags(c *gin.Context) {
 	baseURL := "/api/v1/tags"
 	result, err := h.usecase.SearchTags(c.Request.Context(), query, baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError(err.Error()))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "タグ一覧の取得に失敗しました",
+		})
 		return
 	}
 
@@ -149,7 +154,10 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 
 	err := h.usecase.UpdateTag(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "タグ",
+			Message:  "タグの更新に失敗しました",
+		})
 		return
 	}
 
@@ -176,7 +184,10 @@ func (h *TagHandler) DeleteTag(c *gin.Context) {
 
 	err := h.usecase.DeleteTag(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "タグ",
+			Message:  "タグの削除に失敗しました",
+		})
 		return
 	}
 
