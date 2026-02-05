@@ -127,6 +127,12 @@ func (r *RemovalRepository) Save(ctx context.Context, request *removal.RemovalRe
 		doc.ID = bson.NewObjectID()
 		doc.CreatedAt = time.Now()
 		doc.UpdatedAt = time.Now()
+
+		newID, err := removal.NewRemovalID(doc.ID.Hex())
+		if err != nil {
+			return fmt.Errorf("ID生成エラー: %w", err)
+		}
+		request.SetID(newID)
 	}
 
 	_, err := r.collection.InsertOne(ctx, doc)
