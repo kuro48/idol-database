@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
 // TermHandler は利用規約・プライバシーポリシーを扱うハンドラー
@@ -31,9 +32,7 @@ type TermResponse struct {
 func (h *TermHandler) ShowTermsOfService(c *gin.Context) {
 	content, err := h.readTermFile("terms_of_service.md")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "利用規約の読み込みに失敗しました",
-		})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("利用規約の読み込みに失敗しました"))
 		return
 	}
 
@@ -48,9 +47,7 @@ func (h *TermHandler) ShowTermsOfService(c *gin.Context) {
 func (h *TermHandler) ShowPrivacyPolicy(c *gin.Context) {
 	content, err := h.readTermFile("privacy_policy.md")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "プライバシーポリシーの読み込みに失敗しました",
-		})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("プライバシーポリシーの読み込みに失敗しました"))
 		return
 	}
 
