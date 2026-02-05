@@ -28,7 +28,7 @@ func NewIdolRepository(db *mongo.Database) *IdolRepository {
 type idolDocument struct {
 	ID          bson.ObjectID        `bson:"_id,omitempty"`
 	Name        string               `bson:"name"`
-	Birthdate   time.Time            `bson:"birthdate"`
+	Birthdate   *time.Time           `bson:"birthdate,omitempty"`
 	AgencyID    *string              `bson:"agency_id,omitempty"`
 	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
 	TagIDs      []string             `bson:"tag_ids,omitempty"`
@@ -57,10 +57,16 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 		socialLinksDoc = toSocialLinksDocument(i.SocialLinks())
 	}
 
+	var birthdate *time.Time
+	if i.Birthdate() != nil {
+		bd := i.Birthdate().Value()
+		birthdate = &bd
+	}
+
 	return &idolDocument{
 		ID:          objectID,
 		Name:        i.Name().Value(),
-		Birthdate:   i.Birthdate().Value(),
+		Birthdate:   birthdate,
 		AgencyID:    i.AgencyID(),
 		SocialLinks: socialLinksDoc,
 		TagIDs:      i.TagIDs(),
@@ -94,11 +100,15 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		return nil, err
 	}
 
-	// time.Timeから年月日を抽出してBirthdateを作成
-	year, month, day := doc.Birthdate.Date()
-	birthdate, err := idol.NewBirthdate(year, int(month), day)
-	if err != nil {
-		return nil, err
+	var birthdate *idol.Birthdate
+	if doc.Birthdate != nil && !doc.Birthdate.IsZero() {
+		// time.Timeから年月日を抽出してBirthdateを作成
+		year, month, day := doc.Birthdate.Date()
+		bd, err := idol.NewBirthdate(year, int(month), day)
+		if err != nil {
+			return nil, err
+		}
+		birthdate = &bd
 	}
 
 	var socialLinks *idol.SocialLinks
@@ -111,7 +121,7 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		tagIDs = []string{}
 	}
 
-	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
+	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
@@ -152,6 +162,12 @@ func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
 		doc.ID = bson.NewObjectID()
 		doc.CreatedAt = time.Now()
 		doc.UpdatedAt = time.Now()
+
+		newID, err := idol.NewIdolID(doc.ID.Hex())
+		if err != nil {
+			return fmt.Errorf("ID生成エラー: %w", err)
+		}
+		i.SetID(newID)
 	}
 
 	_, err := r.collection.InsertOne(ctx, doc)
@@ -218,10 +234,10 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 
 	updateDoc := bson.M{
 		"$set": bson.M{
-			"name":        doc.Name,
-			"birthdate":   doc.Birthdate,
-			"agency_id":   doc.AgencyID,
-			"updated_at":  doc.UpdatedAt,
+			"name":       doc.Name,
+			"birthdate":  doc.Birthdate,
+			"agency_id":  doc.AgencyID,
+			"updated_at": doc.UpdatedAt,
 		},
 	}
 
@@ -292,179 +308,151 @@ func (r *IdolRepository) FindByAgencyID(ctx context.Context, agencyID string) ([
 }
 
 func (r *IdolRepository) Search(ctx context.Context, criteria idol.SearchCriteria) ([]*idol.Idol, error) {
-    filter := buildMongoFilter(criteria)
+	filter := buildMongoFilter(criteria)
 
-    opts := options.Find()
+	opts := options.Find()
 
-    // ソート設定
-    sortOrder := 1
-    if criteria.Order == "desc" {
-        sortOrder = -1
-    }
-    opts.SetSort(bson.D{{Key: criteria.Sort, Value: sortOrder}})
+	// ソート設定
+	sortOrder := 1
+	if criteria.Order == "desc" {
+		sortOrder = -1
+	}
+	opts.SetSort(bson.D{{Key: criteria.Sort, Value: sortOrder}})
 
-    // ページネーション
-    opts.SetSkip(int64(criteria.Offset))
-    opts.SetLimit(int64(criteria.Limit))
+	// ページネーション
+	opts.SetSkip(int64(criteria.Offset))
+	opts.SetLimit(int64(criteria.Limit))
 
-    cursor, err := r.collection.Find(ctx, filter, opts)
-    if err != nil {
-        return nil, err
-    }
-    defer cursor.Close(ctx)
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
 
-    var idols []*idol.Idol
-    if err := cursor.All(ctx, &idols); err != nil {
-        return nil, err
-    }
+	var docs []idolDocument
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
 
-    return idols, nil
+	idols := make([]*idol.Idol, 0, len(docs))
+	for _, doc := range docs {
+		i, err := toDomain(&doc)
+		if err != nil {
+			return nil, fmt.Errorf("ドメインモデル変換エラー: %w", err)
+		}
+		idols = append(idols, i)
+	}
+
+	return idols, nil
 }
 
 func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
-    filter := bson.M{}
+	filter := bson.M{}
 
-    // 名前検索（部分一致）
-    if criteria.Name != nil {
-        filter["name"] = bson.M{"$regex": *criteria.Name, "$options": "i"}
-    }
+	// 名前検索（部分一致）
+	if criteria.Name != nil {
+		filter["name"] = bson.M{"$regex": *criteria.Name, "$options": "i"}
+	}
 
-    // 国籍（完全一致）
-    if criteria.Nationality != nil {
-        filter["nationality"] = *criteria.Nationality
-    }
+	// 事務所ID
+	if criteria.AgencyID != nil {
+		filter["agency_id"] = *criteria.AgencyID
+	}
 
-    // グループID
-    if criteria.GroupID != nil {
-        filter["group_id"] = *criteria.GroupID
-    }
+	// 年齢範囲（生年月日から逆算）
+	if criteria.AgeMin != nil || criteria.AgeMax != nil {
+		now := time.Now()
+		birthdateFilter := bson.M{}
 
-    // 事務所ID
-    if criteria.AgencyID != nil {
-        filter["agency_id"] = *criteria.AgencyID
-    }
+		if criteria.AgeMax != nil {
+			// AgeMax歳より若い → 生年月日がこれより後
+			minBirthdate := now.AddDate(-*criteria.AgeMax-1, 0, 0)
+			birthdateFilter["$gte"] = minBirthdate
+		}
+		if criteria.AgeMin != nil {
+			// AgeMin歳以上 → 生年月日がこれより前
+			maxBirthdate := now.AddDate(-*criteria.AgeMin, 0, 0)
+			birthdateFilter["$lte"] = maxBirthdate
+		}
 
-    // 年齢範囲（生年月日から逆算）
-    if criteria.AgeMin != nil || criteria.AgeMax != nil {
-        now := time.Now()
-        birthdateFilter := bson.M{}
+		if len(birthdateFilter) > 0 {
+			filter["birthdate"] = birthdateFilter
+		}
+	}
 
-        if criteria.AgeMax != nil {
-            // AgeMax歳より若い → 生年月日がこれより後
-            minBirthdate := now.AddDate(-*criteria.AgeMax-1, 0, 0)
-            birthdateFilter["$gte"] = minBirthdate
-        }
-        if criteria.AgeMin != nil {
-            // AgeMin歳以上 → 生年月日がこれより前
-            maxBirthdate := now.AddDate(-*criteria.AgeMin, 0, 0)
-            birthdateFilter["$lte"] = maxBirthdate
-        }
+	// 生年月日範囲
+	if criteria.BirthdateFrom != nil || criteria.BirthdateTo != nil {
+		birthdateFilter := bson.M{}
+		if criteria.BirthdateFrom != nil {
+			birthdateFilter["$gte"] = *criteria.BirthdateFrom
+		}
+		if criteria.BirthdateTo != nil {
+			birthdateFilter["$lte"] = *criteria.BirthdateTo
+		}
+		filter["birthdate"] = birthdateFilter
+	}
 
-        if len(birthdateFilter) > 0 {
-            filter["birthdate"] = birthdateFilter
-        }
-    }
-
-    // 生年月日範囲
-    if criteria.BirthdateFrom != nil || criteria.BirthdateTo != nil {
-        birthdateFilter := bson.M{}
-        if criteria.BirthdateFrom != nil {
-            birthdateFilter["$gte"] = *criteria.BirthdateFrom
-        }
-        if criteria.BirthdateTo != nil {
-            birthdateFilter["$lte"] = *criteria.BirthdateTo
-        }
-        filter["birthdate"] = birthdateFilter
-    }
-
-    return filter
+	return filter
 }
 
 func (r *IdolRepository) Count(ctx context.Context, criteria idol.SearchCriteria) (int64, error) {
-    filter := buildMongoFilter(criteria)
-    return r.collection.CountDocuments(ctx, filter)
+	filter := buildMongoFilter(criteria)
+	return r.collection.CountDocuments(ctx, filter)
 }
 
 // EnsureIndexes は検索パフォーマンス向上のためのインデックスを作成
 func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
-    indexes := []mongo.IndexModel{
-        // 名前インデックス（部分一致検索用）
-        {
-            Keys: bson.D{
-                {Key: "name", Value: 1},
-            },
-        },
-        // 国籍インデックス（フィルタリング用）
-        {
-            Keys: bson.D{
-                {Key: "nationality", Value: 1},
-            },
-        },
-        // グループIDインデックス（フィルタリング用）
-        {
-            Keys: bson.D{
-                {Key: "group_id", Value: 1},
-            },
-        },
-        // 事務所IDインデックス（フィルタリング用）
-        {
-            Keys: bson.D{
-                {Key: "agency_id", Value: 1},
-            },
-        },
-        // 生年月日インデックス（年齢範囲検索・ソート用）
-        {
-            Keys: bson.D{
-                {Key: "birthdate", Value: 1},
-            },
-        },
-        // 作成日時インデックス（デフォルトソート用）
-        {
-            Keys: bson.D{
-                {Key: "created_at", Value: -1},
-            },
-        },
-        // タグIDインデックス（タグフィルタリング用）
-        {
-            Keys: bson.D{
-                {Key: "tag_ids", Value: 1},
-            },
-        },
-        // 複合インデックス1: 国籍 + 生年月日 + 作成日時（フィルタ + ソート最適化）
-        {
-            Keys: bson.D{
-                {Key: "nationality", Value: 1},
-                {Key: "birthdate", Value: 1},
-                {Key: "created_at", Value: -1},
-            },
-        },
-        // 複合インデックス2: 事務所ID + 作成日時（事務所別一覧取得の最適化）
-        {
-            Keys: bson.D{
-                {Key: "agency_id", Value: 1},
-                {Key: "created_at", Value: -1},
-            },
-        },
-        // 複合インデックス3: グループID + 作成日時（グループ別一覧取得の最適化）
-        {
-            Keys: bson.D{
-                {Key: "group_id", Value: 1},
-                {Key: "created_at", Value: -1},
-            },
-        },
-        // 複合インデックス4: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
-        {
-            Keys: bson.D{
-                {Key: "birthdate", Value: 1},
-                {Key: "created_at", Value: -1},
-            },
-        },
-    }
+	indexes := []mongo.IndexModel{
+		// 名前インデックス（部分一致検索用）
+		{
+			Keys: bson.D{
+				{Key: "name", Value: 1},
+			},
+		},
+		// 事務所IDインデックス（フィルタリング用）
+		{
+			Keys: bson.D{
+				{Key: "agency_id", Value: 1},
+			},
+		},
+		// 生年月日インデックス（年齢範囲検索・ソート用）
+		{
+			Keys: bson.D{
+				{Key: "birthdate", Value: 1},
+			},
+		},
+		// 作成日時インデックス（デフォルトソート用）
+		{
+			Keys: bson.D{
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// タグIDインデックス（タグフィルタリング用）
+		{
+			Keys: bson.D{
+				{Key: "tag_ids", Value: 1},
+			},
+		},
+		// 複合インデックス2: 事務所ID + 作成日時（事務所別一覧取得の最適化）
+		{
+			Keys: bson.D{
+				{Key: "agency_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// 複合インデックス3: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
+		{
+			Keys: bson.D{
+				{Key: "birthdate", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+	}
 
-    _, err := r.collection.Indexes().CreateMany(ctx, indexes)
-    if err != nil {
-        return fmt.Errorf("インデックス作成エラー: %w", err)
-    }
+	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		return fmt.Errorf("インデックス作成エラー: %w", err)
+	}
 
-    return nil
+	return nil
 }

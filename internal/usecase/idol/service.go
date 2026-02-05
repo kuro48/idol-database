@@ -144,16 +144,14 @@ func (u *Usecase) SearchIdols(ctx context.Context, query ListIdolsQuery) (*Searc
 // queryToCriteria はListIdolsQueryをSearchCriteriaに変換
 func (u *Usecase) queryToCriteria(query ListIdolsQuery) domain.SearchCriteria {
 	criteria := domain.SearchCriteria{
-		Name:        query.Name,
-		Nationality: query.Nationality,
-		GroupID:     query.GroupID,
-		AgencyID:    query.AgencyID,
-		AgeMin:      query.AgeMin,
-		AgeMax:      query.AgeMax,
-		Sort:        *query.Sort,
-		Order:       *query.Order,
-		Offset:      (*query.Page - 1) * *query.Limit,
-		Limit:       *query.Limit,
+		Name:     query.Name,
+		AgencyID: query.AgencyID,
+		AgeMin:   query.AgeMin,
+		AgeMax:   query.AgeMax,
+		Sort:     *query.Sort,
+		Order:    *query.Order,
+		Offset:   (*query.Page - 1) * *query.Limit,
+		Limit:    *query.Limit,
 	}
 
 	// 生年月日範囲の変換（YYYY-MM-DDからtime.Timeへ）
@@ -200,12 +198,6 @@ func (u *Usecase) generatePaginationLinks(query ListIdolsQuery, totalPages int) 
 
 		if query.Name != nil {
 			params.Set("name", *query.Name)
-		}
-		if query.Nationality != nil {
-			params.Set("nationality", *query.Nationality)
-		}
-		if query.GroupID != nil {
-			params.Set("group_id", *query.GroupID)
 		}
 		if query.AgencyID != nil {
 			params.Set("agency_id", *query.AgencyID)
