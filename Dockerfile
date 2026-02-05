@@ -26,6 +26,9 @@ WORKDIR /root/
 # ビルドステージからバイナリをコピー
 COPY --from=builder /app/main .
 
+# 利用規約ファイルをコピー
+COPY --from=builder /app/static/terms ./static/terms
+
 # ポート27018を公開
 EXPOSE 27018
 
