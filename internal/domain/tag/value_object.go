@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // TagID はタグの一意な識別子
@@ -18,17 +18,17 @@ func NewTagID(value string) (TagID, error) {
 		return TagID{}, errors.New("タグIDは必須です")
 	}
 
-	// UUIDの形式チェック
-	if _, err := uuid.Parse(value); err != nil {
+	// ObjectIDの形式チェック
+	if _, err := bson.ObjectIDFromHex(value); err != nil {
 		return TagID{}, errors.New("無効なタグIDフォーマットです")
 	}
 
 	return TagID{value: value}, nil
 }
 
-// GenerateTagID は新しいUUID v7ベースのTagIDを生成する
+// GenerateTagID は新しいObjectIDベースのTagIDを生成する
 func GenerateTagID() TagID {
-	return TagID{value: uuid.NewString()}
+	return TagID{value: bson.NewObjectID().Hex()}
 }
 
 // String はTagIDの文字列表現を返す
