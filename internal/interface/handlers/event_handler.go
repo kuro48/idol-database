@@ -4,19 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/event"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	"github.com/kuro48/idol-api/internal/usecase/event"
 )
 
 // EventHandler はイベントハンドラー
 type EventHandler struct {
-	appService *event.ApplicationService
+	usecase *event.Usecase
 }
 
 // NewEventHandler はイベントハンドラーを作成する
-func NewEventHandler(appService *event.ApplicationService) *EventHandler {
+func NewEventHandler(usecase *event.Usecase) *EventHandler {
 	return &EventHandler{
-		appService: appService,
+		usecase: usecase,
 	}
 }
 
@@ -38,7 +38,7 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.appService.CreateEvent(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateEvent(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("イベントの作成に失敗しました"))
 		return
@@ -67,7 +67,7 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 
 	query := event.GetEventQuery{ID: id}
 
-	dto, err := h.appService.GetEvent(c.Request.Context(), query)
+	dto, err := h.usecase.GetEvent(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("イベント"))
 		return
@@ -115,7 +115,7 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 	}
 
 	// 検索実行
-	result, err := h.appService.SearchEvents(c.Request.Context(), query)
+	result, err := h.usecase.SearchEvents(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("検索に失敗しました"))
 		return
@@ -140,7 +140,7 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.appService.UpdateEvent(c.Request.Context(), cmd)
+	err := h.usecase.UpdateEvent(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("イベントの更新に失敗しました"))
 		return
@@ -159,7 +159,7 @@ func (h *EventHandler) DeleteEvent(c *gin.Context) {
 
 	cmd := event.DeleteEventCommand{ID: id}
 
-	err := h.appService.DeleteEvent(c.Request.Context(), cmd)
+	err := h.usecase.DeleteEvent(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("イベントの削除に失敗しました"))
 		return
@@ -189,7 +189,7 @@ func (h *EventHandler) AddPerformer(c *gin.Context) {
 		PerformerID: req.PerformerID,
 	}
 
-	err := h.appService.AddPerformer(c.Request.Context(), cmd)
+	err := h.usecase.AddPerformer(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("パフォーマーの追加に失敗しました"))
 		return
@@ -213,7 +213,7 @@ func (h *EventHandler) RemovePerformer(c *gin.Context) {
 		PerformerID: performerID,
 	}
 
-	err := h.appService.RemovePerformer(c.Request.Context(), cmd)
+	err := h.usecase.RemovePerformer(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("パフォーマーの削除に失敗しました"))
 		return
@@ -226,7 +226,7 @@ func (h *EventHandler) RemovePerformer(c *gin.Context) {
 func (h *EventHandler) GetUpcomingEvents(c *gin.Context) {
 	limit := 20 // デフォルト値
 
-	dtos, err := h.appService.FindUpcoming(c.Request.Context(), limit)
+	dtos, err := h.usecase.FindUpcoming(c.Request.Context(), limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("今後のイベント取得に失敗しました"))
 		return

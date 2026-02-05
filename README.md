@@ -72,44 +72,53 @@ KPI収集:
 
 ```
 internal/
+├── config/              # 設定
 ├── domain/              # ドメイン層
-│   ├── idol/
-│   │   ├── value_object.go    # 値オブジェクト
-│   │   ├── idol.go            # エンティティ（Aggregate Root）
-│   │   ├── repository.go      # リポジトリインターフェース
-│   │   └── service.go         # ドメインサービス
+│   ├── agency/
+│   ├── event/
 │   ├── group/
-│   │   ├── value_object.go
-│   │   ├── group.go
-│   │   ├── repository.go
-│   │   └── service.go
-│   └── removal/
-│       ├── value_object.go
-│       ├── removal_request.go
-│       ├── repository.go
-│       └── service.go
+│   ├── idol/
+│   ├── removal/
+│   └── tag/
 ├── application/         # アプリケーション層
-│   ├── idol/
-│   │   ├── command.go         # コマンドDTO
-│   │   ├── query.go           # クエリDTO
-│   │   └── service.go         # アプリケーションサービス
+│   ├── agency/
+│   ├── event/
 │   ├── group/
-│   │   └── service.go
-│   └── removal/
-│       └── service.go
+│   ├── idol/
+│   ├── removal/
+│   └── tag/
+├── usecase/             # ユースケース層
+│   ├── agency/
+│   ├── event/
+│   ├── group/
+│   ├── idol/
+│   ├── removal/
+│   └── tag/
 ├── infrastructure/      # インフラ層
 │   ├── database/
 │   │   └── mongodb.go         # DB接続
 │   └── persistence/
 │       └── mongodb/
-│           ├── idol_repository.go
+│           ├── agency_repository.go
+│           ├── event_repository.go
 │           ├── group_repository.go
-│           └── removal_repository.go
+│           ├── idol_repository.go
+│           ├── removal_repository.go
+│           └── tag_repository.go
 └── interface/           # プレゼンテーション層
-    └── handlers/
-        ├── idol_handler.go
-        ├── group_handler.go
-        └── removal_handler.go
+    ├── handlers/
+    │   ├── agency_handler.go
+    │   ├── event_handler.go
+    │   ├── group_handler.go
+    │   ├── idol_handler.go
+    │   ├── removal_handler.go
+    │   ├── tag_handler.go
+    │   └── term_handler.go
+    └── middleware/
+        ├── error.go
+        ├── logger.go
+        ├── ratelimit.go
+        └── security.go
 ```
 
 ### 技術スタック

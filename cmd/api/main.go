@@ -23,17 +23,23 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/agency"
-	"github.com/kuro48/idol-api/internal/application/event"
-	"github.com/kuro48/idol-api/internal/application/group"
-	"github.com/kuro48/idol-api/internal/application/idol"
-	"github.com/kuro48/idol-api/internal/application/removal"
-	"github.com/kuro48/idol-api/internal/application/tag"
+	appAgency "github.com/kuro48/idol-api/internal/application/agency"
+	appEvent "github.com/kuro48/idol-api/internal/application/event"
+	appGroup "github.com/kuro48/idol-api/internal/application/group"
+	appIdol "github.com/kuro48/idol-api/internal/application/idol"
+	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
+	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	"github.com/kuro48/idol-api/internal/config"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	usecaseAgency "github.com/kuro48/idol-api/internal/usecase/agency"
+	usecaseEvent "github.com/kuro48/idol-api/internal/usecase/event"
+	usecaseGroup "github.com/kuro48/idol-api/internal/usecase/group"
+	usecaseIdol "github.com/kuro48/idol-api/internal/usecase/idol"
+	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
+	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
 
 	_ "github.com/kuro48/idol-api/docs" // Swagger docs
 
@@ -96,20 +102,28 @@ func main() {
 	}
 
 	// アプリケーション層: アプリケーションサービス
-	idolAppService := idol.NewApplicationService(idolRepo, agencyRepo)
-	removalAppService := removal.NewApplicationService(removalRepo, idolRepo, groupRepo)
-	groupAppService := group.NewApplicationService(groupRepo)
-	agencyAppService := agency.NewApplicationService(agencyRepo)
-	eventAppService := event.NewApplicationService(eventRepo)
-	tagAppService := tag.NewApplicationService(tagRepo)
+	idolAppService := appIdol.NewApplicationService(idolRepo)
+	removalAppService := appRemoval.NewApplicationService(removalRepo)
+	groupAppService := appGroup.NewApplicationService(groupRepo)
+	agencyAppService := appAgency.NewApplicationService(agencyRepo)
+	eventAppService := appEvent.NewApplicationService(eventRepo)
+	tagAppService := appTag.NewApplicationService(tagRepo)
+
+	// ユースケース層
+	idolUsecase := usecaseIdol.NewUsecase(idolAppService, agencyAppService)
+	removalUsecase := usecaseRemoval.NewUsecase(removalAppService, idolAppService, groupAppService)
+	groupUsecase := usecaseGroup.NewUsecase(groupAppService)
+	agencyUsecase := usecaseAgency.NewUsecase(agencyAppService)
+	eventUsecase := usecaseEvent.NewUsecase(eventAppService)
+	tagUsecase := usecaseTag.NewUsecase(tagAppService)
 
 	// プレゼンテーション層: ハンドラー
-	idolHandler := handlers.NewIdolHandler(idolAppService)
-	removalHandler := handlers.NewRemovalHandler(removalAppService)
-	groupHandler := handlers.NewGroupHandler(groupAppService)
-	agencyHandler := handlers.NewAgencyHandler(agencyAppService)
-	eventHandler := handlers.NewEventHandler(eventAppService)
-	tagHandler := handlers.NewTagHandler(tagAppService)
+	idolHandler := handlers.NewIdolHandler(idolUsecase)
+	removalHandler := handlers.NewRemovalHandler(removalUsecase)
+	groupHandler := handlers.NewGroupHandler(groupUsecase)
+	agencyHandler := handlers.NewAgencyHandler(agencyUsecase)
+	eventHandler := handlers.NewEventHandler(eventUsecase)
+	tagHandler := handlers.NewTagHandler(tagUsecase)
 	termHandler := handlers.NewTermHandler("./static")
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）

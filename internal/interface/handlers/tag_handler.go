@@ -5,19 +5,19 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/tag"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	"github.com/kuro48/idol-api/internal/usecase/tag"
 )
 
 // TagHandler はタグのハンドラー
 type TagHandler struct {
-	appService *tag.ApplicationService
+	usecase *tag.Usecase
 }
 
 // NewTagHandler はタグハンドラーを作成する
-func NewTagHandler(appService *tag.ApplicationService) *TagHandler {
+func NewTagHandler(usecase *tag.Usecase) *TagHandler {
 	return &TagHandler{
-		appService: appService,
+		usecase: usecase,
 	}
 }
 
@@ -39,7 +39,7 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.appService.CreateTag(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateTag(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
 		return
@@ -66,7 +66,7 @@ func (h *TagHandler) GetTag(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.appService.GetTag(c.Request.Context(), id)
+	dto, err := h.usecase.GetTag(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("タグが見つかりません"))
 		return
@@ -111,7 +111,7 @@ func (h *TagHandler) ListTags(c *gin.Context) {
 
 	// 検索実行
 	baseURL := "/api/v1/tags"
-	result, err := h.appService.SearchTags(c.Request.Context(), query, baseURL)
+	result, err := h.usecase.SearchTags(c.Request.Context(), query, baseURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError(err.Error()))
 		return
@@ -147,7 +147,7 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.appService.UpdateTag(c.Request.Context(), cmd)
+	err := h.usecase.UpdateTag(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
 		return
@@ -174,7 +174,7 @@ func (h *TagHandler) DeleteTag(c *gin.Context) {
 		return
 	}
 
-	err := h.appService.DeleteTag(c.Request.Context(), id)
+	err := h.usecase.DeleteTag(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
 		return
