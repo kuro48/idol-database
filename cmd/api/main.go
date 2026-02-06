@@ -23,16 +23,23 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/agency"
-	"github.com/kuro48/idol-api/internal/application/event"
-	"github.com/kuro48/idol-api/internal/application/group"
-	"github.com/kuro48/idol-api/internal/application/idol"
-	"github.com/kuro48/idol-api/internal/application/removal"
+	appAgency "github.com/kuro48/idol-api/internal/application/agency"
+	appEvent "github.com/kuro48/idol-api/internal/application/event"
+	appGroup "github.com/kuro48/idol-api/internal/application/group"
+	appIdol "github.com/kuro48/idol-api/internal/application/idol"
+	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
+	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	"github.com/kuro48/idol-api/internal/config"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	usecaseAgency "github.com/kuro48/idol-api/internal/usecase/agency"
+	usecaseEvent "github.com/kuro48/idol-api/internal/usecase/event"
+	usecaseGroup "github.com/kuro48/idol-api/internal/usecase/group"
+	usecaseIdol "github.com/kuro48/idol-api/internal/usecase/idol"
+	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
+	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
 
 	_ "github.com/kuro48/idol-api/docs" // Swagger docs
 
@@ -64,6 +71,7 @@ func main() {
 	groupRepo := mongodb.NewGroupRepository(db.Database)
 	agencyRepo := mongodb.NewAgencyRepository(db.Database)
 	eventRepo := mongodb.NewEventRepository(db.Database)
+	tagRepo := mongodb.NewTagRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -77,20 +85,45 @@ func main() {
 	} else {
 		log.Println("✅ Event MongoDBインデックスを作成しました")
 	}
+	if err := tagRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  Tagインデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ Tag MongoDBインデックスを作成しました")
+	}
+	if err := groupRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  Groupインデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ Group MongoDBインデックスを作成しました")
+	}
+	if err := agencyRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("⚠️  Agencyインデックス作成エラー（続行します）: %v", err)
+	} else {
+		log.Println("✅ Agency MongoDBインデックスを作成しました")
+	}
 
 	// アプリケーション層: アプリケーションサービス
-	idolAppService := idol.NewApplicationService(idolRepo, agencyRepo)
-	removalAppService := removal.NewApplicationService(removalRepo, idolRepo, groupRepo)
-	groupAppService := group.NewApplicationService(groupRepo)
-	agencyAppService := agency.NewApplicationService(agencyRepo)
-	eventAppService := event.NewApplicationService(eventRepo)
+	idolAppService := appIdol.NewApplicationService(idolRepo)
+	removalAppService := appRemoval.NewApplicationService(removalRepo)
+	groupAppService := appGroup.NewApplicationService(groupRepo)
+	agencyAppService := appAgency.NewApplicationService(agencyRepo)
+	eventAppService := appEvent.NewApplicationService(eventRepo)
+	tagAppService := appTag.NewApplicationService(tagRepo)
+
+	// ユースケース層
+	idolUsecase := usecaseIdol.NewUsecase(idolAppService, agencyAppService)
+	removalUsecase := usecaseRemoval.NewUsecase(removalAppService, idolAppService, groupAppService)
+	groupUsecase := usecaseGroup.NewUsecase(groupAppService)
+	agencyUsecase := usecaseAgency.NewUsecase(agencyAppService)
+	eventUsecase := usecaseEvent.NewUsecase(eventAppService)
+	tagUsecase := usecaseTag.NewUsecase(tagAppService)
 
 	// プレゼンテーション層: ハンドラー
-	idolHandler := handlers.NewIdolHandler(idolAppService)
-	removalHandler := handlers.NewRemovalHandler(removalAppService)
-	groupHandler := handlers.NewGroupHandler(groupAppService)
-	agencyHandler := handlers.NewAgencyHandler(agencyAppService)
-	eventHandler := handlers.NewEventHandler(eventAppService)
+	idolHandler := handlers.NewIdolHandler(idolUsecase)
+	removalHandler := handlers.NewRemovalHandler(removalUsecase)
+	groupHandler := handlers.NewGroupHandler(groupUsecase)
+	agencyHandler := handlers.NewAgencyHandler(agencyUsecase)
+	eventHandler := handlers.NewEventHandler(eventUsecase)
+	tagHandler := handlers.NewTagHandler(tagUsecase)
 	termHandler := handlers.NewTermHandler("./static")
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
@@ -184,6 +217,15 @@ func main() {
 			events.DELETE("/:id", eventHandler.DeleteEvent)                         // イベント削除
 			events.POST("/:id/performers", eventHandler.AddPerformer)               // パフォーマー追加
 			events.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
+		}
+
+		tags := v1.Group("/tags")
+		{
+			tags.POST("", tagHandler.CreateTag)       // タグ作成
+			tags.GET("", tagHandler.ListTags)         // タグ一覧取得
+			tags.GET("/:id", tagHandler.GetTag)       // タグ詳細取得
+			tags.PUT("/:id", tagHandler.UpdateTag)    // タグ更新
+			tags.DELETE("/:id", tagHandler.DeleteTag) // タグ削除
 		}
 	}
 

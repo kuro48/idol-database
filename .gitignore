@@ -8,6 +8,8 @@
 *.so
 *.dylib
 main
+bin/
+dist/
 
 # Test binary, built with `go test -c`
 *.test
@@ -31,10 +33,17 @@ go.work.sum
 .env.local
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
 
 .claude/
 .serena/
 CLAUDE.md
-docs/main
+
+# Swagger generated docs
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml

@@ -31,6 +31,7 @@ type idolDocument struct {
 	Birthdate   time.Time            `bson:"birthdate"`
 	AgencyID    *string              `bson:"agency_id,omitempty"`
 	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
+	TagIDs      []string             `bson:"tag_ids,omitempty"`
 	CreatedAt   time.Time            `bson:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"`
 }
@@ -62,6 +63,7 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 		Birthdate:   i.Birthdate().Value(),
 		AgencyID:    i.AgencyID(),
 		SocialLinks: socialLinksDoc,
+		TagIDs:      i.TagIDs(),
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
 	}
@@ -104,7 +106,12 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		socialLinks = toSocialLinksDomain(doc.SocialLinks)
 	}
 
-	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, doc.CreatedAt, doc.UpdatedAt), nil
+	tagIDs := doc.TagIDs
+	if tagIDs == nil {
+		tagIDs = []string{}
+	}
+
+	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
@@ -417,11 +424,39 @@ func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
                 {Key: "created_at", Value: -1},
             },
         },
-        // 複合インデックス（国籍＋生年月日での検索最適化）
+        // タグIDインデックス（タグフィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "tag_ids", Value: 1},
+            },
+        },
+        // 複合インデックス1: 国籍 + 生年月日 + 作成日時（フィルタ + ソート最適化）
         {
             Keys: bson.D{
                 {Key: "nationality", Value: 1},
                 {Key: "birthdate", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス2: 事務所ID + 作成日時（事務所別一覧取得の最適化）
+        {
+            Keys: bson.D{
+                {Key: "agency_id", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス3: グループID + 作成日時（グループ別一覧取得の最適化）
+        {
+            Keys: bson.D{
+                {Key: "group_id", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス4: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
+        {
+            Keys: bson.D{
+                {Key: "birthdate", Value: 1},
+                {Key: "created_at", Value: -1},
             },
         },
     }

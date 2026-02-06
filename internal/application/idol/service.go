@@ -3,37 +3,29 @@ package idol
 import (
 	"context"
 	"fmt"
-	"math"
-	"net/url"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/kuro48/idol-api/internal/domain/agency"
 	"github.com/kuro48/idol-api/internal/domain/idol"
 )
 
 // ApplicationService はアイドルアプリケーションサービス
 type ApplicationService struct {
-	repository       idol.Repository
-	domainService    *idol.DomainService
-	agencyRepository agency.Repository
+	repository    idol.Repository
+	domainService *idol.DomainService
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
-func NewApplicationService(repository idol.Repository, agencyRepository agency.Repository) *ApplicationService {
+func NewApplicationService(repository idol.Repository) *ApplicationService {
 	return &ApplicationService{
-		repository:       repository,
-		domainService:    idol.NewDomainService(repository),
-		agencyRepository: agencyRepository,
+		repository:    repository,
+		domainService: idol.NewDomainService(repository),
 	}
 }
 
 // CreateIdol はアイドルを作成する
-func (s *ApplicationService) CreateIdol(ctx context.Context, cmd CreateIdolCommand) (*IdolDTO, error) {
+func (s *ApplicationService) CreateIdol(ctx context.Context, input CreateInput) (*idol.Idol, error) {
 	// 値オブジェクトの生成
-	name, err := idol.NewIdolName(cmd.Name)
+	name, err := idol.NewIdolName(input.Name)
 	if err != nil {
 		return nil, fmt.Errorf("名前の生成エラー: %w", err)
 	}
@@ -44,8 +36,8 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, cmd CreateIdolComma
 	}
 
 	var birthdate *idol.Birthdate
-	if cmd.Birthdate != nil {
-		bd, err := idol.NewBirthdateFromString(*cmd.Birthdate)
+	if input.Birthdate != nil {
+		bd, err := idol.NewBirthdateFromString(*input.Birthdate)
 		if err != nil {
 			return nil, fmt.Errorf("生年月日の生成エラー: %w", err)
 		}
@@ -59,8 +51,8 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, cmd CreateIdolComma
 	}
 
 	// 事務所IDの設定
-	if cmd.AgencyID != nil {
-		newIdol.UpdateAgency(cmd.AgencyID)
+	if input.AgencyID != nil {
+		newIdol.UpdateAgency(input.AgencyID)
 	}
 
 	// 保存
@@ -68,52 +60,37 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, cmd CreateIdolComma
 		return nil, fmt.Errorf("アイドルの保存エラー: %w", err)
 	}
 
-	return s.toDTO(newIdol), nil
+	return newIdol, nil
 }
 
 // GetIdol はアイドルを取得する
-func (s *ApplicationService) GetIdol(ctx context.Context, query GetIdolQuery) (*IdolDTO, error) {
-	id, err := idol.NewIdolID(query.ID)
+func (s *ApplicationService) GetIdol(ctx context.Context, id string) (*idol.Idol, error) {
+	idolID, err := idol.NewIdolID(id)
 	if err != nil {
 		return nil, fmt.Errorf("IDの生成エラー: %w", err)
 	}
 
-	foundIdol, err := s.repository.FindByID(ctx, id)
+	foundIdol, err := s.repository.FindByID(ctx, idolID)
 	if err != nil {
 		return nil, fmt.Errorf("アイドルの取得エラー: %w", err)
 	}
 
-	dto := s.toDTO(foundIdol)
-
-	// includeパラメータの処理
-	if query.Include != nil {
-		includes := strings.Split(*query.Include, ",")
-		if err := s.loadIncludes(ctx, dto, includes); err != nil {
-			return nil, fmt.Errorf("関連データの読み込みエラー: %w", err)
-		}
-	}
-
-	return dto, nil
+	return foundIdol, nil
 }
 
 // ListIdols はアイドル一覧を取得する
-func (s *ApplicationService) ListIdols(ctx context.Context, query ListIdolsQuery) ([]*IdolDTO, error) {
+func (s *ApplicationService) ListIdols(ctx context.Context) ([]*idol.Idol, error) {
 	idols, err := s.repository.FindAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("アイドル一覧の取得エラー: %w", err)
 	}
 
-	dtos := make([]*IdolDTO, 0, len(idols))
-	for _, i := range idols {
-		dtos = append(dtos, s.toDTO(i))
-	}
-
-	return dtos, nil
+	return idols, nil
 }
 
 // UpdateIdol はアイドルを更新する
-func (s *ApplicationService) UpdateIdol(ctx context.Context, cmd UpdateIdolCommand) error {
-	id, err := idol.NewIdolID(cmd.ID)
+func (s *ApplicationService) UpdateIdol(ctx context.Context, input UpdateInput) error {
+	id, err := idol.NewIdolID(input.ID)
 	if err != nil {
 		return fmt.Errorf("IDの生成エラー: %w", err)
 	}
@@ -124,8 +101,8 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, cmd UpdateIdolComma
 	}
 
 	// 各フィールドの更新
-	if cmd.Name != nil {
-		name, err := idol.NewIdolName(*cmd.Name)
+	if input.Name != nil {
+		name, err := idol.NewIdolName(*input.Name)
 		if err != nil {
 			return fmt.Errorf("名前の生成エラー: %w", err)
 		}
@@ -144,16 +121,16 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, cmd UpdateIdolComma
 		}
 	}
 
-	if cmd.Birthdate != nil {
-		bd, err := idol.NewBirthdateFromString(*cmd.Birthdate)
+	if input.Birthdate != nil {
+		bd, err := idol.NewBirthdateFromString(*input.Birthdate)
 		if err != nil {
 			return fmt.Errorf("生年月日の生成エラー: %w", err)
 		}
 		existingIdol.UpdateBirthdate(&bd)
 	}
 
-	if cmd.AgencyID != nil {
-		existingIdol.UpdateAgency(cmd.AgencyID)
+	if input.AgencyID != nil {
+		existingIdol.UpdateAgency(input.AgencyID)
 	}
 
 	// 更新の保存
@@ -165,13 +142,13 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, cmd UpdateIdolComma
 }
 
 // DeleteIdol はアイドルを削除する
-func (s *ApplicationService) DeleteIdol(ctx context.Context, cmd DeleteIdolCommand) error {
-	id, err := idol.NewIdolID(cmd.ID)
+func (s *ApplicationService) DeleteIdol(ctx context.Context, id string) error {
+	idolID, err := idol.NewIdolID(id)
 	if err != nil {
 		return fmt.Errorf("IDの生成エラー: %w", err)
 	}
 
-	if err := s.repository.Delete(ctx, id); err != nil {
+	if err := s.repository.Delete(ctx, idolID); err != nil {
 		return fmt.Errorf("アイドルの削除エラー: %w", err)
 	}
 
@@ -179,8 +156,8 @@ func (s *ApplicationService) DeleteIdol(ctx context.Context, cmd DeleteIdolComma
 }
 
 // UpdateSocialLinks はSNS/外部リンクを更新する
-func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, cmd UpdateSocialLinksCommand) error {
-	id, err := idol.NewIdolID(cmd.ID)
+func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, input UpdateSocialLinksInput) error {
+	id, err := idol.NewIdolID(input.ID)
 	if err != nil {
 		return fmt.Errorf("IDの生成エラー: %w", err)
 	}
@@ -193,44 +170,44 @@ func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, cmd UpdateSo
 	// SocialLinksの作成と設定
 	links := idol.NewSocialLinks()
 
-	if cmd.Twitter != nil && *cmd.Twitter != "" {
-		if err := links.SetTwitter(*cmd.Twitter); err != nil {
+	if input.Twitter != nil && *input.Twitter != "" {
+		if err := links.SetTwitter(*input.Twitter); err != nil {
 			return fmt.Errorf("Twitter URLエラー: %w", err)
 		}
 	}
 
-	if cmd.Instagram != nil && *cmd.Instagram != "" {
-		if err := links.SetInstagram(*cmd.Instagram); err != nil {
+	if input.Instagram != nil && *input.Instagram != "" {
+		if err := links.SetInstagram(*input.Instagram); err != nil {
 			return fmt.Errorf("Instagram URLエラー: %w", err)
 		}
 	}
 
-	if cmd.TikTok != nil && *cmd.TikTok != "" {
-		if err := links.SetTikTok(*cmd.TikTok); err != nil {
+	if input.TikTok != nil && *input.TikTok != "" {
+		if err := links.SetTikTok(*input.TikTok); err != nil {
 			return fmt.Errorf("TikTok URLエラー: %w", err)
 		}
 	}
 
-	if cmd.YouTube != nil && *cmd.YouTube != "" {
-		if err := links.SetYouTube(*cmd.YouTube); err != nil {
+	if input.YouTube != nil && *input.YouTube != "" {
+		if err := links.SetYouTube(*input.YouTube); err != nil {
 			return fmt.Errorf("YouTube URLエラー: %w", err)
 		}
 	}
 
-	if cmd.Facebook != nil && *cmd.Facebook != "" {
-		if err := links.SetFacebook(*cmd.Facebook); err != nil {
+	if input.Facebook != nil && *input.Facebook != "" {
+		if err := links.SetFacebook(*input.Facebook); err != nil {
 			return fmt.Errorf("Facebook URLエラー: %w", err)
 		}
 	}
 
-	if cmd.OfficialWebsite != nil && *cmd.OfficialWebsite != "" {
-		if err := links.SetOfficial(*cmd.OfficialWebsite); err != nil {
+	if input.OfficialWebsite != nil && *input.OfficialWebsite != "" {
+		if err := links.SetOfficial(*input.OfficialWebsite); err != nil {
 			return fmt.Errorf("公式サイトURLエラー: %w", err)
 		}
 	}
 
-	if cmd.FanClub != nil && *cmd.FanClub != "" {
-		if err := links.SetFanClub(*cmd.FanClub); err != nil {
+	if input.FanClub != nil && *input.FanClub != "" {
+		if err := links.SetFanClub(*input.FanClub); err != nil {
 			return fmt.Errorf("ファンクラブURLエラー: %w", err)
 		}
 	}
@@ -245,10 +222,7 @@ func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, cmd UpdateSo
 }
 
 // SearchIdols は条件を指定してアイドルを検索する（並行処理版）
-func (s *ApplicationService) SearchIdols(ctx context.Context, query ListIdolsQuery) (*SearchResult, error) {
-	// SearchCriteriaに変換
-	criteria := s.queryToCriteria(query)
-
+func (s *ApplicationService) SearchIdols(ctx context.Context, criteria idol.SearchCriteria) ([]*idol.Idol, int64, error) {
 	// 並行処理: データ取得と件数取得を同時実行
 	var idols []*idol.Idol
 	var total int64
@@ -273,219 +247,11 @@ func (s *ApplicationService) SearchIdols(ctx context.Context, query ListIdolsQue
 
 	// エラーチェック
 	if errSearch != nil {
-		return nil, fmt.Errorf("検索エラー: %w", errSearch)
+		return nil, 0, fmt.Errorf("検索エラー: %w", errSearch)
 	}
 	if errCount != nil {
-		return nil, fmt.Errorf("件数取得エラー: %w", errCount)
+		return nil, 0, fmt.Errorf("件数取得エラー: %w", errCount)
 	}
 
-	// DTOに変換
-	dtos := make([]*IdolDTO, 0, len(idols))
-	for _, i := range idols {
-		dtos = append(dtos, s.toDTO(i))
-	}
-
-	// includeパラメータの処理
-	if query.Include != nil {
-		includes := strings.Split(*query.Include, ",")
-		for _, dto := range dtos {
-			if err := s.loadIncludes(ctx, dto, includes); err != nil {
-				return nil, fmt.Errorf("関連データの読み込みエラー: %w", err)
-			}
-		}
-	}
-
-	// ページネーション情報を計算
-	meta := s.calculatePaginationMeta(total, *query.Page, *query.Limit)
-
-	// ページネーションリンクを生成
-	links := s.generatePaginationLinks(query, meta.TotalPages)
-
-	return &SearchResult{
-		Data:  dtos,
-		Meta:  meta,
-		Links: links,
-	}, nil
-}
-
-// queryToCriteria はListIdolsQueryをSearchCriteriaに変換
-func (s *ApplicationService) queryToCriteria(query ListIdolsQuery) idol.SearchCriteria {
-	criteria := idol.SearchCriteria{
-		Name:        query.Name,
-		Nationality: query.Nationality,
-		GroupID:     query.GroupID,
-		AgencyID:    query.AgencyID,
-		AgeMin:      query.AgeMin,
-		AgeMax:      query.AgeMax,
-		Sort:        *query.Sort,
-		Order:       *query.Order,
-		Offset:      (*query.Page - 1) * *query.Limit,
-		Limit:       *query.Limit,
-	}
-
-	// 生年月日範囲の変換（YYYY-MM-DDからtime.Timeへ）
-	if query.BirthdateFrom != nil {
-		if t, err := time.Parse("2006-01-02", *query.BirthdateFrom); err == nil {
-			criteria.BirthdateFrom = &t
-		}
-	}
-	if query.BirthdateTo != nil {
-		if t, err := time.Parse("2006-01-02", *query.BirthdateTo); err == nil {
-			criteria.BirthdateTo = &t
-		}
-	}
-
-	return criteria
-}
-
-// calculatePaginationMeta はページネーション情報を計算
-func (s *ApplicationService) calculatePaginationMeta(total int64, page, perPage int) *PaginationMeta {
-	totalPages := int(math.Ceil(float64(total) / float64(perPage)))
-	if totalPages < 1 {
-		totalPages = 1
-	}
-
-	return &PaginationMeta{
-		Total:      total,
-		Page:       page,
-		PerPage:    perPage,
-		TotalPages: totalPages,
-		HasNext:    page < totalPages,
-		HasPrev:    page > 1,
-	}
-}
-
-// generatePaginationLinks はページネーションリンクを生成
-func (s *ApplicationService) generatePaginationLinks(query ListIdolsQuery, totalPages int) *PaginationLinks {
-	baseURL := "/api/v1/idols"
-
-	// クエリパラメータを構築
-	buildURL := func(page int) string {
-		params := url.Values{}
-		params.Set("page", strconv.Itoa(page))
-		params.Set("limit", strconv.Itoa(*query.Limit))
-
-		if query.Name != nil {
-			params.Set("name", *query.Name)
-		}
-		if query.Nationality != nil {
-			params.Set("nationality", *query.Nationality)
-		}
-		if query.GroupID != nil {
-			params.Set("group_id", *query.GroupID)
-		}
-		if query.AgencyID != nil {
-			params.Set("agency_id", *query.AgencyID)
-		}
-		if query.Include != nil {
-			params.Set("include", *query.Include)
-		}
-		if query.AgeMin != nil {
-			params.Set("age_min", strconv.Itoa(*query.AgeMin))
-		}
-		if query.AgeMax != nil {
-			params.Set("age_max", strconv.Itoa(*query.AgeMax))
-		}
-		if query.BirthdateFrom != nil {
-			params.Set("birthdate_from", *query.BirthdateFrom)
-		}
-		if query.BirthdateTo != nil {
-			params.Set("birthdate_to", *query.BirthdateTo)
-		}
-		if query.Sort != nil {
-			params.Set("sort", *query.Sort)
-		}
-		if query.Order != nil {
-			params.Set("order", *query.Order)
-		}
-
-		return baseURL + "?" + params.Encode()
-	}
-
-	links := &PaginationLinks{
-		First: buildURL(1),
-		Last:  buildURL(totalPages),
-	}
-
-	// 次ページリンク
-	if *query.Page < totalPages {
-		next := buildURL(*query.Page + 1)
-		links.Next = &next
-	}
-
-	// 前ページリンク
-	if *query.Page > 1 {
-		prev := buildURL(*query.Page - 1)
-		links.Prev = &prev
-	}
-
-	return links
-}
-
-// loadIncludes は関連データを読み込んでDTOに展開する
-func (s *ApplicationService) loadIncludes(ctx context.Context, dto *IdolDTO, includes []string) error {
-	for _, include := range includes {
-		switch strings.TrimSpace(include) {
-		case "agency":
-			if dto.AgencyID != nil {
-				agencyID, err := agency.NewAgencyID(*dto.AgencyID)
-				if err != nil {
-					return fmt.Errorf("事務所IDの生成エラー: %w", err)
-				}
-				foundAgency, err := s.agencyRepository.FindByID(ctx, agencyID)
-				if err != nil {
-					// 事務所が見つからない場合はnilのまま（エラーにしない）
-					continue
-				}
-				// Agencyを簡易DTOに変換して格納
-				dto.Agency = map[string]interface{}{
-					"id":               foundAgency.ID().Value(),
-					"name":             foundAgency.Name().Value(),
-					"name_en":          foundAgency.NameEn(),
-					"country":          foundAgency.Country().Value(),
-					"official_website": foundAgency.OfficialWebsite(),
-					"logo_url":         foundAgency.LogoURL(),
-				}
-			}
-		// 将来的に他のinclude対象（groups, events等）を追加可能
-		}
-	}
-	return nil
-}
-
-// toDTO はドメインモデルをDTOに変換する
-func (s *ApplicationService) toDTO(i *idol.Idol) *IdolDTO {
-	var birthdateStr string
-	if i.Birthdate() != nil {
-		birthdateStr = i.Birthdate().String()
-	}
-
-	var age *int
-	if ageValue, err := i.Age(); err == nil {
-		age = &ageValue
-	}
-
-	var socialLinksMap interface{}
-	if i.SocialLinks() != nil {
-		socialLinksMap = map[string]interface{}{
-			"twitter":          i.SocialLinks().Twitter(),
-			"instagram":        i.SocialLinks().Instagram(),
-			"tiktok":           i.SocialLinks().TikTok(),
-			"youtube":          i.SocialLinks().YouTube(),
-			"facebook":         i.SocialLinks().Facebook(),
-			"official_website": i.SocialLinks().Official(),
-			"fan_club":         i.SocialLinks().FanClub(),
-		}
-	}
-
-	return &IdolDTO{
-		ID:          i.ID().Value(),
-		Name:        i.Name().Value(),
-		Birthdate:   birthdateStr,
-		Age:         age,
-		AgencyID:    i.AgencyID(),
-		SocialLinks: socialLinksMap,
-		CreatedAt:   i.CreatedAt().Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:   i.UpdatedAt().Format("2006-01-02T15:04:05Z07:00"),
-	}
+	return idols, total, nil
 }

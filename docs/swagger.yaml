@@ -176,6 +176,96 @@ definitions:
       youtube:
         type: string
     type: object
+  github_com_kuro48_idol-api_internal_usecase_tag.CreateTagCommand:
+    properties:
+      category:
+        enum:
+        - genre
+        - region
+        - style
+        - other
+        type: string
+      description:
+        maxLength: 200
+        type: string
+      name:
+        maxLength: 50
+        type: string
+    required:
+    - category
+    - name
+    type: object
+  github_com_kuro48_idol-api_internal_usecase_tag.PaginationLinks:
+    properties:
+      first:
+        type: string
+      last:
+        type: string
+      next:
+        type: string
+      prev:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_usecase_tag.PaginationMeta:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_kuro48_idol-api_internal_usecase_tag.SearchResult:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.TagDTO'
+        type: array
+      links:
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.PaginationLinks'
+      meta:
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.PaginationMeta'
+    type: object
+  github_com_kuro48_idol-api_internal_usecase_tag.TagDTO:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  github_com_kuro48_idol-api_internal_usecase_tag.UpdateTagCommand:
+    properties:
+      category:
+        enum:
+        - genre
+        - region
+        - style
+        - other
+        type: string
+      description:
+        maxLength: 200
+        type: string
+      id:
+        type: string
+      name:
+        maxLength: 50
+        type: string
+    required:
+    - category
+    - name
+    type: object
   github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse:
     properties:
       code:
@@ -606,6 +696,173 @@ paths:
       summary: SNS/外部リンク更新
       tags:
       - idols
+  /tags:
+    get:
+      consumes:
+      - application/json
+      description: 条件を指定してタグ一覧を取得（検索・フィルタリング・ページネーション対応）
+      parameters:
+      - description: タグ名（部分一致）
+        in: query
+        name: name
+        type: string
+      - description: カテゴリ
+        enum:
+        - genre
+        - region
+        - style
+        - other
+        in: query
+        name: category
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.SearchResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: タグ一覧取得
+      tags:
+      - tags
+    post:
+      consumes:
+      - application/json
+      description: 新しいタグを作成する
+      parameters:
+      - description: タグ作成リクエスト
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.CreateTagCommand'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.TagDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: タグ作成
+      tags:
+      - tags
+  /tags/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: IDを指定してタグを削除する
+      parameters:
+      - description: タグID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: タグ削除
+      tags:
+      - tags
+    get:
+      consumes:
+      - application/json
+      description: IDを指定してタグ情報を取得する
+      parameters:
+      - description: タグID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.TagDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: タグ詳細取得
+      tags:
+      - tags
+    put:
+      consumes:
+      - application/json
+      description: IDを指定してタグ情報を更新する
+      parameters:
+      - description: タグID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: タグ更新リクエスト
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.UpdateTagCommand'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse'
+      summary: タグ更新
+      tags:
+      - tags
 schemes:
 - http
 - https

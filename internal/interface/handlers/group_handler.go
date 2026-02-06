@@ -4,17 +4,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/group"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	"github.com/kuro48/idol-api/internal/usecase/group"
 )
 
 type GroupHandler struct {
-	appService *group.ApplicationService
+	usecase *group.Usecase
 }
 
-func NewGroupHandler(appService *group.ApplicationService) *GroupHandler {
+func NewGroupHandler(usecase *group.Usecase) *GroupHandler {
 	return &GroupHandler{
-		appService: appService,
+		usecase: usecase,
 	}
 }
 
@@ -43,7 +43,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		DisbandDate:   req.DisbandDate,
 	}
 
-	dto, err := h.appService.CreateGroup(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateGroup(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの作成に失敗しました"))
 		return
@@ -61,7 +61,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 
 	query := group.GetGroupQuery{ID: id}
 
-	dto, err := h.appService.GetGroup(c.Request.Context(), query)
+	dto, err := h.usecase.GetGroup(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("グループ"))
 		return
@@ -73,7 +73,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 func (h *GroupHandler) ListGroup(c *gin.Context) {
 	query := group.ListGroupQuery{}
 
-	dtos, err := h.appService.ListGroup(c.Request.Context(), query)
+	dtos, err := h.usecase.ListGroup(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループ一覧の取得に失敗しました"))
 		return
@@ -102,7 +102,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		DisbandDate:   req.DisbandDate,
 	}
 
-	err := h.appService.UpdateGroup(c.Request.Context(), cmd)
+	err := h.usecase.UpdateGroup(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの更新に失敗しました"))
 		return
@@ -121,7 +121,7 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 
 	cmd := group.DeleteGroupCommand{ID: id}
 
-	err := h.appService.DeleteGroup(c.Request.Context(), cmd)
+	err := h.usecase.DeleteGroup(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの削除に失敗しました"))
 		return
