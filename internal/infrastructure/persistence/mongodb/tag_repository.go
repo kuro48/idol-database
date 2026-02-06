@@ -34,8 +34,11 @@ type tagDocument struct {
 }
 
 // toTagDocument はドメインモデルをMongoDBドキュメントに変換する
-func toTagDocument(t *tag.Tag) *tagDocument {
-	objectID, _ := bson.ObjectIDFromHex(t.ID().String())
+func toTagDocument(t *tag.Tag) (*tagDocument, error) {
+	objectID, err := bson.ObjectIDFromHex(t.ID().String())
+	if err != nil {
+		return nil, fmt.Errorf("無効なタグID: %w", err)
+	}
 
 	return &tagDocument{
 		ID:          objectID,
@@ -43,7 +46,7 @@ func toTagDocument(t *tag.Tag) *tagDocument {
 		Category:    t.Category().String(),
 		Description: t.Description(),
 		CreatedAt:   t.CreatedAt(),
-	}
+	}, nil
 }
 
 // toTagDomain はMongoDBドキュメントをドメインモデルに変換する
@@ -59,14 +62,17 @@ func toTagDomain(doc *tagDocument) (*tag.Tag, error) {
 
 // Save はタグを保存する
 func (r *TagRepository) Save(ctx context.Context, t *tag.Tag) error {
-	doc := toTagDocument(t)
-
-	if doc.ID.IsZero() {
-		doc.ID = bson.NewObjectID()
-		doc.CreatedAt = time.Now()
+	doc, err := toTagDocument(t)
+	if err != nil {
+		return err
 	}
 
-	_, err := r.collection.InsertOne(ctx, doc)
+	// ドメイン層で生成されたIDが必須
+	if doc.ID.IsZero() {
+		return errors.New("タグIDが設定されていません")
+	}
+
+	_, err = r.collection.InsertOne(ctx, doc)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			return errors.New("同じ名前のタグが既に存在します")
@@ -79,7 +85,10 @@ func (r *TagRepository) Save(ctx context.Context, t *tag.Tag) error {
 
 // Update はタグを更新する
 func (r *TagRepository) Update(ctx context.Context, t *tag.Tag) error {
-	doc := toTagDocument(t)
+	doc, err := toTagDocument(t)
+	if err != nil {
+		return err
+	}
 
 	filter := bson.M{"_id": doc.ID}
 	update := bson.M{
