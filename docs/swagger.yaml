@@ -176,7 +176,7 @@ definitions:
       youtube:
         type: string
     type: object
-  github_com_kuro48_idol-api_internal_application_tag.CreateTagCommand:
+  github_com_kuro48_idol-api_internal_usecase_tag.CreateTagCommand:
     properties:
       category:
         enum:
@@ -195,7 +195,7 @@ definitions:
     - category
     - name
     type: object
-  github_com_kuro48_idol-api_internal_application_tag.PaginationLinks:
+  github_com_kuro48_idol-api_internal_usecase_tag.PaginationLinks:
     properties:
       first:
         type: string
@@ -206,7 +206,7 @@ definitions:
       prev:
         type: string
     type: object
-  github_com_kuro48_idol-api_internal_application_tag.PaginationMeta:
+  github_com_kuro48_idol-api_internal_usecase_tag.PaginationMeta:
     properties:
       has_next:
         type: boolean
@@ -221,18 +221,18 @@ definitions:
       total_pages:
         type: integer
     type: object
-  github_com_kuro48_idol-api_internal_application_tag.SearchResult:
+  github_com_kuro48_idol-api_internal_usecase_tag.SearchResult:
     properties:
       data:
         items:
-          $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO'
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.TagDTO'
         type: array
       links:
-        $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.PaginationLinks'
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.PaginationLinks'
       meta:
-        $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.PaginationMeta'
+        $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.PaginationMeta'
     type: object
-  github_com_kuro48_idol-api_internal_application_tag.TagDTO:
+  github_com_kuro48_idol-api_internal_usecase_tag.TagDTO:
     properties:
       category:
         type: string
@@ -245,7 +245,7 @@ definitions:
       name:
         type: string
     type: object
-  github_com_kuro48_idol-api_internal_application_tag.UpdateTagCommand:
+  github_com_kuro48_idol-api_internal_usecase_tag.UpdateTagCommand:
     properties:
       category:
         enum:
@@ -731,7 +731,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.SearchResult'
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.SearchResult'
         "400":
           description: Bad Request
           schema:
@@ -753,14 +753,14 @@ paths:
         name: tag
         required: true
         schema:
-          $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.CreateTagCommand'
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.CreateTagCommand'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO'
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.TagDTO'
         "400":
           description: Bad Request
           schema:
@@ -815,7 +815,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO'
+            $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.TagDTO'
         "400":
           description: Bad Request
           schema:
@@ -842,7 +842,7 @@ paths:
         name: tag
         required: true
         schema:
-          $ref: '#/definitions/github_com_kuro48_idol-api_internal_application_tag.UpdateTagCommand'
+          $ref: '#/definitions/github_com_kuro48_idol-api_internal_usecase_tag.UpdateTagCommand'
       produces:
       - application/json
       responses:
