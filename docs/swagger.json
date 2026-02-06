@@ -593,6 +593,256 @@
                     }
                 }
             }
+        },
+        "/tags": {
+            "get": {
+                "description": "条件を指定してタグ一覧を取得（検索・フィルタリング・ページネーション対応）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tags"
+                ],
+                "summary": "タグ一覧取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "タグ名（部分一致）",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "genre",
+                            "region",
+                            "style",
+                            "other"
+                        ],
+                        "type": "string",
+                        "description": "カテゴリ",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "ページ番号",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "1ページあたりの件数",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.SearchResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいタグを作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tags"
+                ],
+                "summary": "タグ作成",
+                "parameters": [
+                    {
+                        "description": "タグ作成リクエスト",
+                        "name": "tag",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.CreateTagCommand"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tags/{id}": {
+            "get": {
+                "description": "IDを指定してタグ情報を取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tags"
+                ],
+                "summary": "タグ詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "タグID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "IDを指定してタグ情報を更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tags"
+                ],
+                "summary": "タグ更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "タグID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "タグ更新リクエスト",
+                        "name": "tag",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.UpdateTagCommand"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "IDを指定してタグを削除する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tags"
+                ],
+                "summary": "タグ削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "タグID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -861,6 +1111,138 @@
                 },
                 "youtube": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_tag.CreateTagCommand": {
+            "type": "object",
+            "required": [
+                "category",
+                "name"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "genre",
+                        "region",
+                        "style",
+                        "other"
+                    ]
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_tag.PaginationLinks": {
+            "type": "object",
+            "properties": {
+                "first": {
+                    "type": "string"
+                },
+                "last": {
+                    "type": "string"
+                },
+                "next": {
+                    "type": "string"
+                },
+                "prev": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_tag.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_prev": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_tag.SearchResult": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO"
+                    }
+                },
+                "links": {
+                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.PaginationLinks"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.PaginationMeta"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_tag.TagDTO": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_kuro48_idol-api_internal_application_tag.UpdateTagCommand": {
+            "type": "object",
+            "required": [
+                "category",
+                "name"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "genre",
+                        "region",
+                        "style",
+                        "other"
+                    ]
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 50
                 }
             }
         },

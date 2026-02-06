@@ -12,6 +12,7 @@ type Idol struct {
 	birthdate   *Birthdate
 	agencyID    *string      // 所属事務所ID（オプショナル）
 	socialLinks *SocialLinks // SNS/外部リンク（オプショナル）
+	tagIDs      []string     // タグID一覧
 	createdAt   time.Time
 	updatedAt   time.Time
 }
@@ -38,6 +39,7 @@ func Reconstruct(
 	birthdate *Birthdate,
 	agencyID *string,
 	socialLinks *SocialLinks,
+	tagIDs []string,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Idol {
@@ -47,6 +49,7 @@ func Reconstruct(
 		birthdate:   birthdate,
 		agencyID:    agencyID,
 		socialLinks: socialLinks,
+		tagIDs:      tagIDs,
 		createdAt:   createdAt,
 		updatedAt:   updatedAt,
 	}
@@ -72,6 +75,10 @@ func (i *Idol) AgencyID() *string {
 
 func (i *Idol) SocialLinks() *SocialLinks {
 	return i.socialLinks
+}
+
+func (i *Idol) TagIDs() []string {
+	return i.tagIDs
 }
 
 func (i *Idol) CreatedAt() time.Time {
@@ -109,6 +116,36 @@ func (i *Idol) UpdateAgency(agencyID *string) {
 // UpdateSocialLinks はSNS/外部リンクを更新する
 func (i *Idol) UpdateSocialLinks(links *SocialLinks) {
 	i.socialLinks = links
+	i.updatedAt = time.Now()
+}
+
+// AddTag はタグを追加する（重複チェックあり）
+func (i *Idol) AddTag(tagID string) {
+	// 既に存在する場合は追加しない
+	for _, existingID := range i.tagIDs {
+		if existingID == tagID {
+			return
+		}
+	}
+	i.tagIDs = append(i.tagIDs, tagID)
+	i.updatedAt = time.Now()
+}
+
+// RemoveTag はタグを削除する
+func (i *Idol) RemoveTag(tagID string) {
+	newTagIDs := make([]string, 0, len(i.tagIDs))
+	for _, id := range i.tagIDs {
+		if id != tagID {
+			newTagIDs = append(newTagIDs, id)
+		}
+	}
+	i.tagIDs = newTagIDs
+	i.updatedAt = time.Now()
+}
+
+// SetTags はタグIDのリストを設定する
+func (i *Idol) SetTags(tagIDs []string) {
+	i.tagIDs = tagIDs
 	i.updatedAt = time.Now()
 }
 

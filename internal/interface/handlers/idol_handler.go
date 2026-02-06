@@ -4,19 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/idol"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	"github.com/kuro48/idol-api/internal/usecase/idol"
 )
 
 // IdolHandler はDDD構造を使用したアイドルハンドラー
 type IdolHandler struct {
-	appService *idol.ApplicationService
+	usecase *idol.Usecase
 }
 
 // NewIdolHandler はDDDハンドラーを作成する
-func NewIdolHandler(appService *idol.ApplicationService) *IdolHandler {
+func NewIdolHandler(usecase *idol.Usecase) *IdolHandler {
 	return &IdolHandler{
-		appService: appService,
+		usecase: usecase,
 	}
 }
 
@@ -58,7 +58,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 		AgencyID:  req.AgencyID,
 	}
 
-	dto, err := h.appService.CreateIdol(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateIdol(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの作成に失敗しました"))
 		return
@@ -88,7 +88,7 @@ func (h *IdolHandler) GetIdol(c *gin.Context) {
 
 	query := idol.GetIdolQuery{ID: id}
 
-	dto, err := h.appService.GetIdol(c.Request.Context(), query)
+	dto, err := h.usecase.GetIdol(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("アイドル"))
 		return
@@ -139,7 +139,7 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 	}
 
 	// 検索実行
-	result, err := h.appService.SearchIdols(c.Request.Context(), query)
+	result, err := h.usecase.SearchIdols(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("検索に失敗しました"))
 		return
@@ -180,7 +180,7 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 		AgencyID:  req.AgencyID,
 	}
 
-	err := h.appService.UpdateIdol(c.Request.Context(), cmd)
+	err := h.usecase.UpdateIdol(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの更新に失敗しました"))
 		return
@@ -209,7 +209,7 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 
 	cmd := idol.DeleteIdolCommand{ID: id}
 
-	err := h.appService.DeleteIdol(c.Request.Context(), cmd)
+	err := h.usecase.DeleteIdol(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの削除に失敗しました"))
 		return
@@ -244,7 +244,7 @@ func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.appService.UpdateSocialLinks(c.Request.Context(), cmd)
+	err := h.usecase.UpdateSocialLinks(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
 		return

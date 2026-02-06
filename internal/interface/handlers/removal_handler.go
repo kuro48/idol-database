@@ -4,17 +4,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/removal"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	"github.com/kuro48/idol-api/internal/usecase/removal"
 )
 
 // RemovalHandler は削除申請のHTTPハンドラー
 type RemovalHandler struct {
-	removalService *removal.ApplicationService
+	removalService *removal.Usecase
 }
 
 // NewRemovalHandler は削除申請ハンドラーを作成する
-func NewRemovalHandler(removalService *removal.ApplicationService) *RemovalHandler {
+func NewRemovalHandler(removalService *removal.Usecase) *RemovalHandler {
 	return &RemovalHandler{
 		removalService: removalService,
 	}

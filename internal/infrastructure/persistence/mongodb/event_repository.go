@@ -328,11 +328,46 @@ func (r *EventRepository) EnsureIndexes(ctx context.Context) error {
 				{Key: "tags", Value: 1},
 			},
 		},
-		// 複合インデックス（イベントタイプ + 開始日時）
+		// 作成日時インデックス（デフォルトソート用）
+		{
+			Keys: bson.D{
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// 複合インデックス1: イベントタイプ + 開始日時（タイプ別時系列検索の最適化）
 		{
 			Keys: bson.D{
 				{Key: "event_type", Value: 1},
 				{Key: "start_date_time", Value: 1},
+			},
+		},
+		// 複合インデックス2: 会場ID + 開始日時（会場別イベント一覧の最適化）
+		{
+			Keys: bson.D{
+				{Key: "venue_id", Value: 1},
+				{Key: "start_date_time", Value: 1},
+			},
+		},
+		// 複合インデックス3: パフォーマーID + 開始日時（アイドル別イベント一覧の最適化）
+		{
+			Keys: bson.D{
+				{Key: "performer_ids", Value: 1},
+				{Key: "start_date_time", Value: 1},
+			},
+		},
+		// 複合インデックス4: 開始日時 + 作成日時（時系列検索 + ソート最適化）
+		{
+			Keys: bson.D{
+				{Key: "start_date_time", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// 複合インデックス5: イベントタイプ + 開始日時 + 作成日時（複雑な検索の最適化）
+		{
+			Keys: bson.D{
+				{Key: "event_type", Value: 1},
+				{Key: "start_date_time", Value: 1},
+				{Key: "created_at", Value: -1},
 			},
 		},
 	}

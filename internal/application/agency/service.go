@@ -23,14 +23,14 @@ func NewApplicationService(repository agency.Repository) *ApplicationService {
 }
 
 // CreateAgency は事務所を作成する
-func (s *ApplicationService) CreateAgency(ctx context.Context, cmd CreateAgencyCommand) (*AgencyDTO, error) {
+func (s *ApplicationService) CreateAgency(ctx context.Context, input CreateInput) (*agency.Agency, error) {
 	// 値オブジェクトの生成
-	name, err := agency.NewAgencyName(cmd.Name)
+	name, err := agency.NewAgencyName(input.Name)
 	if err != nil {
 		return nil, fmt.Errorf("名前の生成エラー: %w", err)
 	}
 
-	country, err := agency.NewCountry(cmd.Country)
+	country, err := agency.NewCountry(input.Country)
 	if err != nil {
 		return nil, fmt.Errorf("国の生成エラー: %w", err)
 	}
@@ -50,13 +50,13 @@ func (s *ApplicationService) CreateAgency(ctx context.Context, cmd CreateAgencyC
 	newAgency := agency.NewAgency(id, name, country)
 
 	// オプションフィールドの設定
-	if cmd.FoundedDate != nil {
-		foundedDate, err := time.Parse("2006-01-02", *cmd.FoundedDate)
+	if input.FoundedDate != nil {
+		foundedDate, err := time.Parse("2006-01-02", *input.FoundedDate)
 		if err == nil {
-			newAgency.UpdateDetails(nil, cmd.NameEn, &foundedDate, cmd.OfficialWebsite, cmd.Description, cmd.LogoURL)
+			newAgency.UpdateDetails(nil, input.NameEn, &foundedDate, input.OfficialWebsite, input.Description, input.LogoURL)
 		}
 	} else {
-		newAgency.UpdateDetails(nil, cmd.NameEn, nil, cmd.OfficialWebsite, cmd.Description, cmd.LogoURL)
+		newAgency.UpdateDetails(nil, input.NameEn, nil, input.OfficialWebsite, input.Description, input.LogoURL)
 	}
 
 	// 保存
@@ -64,42 +64,37 @@ func (s *ApplicationService) CreateAgency(ctx context.Context, cmd CreateAgencyC
 		return nil, fmt.Errorf("事務所の保存エラー: %w", err)
 	}
 
-	return s.toDTO(newAgency), nil
+	return newAgency, nil
 }
 
 // GetAgency は事務所を取得する
-func (s *ApplicationService) GetAgency(ctx context.Context, query GetAgencyQuery) (*AgencyDTO, error) {
-	id, err := agency.NewAgencyID(query.ID)
+func (s *ApplicationService) GetAgency(ctx context.Context, id string) (*agency.Agency, error) {
+	agencyID, err := agency.NewAgencyID(id)
 	if err != nil {
 		return nil, fmt.Errorf("IDの生成エラー: %w", err)
 	}
 
-	foundAgency, err := s.repository.FindByID(ctx, id)
+	foundAgency, err := s.repository.FindByID(ctx, agencyID)
 	if err != nil {
 		return nil, fmt.Errorf("事務所の取得エラー: %w", err)
 	}
 
-	return s.toDTO(foundAgency), nil
+	return foundAgency, nil
 }
 
 // ListAgencies は事務所一覧を取得する
-func (s *ApplicationService) ListAgencies(ctx context.Context, query ListAgenciesQuery) ([]*AgencyDTO, error) {
+func (s *ApplicationService) ListAgencies(ctx context.Context) ([]*agency.Agency, error) {
 	agencies, err := s.repository.FindAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("事務所一覧の取得エラー: %w", err)
 	}
 
-	dtos := make([]*AgencyDTO, 0, len(agencies))
-	for _, a := range agencies {
-		dtos = append(dtos, s.toDTO(a))
-	}
-
-	return dtos, nil
+	return agencies, nil
 }
 
 // UpdateAgency は事務所を更新する
-func (s *ApplicationService) UpdateAgency(ctx context.Context, cmd UpdateAgencyCommand) error {
-	id, err := agency.NewAgencyID(cmd.ID)
+func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput) error {
+	id, err := agency.NewAgencyID(input.ID)
 	if err != nil {
 		return fmt.Errorf("IDの生成エラー: %w", err)
 	}
@@ -111,8 +106,8 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, cmd UpdateAgencyC
 
 	// 名前の更新と重複チェック
 	var newName *agency.AgencyName
-	if cmd.Name != nil {
-		name, err := agency.NewAgencyName(*cmd.Name)
+	if input.Name != nil {
+		name, err := agency.NewAgencyName(*input.Name)
 		if err != nil {
 			return fmt.Errorf("名前の生成エラー: %w", err)
 		}
@@ -131,15 +126,15 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, cmd UpdateAgencyC
 
 	// 設立日のパース
 	var foundedDate *time.Time
-	if cmd.FoundedDate != nil {
-		parsed, err := time.Parse("2006-01-02", *cmd.FoundedDate)
+	if input.FoundedDate != nil {
+		parsed, err := time.Parse("2006-01-02", *input.FoundedDate)
 		if err == nil {
 			foundedDate = &parsed
 		}
 	}
 
 	// 更新
-	existingAgency.UpdateDetails(newName, cmd.NameEn, foundedDate, cmd.OfficialWebsite, cmd.Description, cmd.LogoURL)
+	existingAgency.UpdateDetails(newName, input.NameEn, foundedDate, input.OfficialWebsite, input.Description, input.LogoURL)
 
 	// 保存
 	if err := s.repository.Update(ctx, existingAgency); err != nil {
@@ -150,39 +145,17 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, cmd UpdateAgencyC
 }
 
 // DeleteAgency は事務所を削除する
-func (s *ApplicationService) DeleteAgency(ctx context.Context, cmd DeleteAgencyCommand) error {
-	id, err := agency.NewAgencyID(cmd.ID)
+func (s *ApplicationService) DeleteAgency(ctx context.Context, id string) error {
+	agencyID, err := agency.NewAgencyID(id)
 	if err != nil {
 		return fmt.Errorf("IDの生成エラー: %w", err)
 	}
 
-	if err := s.repository.Delete(ctx, id); err != nil {
+	if err := s.repository.Delete(ctx, agencyID); err != nil {
 		return fmt.Errorf("事務所の削除エラー: %w", err)
 	}
 
 	return nil
-}
-
-// toDTO はドメインモデルをDTOに変換する
-func (s *ApplicationService) toDTO(a *agency.Agency) *AgencyDTO {
-	var foundedDateStr *string
-	if a.FoundedDate() != nil {
-		str := a.FoundedDate().Format("2006-01-02")
-		foundedDateStr = &str
-	}
-
-	return &AgencyDTO{
-		ID:              a.ID().Value(),
-		Name:            a.Name().Value(),
-		NameEn:          a.NameEn(),
-		FoundedDate:     foundedDateStr,
-		Country:         a.Country().Value(),
-		OfficialWebsite: a.OfficialWebsite(),
-		Description:     a.Description(),
-		LogoURL:         a.LogoURL(),
-		CreatedAt:       a.CreatedAt().Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:       a.UpdatedAt().Format("2006-01-02T15:04:05Z07:00"),
-	}
 }
 
 // generateID はIDを生成する（簡易実装）

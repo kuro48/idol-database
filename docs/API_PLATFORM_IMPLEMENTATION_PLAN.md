@@ -373,7 +373,7 @@ GET /api/v1/idols?name=山田&nationality=日本&sort=birthdate&order=desc&page=
 
 #### 実装
 ```go
-// internal/interface/handlers/idol_handler_ddd.go
+// internal/interface/handlers/idol_handler.go
 
 func (h *IdolHandler) ListIdols(c *gin.Context) {
     var query idol.ListIdolsQuery
@@ -1511,7 +1511,7 @@ go get -u github.com/swaggo/files
 #### アノテーション例
 
 ```go
-// internal/interface/handlers/idol_handler_ddd.go
+// internal/interface/handlers/idol_handler.go
 
 // ListIdols godoc
 // @Summary      アイドル一覧取得

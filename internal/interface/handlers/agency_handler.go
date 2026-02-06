@@ -4,19 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kuro48/idol-api/internal/application/agency"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	"github.com/kuro48/idol-api/internal/usecase/agency"
 )
 
 // AgencyHandler は事務所ハンドラー
 type AgencyHandler struct {
-	appService *agency.ApplicationService
+	usecase *agency.Usecase
 }
 
 // NewAgencyHandler は事務所ハンドラーを作成する
-func NewAgencyHandler(appService *agency.ApplicationService) *AgencyHandler {
+func NewAgencyHandler(usecase *agency.Usecase) *AgencyHandler {
 	return &AgencyHandler{
-		appService: appService,
+		usecase: usecase,
 	}
 }
 
@@ -28,7 +28,7 @@ func (h *AgencyHandler) CreateAgency(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.appService.CreateAgency(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateAgency(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所の作成に失敗しました"))
 		return
@@ -50,7 +50,7 @@ func (h *AgencyHandler) GetAgency(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.appService.GetAgency(c.Request.Context(), query)
+	dto, err := h.usecase.GetAgency(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("事務所"))
 		return
@@ -67,7 +67,7 @@ func (h *AgencyHandler) ListAgencies(c *gin.Context) {
 		return
 	}
 
-	dtos, err := h.appService.ListAgencies(c.Request.Context(), query)
+	dtos, err := h.usecase.ListAgencies(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所一覧の取得に失敗しました"))
 		return
@@ -92,7 +92,7 @@ func (h *AgencyHandler) UpdateAgency(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.appService.UpdateAgency(c.Request.Context(), cmd)
+	err := h.usecase.UpdateAgency(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所の更新に失敗しました"))
 		return
@@ -111,7 +111,7 @@ func (h *AgencyHandler) DeleteAgency(c *gin.Context) {
 
 	cmd := agency.DeleteAgencyCommand{ID: id}
 
-	err := h.appService.DeleteAgency(c.Request.Context(), cmd)
+	err := h.usecase.DeleteAgency(c.Request.Context(), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所の削除に失敗しました"))
 		return
