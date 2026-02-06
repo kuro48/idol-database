@@ -99,6 +99,11 @@ func (t *Tag) CreatedAt() time.Time {
 	return t.createdAt
 }
 
+// SetID はIDを設定する（永続化後に使用）
+func (t *Tag) SetID(id TagID) {
+	t.id = id
+}
+
 // UpdateName はタグ名を更新する
 func (t *Tag) UpdateName(name string) error {
 	tagName, err := NewTagName(name)
