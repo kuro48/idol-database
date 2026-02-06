@@ -99,7 +99,7 @@ func (t *Tag) CreatedAt() time.Time {
 	return t.createdAt
 }
 
-// SetID はIDを設定する（永続化後に使用）
+// SetID はIDを設定する（リポジトリ層での内部使用を想定）
 func (t *Tag) SetID(id TagID) {
 	t.id = id
 }

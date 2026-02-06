@@ -67,17 +67,9 @@ func (r *TagRepository) Save(ctx context.Context, t *tag.Tag) error {
 		return err
 	}
 
-	// ドメイン層で生成されたIDが存在するはずなので、IsZeroの場合のみ生成
-	// (通常は発生しない想定だが、安全のため)
+	// ドメイン層で生成されたIDが必須
 	if doc.ID.IsZero() {
-		doc.ID = bson.NewObjectID()
-		doc.CreatedAt = time.Now()
-		// 新しく生成したIDをドメインエンティティに反映
-		newID, err := tag.NewTagID(doc.ID.Hex())
-		if err != nil {
-			return fmt.Errorf("IDの生成エラー: %w", err)
-		}
-		t.SetID(newID)
+		return errors.New("タグIDが設定されていません")
 	}
 
 	_, err = r.collection.InsertOne(ctx, doc)

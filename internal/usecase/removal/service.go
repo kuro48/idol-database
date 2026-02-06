@@ -132,7 +132,7 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*R
 
 		// 却下時はステータス更新のみ保存
 		if err := u.removalApp.UpdateRemovalRequest(ctx, request); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ステータス更新の保存に失敗しました: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("無効なステータスです: %s", cmd.Status)
