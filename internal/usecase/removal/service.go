@@ -108,6 +108,12 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*R
 			return nil, fmt.Errorf("承認に失敗しました: %w", err)
 		}
 
+		// 先にステータス更新を保存してから対象データを削除
+		// これにより、削除が失敗してもステータスは正しく更新される
+		if err := u.removalApp.UpdateRemovalRequest(ctx, request); err != nil {
+			return nil, fmt.Errorf("ステータス更新の保存に失敗しました: %w", err)
+		}
+
 		// 承認時は対象データを物理削除
 		switch request.TargetType() {
 		case domain.TargetTypeIdol:
@@ -123,13 +129,13 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*R
 		if err := request.Reject(); err != nil {
 			return nil, fmt.Errorf("却下に失敗しました: %w", err)
 		}
+
+		// 却下時はステータス更新のみ保存
+		if err := u.removalApp.UpdateRemovalRequest(ctx, request); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("無効なステータスです: %s", cmd.Status)
-	}
-
-	// 更新を保存
-	if err := u.removalApp.UpdateRemovalRequest(ctx, request); err != nil {
-		return nil, err
 	}
 
 	dto := toDTO(request)
