@@ -3,18 +3,16 @@ package idol
 import "time"
 
 type SearchCriteria struct {
-    Name          *string
-    Nationality   *string
-    GroupID       *string
-    AgencyID      *string
-    AgeMin        *int
-    AgeMax        *int
-    BirthdateFrom *time.Time
-    BirthdateTo   *time.Time
+	Name          *string
+	AgencyID      *string
+	AgeMin        *int
+	AgeMax        *int
+	BirthdateFrom *time.Time
+	BirthdateTo   *time.Time
 
-    Sort  string
-    Order string
+	Sort  string
+	Order string
 
-    Offset int
-    Limit  int
+	Offset int
+	Limit  int
 }
