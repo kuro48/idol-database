@@ -121,7 +121,7 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		tagIDs = []string{}
 	}
 
-	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
+	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
@@ -402,57 +402,84 @@ func (r *IdolRepository) Count(ctx context.Context, criteria idol.SearchCriteria
 
 // EnsureIndexes は検索パフォーマンス向上のためのインデックスを作成
 func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
-	indexes := []mongo.IndexModel{
-		// 名前インデックス（部分一致検索用）
-		{
-			Keys: bson.D{
-				{Key: "name", Value: 1},
-			},
-		},
-		// 事務所IDインデックス（フィルタリング用）
-		{
-			Keys: bson.D{
-				{Key: "agency_id", Value: 1},
-			},
-		},
-		// 生年月日インデックス（年齢範囲検索・ソート用）
-		{
-			Keys: bson.D{
-				{Key: "birthdate", Value: 1},
-			},
-		},
-		// 作成日時インデックス（デフォルトソート用）
-		{
-			Keys: bson.D{
-				{Key: "created_at", Value: -1},
-			},
-		},
-		// タグIDインデックス（タグフィルタリング用）
-		{
-			Keys: bson.D{
-				{Key: "tag_ids", Value: 1},
-			},
-		},
-		// 複合インデックス2: 事務所ID + 作成日時（事務所別一覧取得の最適化）
-		{
-			Keys: bson.D{
-				{Key: "agency_id", Value: 1},
-				{Key: "created_at", Value: -1},
-			},
-		},
-		// 複合インデックス3: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
-		{
-			Keys: bson.D{
-				{Key: "birthdate", Value: 1},
-				{Key: "created_at", Value: -1},
-			},
-		},
-	}
+    indexes := []mongo.IndexModel{
+        // 名前インデックス（部分一致検索用）
+        {
+            Keys: bson.D{
+                {Key: "name", Value: 1},
+            },
+        },
+        // 国籍インデックス（フィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "nationality", Value: 1},
+            },
+        },
+        // グループIDインデックス（フィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "group_id", Value: 1},
+            },
+        },
+        // 事務所IDインデックス（フィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "agency_id", Value: 1},
+            },
+        },
+        // 生年月日インデックス（年齢範囲検索・ソート用）
+        {
+            Keys: bson.D{
+                {Key: "birthdate", Value: 1},
+            },
+        },
+        // 作成日時インデックス（デフォルトソート用）
+        {
+            Keys: bson.D{
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // タグIDインデックス（タグフィルタリング用）
+        {
+            Keys: bson.D{
+                {Key: "tag_ids", Value: 1},
+            },
+        },
+        // 複合インデックス1: 国籍 + 生年月日 + 作成日時（フィルタ + ソート最適化）
+        {
+            Keys: bson.D{
+                {Key: "nationality", Value: 1},
+                {Key: "birthdate", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス2: 事務所ID + 作成日時（事務所別一覧取得の最適化）
+        {
+            Keys: bson.D{
+                {Key: "agency_id", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス3: グループID + 作成日時（グループ別一覧取得の最適化）
+        {
+            Keys: bson.D{
+                {Key: "group_id", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+        // 複合インデックス4: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
+        {
+            Keys: bson.D{
+                {Key: "birthdate", Value: 1},
+                {Key: "created_at", Value: -1},
+            },
+        },
+    }
 
-	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
-	if err != nil {
-		return fmt.Errorf("インデックス作成エラー: %w", err)
-	}
+    _, err := r.collection.Indexes().CreateMany(ctx, indexes)
+    if err != nil {
+        return fmt.Errorf("インデックス作成エラー: %w", err)
+    }
 
-	return nil
+    return nil
 }

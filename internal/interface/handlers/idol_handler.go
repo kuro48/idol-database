@@ -60,10 +60,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 
 	dto, err := h.usecase.CreateIdol(c.Request.Context(), cmd)
 	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{
-			Resource: "アイドル",
-			Message:  "アイドルの作成に失敗しました",
-		})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの作成に失敗しました"))
 		return
 	}
 
@@ -77,7 +74,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "アイドルID"
-// @Param        include query string false "関連データ読み込み (カンマ区切り: agency)"
+// @Param        include query string false "関連データ読み込み (カンマ区切り: agency,groups)"
 // @Success      200 {object} idol.IdolDTO
 // @Failure      400 {object} middleware.ErrorResponse
 // @Failure      404 {object} middleware.ErrorResponse
@@ -93,7 +90,7 @@ func (h *IdolHandler) GetIdol(c *gin.Context) {
 
 	dto, err := h.usecase.GetIdol(c.Request.Context(), query)
 	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
+		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("アイドル"))
 		return
 	}
 
@@ -107,12 +104,14 @@ func (h *IdolHandler) GetIdol(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        name query string false "名前（部分一致）"
+// @Param        nationality query string false "国籍（完全一致）"
+// @Param        group_id query string false "グループID"
 // @Param        agency_id query string false "事務所ID"
 // @Param        age_min query int false "最小年齢"
 // @Param        age_max query int false "最大年齢"
 // @Param        birthdate_from query string false "生年月日FROM (YYYY-MM-DD)"
 // @Param        birthdate_to query string false "生年月日TO (YYYY-MM-DD)"
-// @Param        include query string false "関連データ読み込み (カンマ区切り: agency)"
+// @Param        include query string false "関連データ読み込み (カンマ区切り: agency,groups)"
 // @Param        sort query string false "ソート項目" Enums(name, birthdate, created_at) default(created_at)
 // @Param        order query string false "ソート順" Enums(asc, desc) default(desc)
 // @Param        page query int false "ページ番号" default(1)
@@ -142,9 +141,7 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 	// 検索実行
 	result, err := h.usecase.SearchIdols(c.Request.Context(), query)
 	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{
-			Message: "検索に失敗しました",
-		})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("検索に失敗しました"))
 		return
 	}
 
@@ -185,10 +182,7 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 
 	err := h.usecase.UpdateIdol(c.Request.Context(), cmd)
 	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{
-			Resource: "アイドル",
-			Message:  "アイドルの更新に失敗しました",
-		})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの更新に失敗しました"))
 		return
 	}
 
@@ -217,10 +211,7 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 
 	err := h.usecase.DeleteIdol(c.Request.Context(), cmd)
 	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{
-			Resource: "アイドル",
-			Message:  "アイドルの削除に失敗しました",
-		})
+		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの削除に失敗しました"))
 		return
 	}
 
@@ -255,10 +246,7 @@ func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
 
 	err := h.usecase.UpdateSocialLinks(c.Request.Context(), cmd)
 	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{
-			Resource: "アイドル",
-			Message:  "SNSリンクの更新に失敗しました",
-		})
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
 		return
 	}
 
