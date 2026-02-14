@@ -26,10 +26,14 @@ internal/
 │       ├── service.go          # ドメインサービス
 │       └── error.go            # ドメインエラー
 │
-├── application/         # アプリケーション層（ユースケース実行）
+├── usecase/             # ユースケース層（入力/出力・ユースケース実行）
 │   └── [use_case]/
 │       ├── command.go          # コマンド（入力）
 │       ├── query.go            # クエリ/DTO（出力）
+│       └── service.go          # ユースケース
+│
+├── application/         # アプリケーション層（ドメイン操作のオーケストレーション）
+│   └── [use_case]/
 │       └── service.go          # アプリケーションサービス
 │
 ├── infrastructure/      # インフラ層（技術的詳細）
@@ -269,13 +273,13 @@ func (e *DomainError) Error() string {
 
 ---
 
-## 2. アプリケーション層（Application Layer）
+## 2. ユースケース層（Usecase Layer）
 
-**責務**: ユースケース（業務フロー）の実行。ドメインオブジェクトを組み合わせてタスクを完遂。
+**責務**: ユースケース（業務フロー）の実行。入力/出力の変換とアプリケーションサービスの呼び出しを担当する。
 
 ### 2-1. コマンド（Command）
 
-**ファイル名**: `internal/application/removal/command.go`
+**ファイル名**: `internal/usecase/removal/command.go`
 
 **役割**:
 - 外部からの入力データを表現
@@ -310,7 +314,7 @@ type UpdateStatusCommand struct {
 
 ### 2-2. クエリ/DTO（Data Transfer Object）
 
-**ファイル名**: `internal/application/removal/query.go`
+**ファイル名**: `internal/usecase/removal/query.go`
 
 **役割**:
 - 外部への出力データを表現
@@ -341,12 +345,12 @@ type RemovalRequestDTO struct {
 
 ---
 
-### 2-3. アプリケーションサービス
+### 2-3. アプリケーションサービス（Application Service）
 
 **ファイル名**: `internal/application/removal/service.go`
 
 **役割**:
-- ユースケース全体のオーケストレーション
+- ドメインオブジェクトを組み合わせた処理のオーケストレーション
 - トランザクション管理
 - ドメインオブジェクトの組み立て
 

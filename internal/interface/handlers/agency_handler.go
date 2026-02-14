@@ -30,7 +30,10 @@ func (h *AgencyHandler) CreateAgency(c *gin.Context) {
 
 	dto, err := h.usecase.CreateAgency(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所の作成に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "事務所",
+			Message:  "事務所の作成に失敗しました",
+		})
 		return
 	}
 
@@ -52,7 +55,7 @@ func (h *AgencyHandler) GetAgency(c *gin.Context) {
 
 	dto, err := h.usecase.GetAgency(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("事務所"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "事務所"})
 		return
 	}
 
@@ -69,7 +72,9 @@ func (h *AgencyHandler) ListAgencies(c *gin.Context) {
 
 	dtos, err := h.usecase.ListAgencies(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所一覧の取得に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "事務所一覧の取得に失敗しました",
+		})
 		return
 	}
 
@@ -94,7 +99,10 @@ func (h *AgencyHandler) UpdateAgency(c *gin.Context) {
 
 	err := h.usecase.UpdateAgency(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所の更新に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "事務所",
+			Message:  "事務所の更新に失敗しました",
+		})
 		return
 	}
 
@@ -113,7 +121,10 @@ func (h *AgencyHandler) DeleteAgency(c *gin.Context) {
 
 	err := h.usecase.DeleteAgency(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("事務所の削除に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "事務所",
+			Message:  "事務所の削除に失敗しました",
+		})
 		return
 	}
 
