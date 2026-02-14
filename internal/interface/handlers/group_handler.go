@@ -45,7 +45,10 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 
 	dto, err := h.usecase.CreateGroup(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの作成に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "グループ",
+			Message:  "グループの作成に失敗しました",
+		})
 		return
 	}
 
@@ -63,7 +66,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 
 	dto, err := h.usecase.GetGroup(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("グループ"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "グループ"})
 		return
 	}
 
@@ -75,7 +78,9 @@ func (h *GroupHandler) ListGroup(c *gin.Context) {
 
 	dtos, err := h.usecase.ListGroup(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループ一覧の取得に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "グループ一覧の取得に失敗しました",
+		})
 		return
 	}
 
@@ -104,7 +109,10 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 
 	err := h.usecase.UpdateGroup(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの更新に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "グループ",
+			Message:  "グループの更新に失敗しました",
+		})
 		return
 	}
 
@@ -123,7 +131,10 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 
 	err := h.usecase.DeleteGroup(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("グループの削除に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "グループ",
+			Message:  "グループの削除に失敗しました",
+		})
 		return
 	}
 

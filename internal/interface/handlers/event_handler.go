@@ -40,7 +40,10 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 
 	dto, err := h.usecase.CreateEvent(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("イベントの作成に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "イベント",
+			Message:  "イベントの作成に失敗しました",
+		})
 		return
 	}
 
@@ -69,7 +72,7 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 
 	dto, err := h.usecase.GetEvent(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("イベント"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "イベント"})
 		return
 	}
 
@@ -117,7 +120,9 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 	// 検索実行
 	result, err := h.usecase.SearchEvents(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("検索に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "検索に失敗しました",
+		})
 		return
 	}
 
@@ -142,7 +147,10 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 
 	err := h.usecase.UpdateEvent(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("イベントの更新に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "イベント",
+			Message:  "イベントの更新に失敗しました",
+		})
 		return
 	}
 
@@ -161,7 +169,10 @@ func (h *EventHandler) DeleteEvent(c *gin.Context) {
 
 	err := h.usecase.DeleteEvent(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("イベントの削除に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "イベント",
+			Message:  "イベントの削除に失敗しました",
+		})
 		return
 	}
 
@@ -191,7 +202,10 @@ func (h *EventHandler) AddPerformer(c *gin.Context) {
 
 	err := h.usecase.AddPerformer(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("パフォーマーの追加に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "イベント",
+			Message:  "パフォーマーの追加に失敗しました",
+		})
 		return
 	}
 
@@ -215,7 +229,10 @@ func (h *EventHandler) RemovePerformer(c *gin.Context) {
 
 	err := h.usecase.RemovePerformer(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("パフォーマーの削除に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "イベント",
+			Message:  "パフォーマーの削除に失敗しました",
+		})
 		return
 	}
 
@@ -228,7 +245,9 @@ func (h *EventHandler) GetUpcomingEvents(c *gin.Context) {
 
 	dtos, err := h.usecase.FindUpcoming(c.Request.Context(), limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("今後のイベント取得に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "今後のイベント取得に失敗しました",
+		})
 		return
 	}
 
