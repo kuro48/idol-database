@@ -2,8 +2,6 @@ package removal
 
 import (
 	"time"
-
-
 )
 
 // RemovalRequest は削除申請のエンティティ（Aggregate Root）
@@ -130,6 +128,11 @@ func (r *RemovalRequest) CreatedAt() time.Time {
 // UpdatedAt は更新日時を返す
 func (r *RemovalRequest) UpdatedAt() time.Time {
 	return r.updatedAt
+}
+
+// SetID はIDを設定する（永続化後に使用）
+func (r *RemovalRequest) SetID(id RemovalID) {
+	r.id = id
 }
 
 // Approve は削除申請を承認する
