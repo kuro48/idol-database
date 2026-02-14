@@ -22,10 +22,13 @@ func NewRemovalHandler(removalService *removal.Usecase) *RemovalHandler {
 
 // CreateRemovalRequestDTO はバリデーション付きリクエスト
 type CreateRemovalRequestDTO struct {
-	TargetType      string `json:"target_type" binding:"required,oneof=idol group"`
-	TargetID        string `json:"target_id" binding:"required"`
-	Reason          string `json:"reason" binding:"required,min=10,max=1000"`
-	RequesterEmail  string `json:"requester_email" binding:"required,email"`
+	TargetType    string `json:"target_type" binding:"required,oneof=idol group"`
+	TargetID      string `json:"target_id" binding:"required"`
+	RequesterType string `json:"requester_type" binding:"required,oneof=idol_themself agency third_party"`
+	Reason        string `json:"reason" binding:"required,min=10,max=1000"`
+	ContactInfo   string `json:"contact_info" binding:"required,email"`
+	Evidence      string `json:"evidence" binding:"omitempty,url"`
+	Description   string `json:"description" binding:"required,min=10,max=1000"`
 }
 
 // UpdateStatusDTO はステータス更新リクエスト
@@ -46,15 +49,19 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 	cmd := removal.CreateRemovalRequestCommand{
 		TargetType:  req.TargetType,
 		TargetID:    req.TargetID,
-		Requester:   req.RequesterEmail,
+		Requester:   req.RequesterType,
 		Reason:      req.Reason,
-		ContactInfo: req.RequesterEmail,
-		Description: req.Reason,
+		ContactInfo: req.ContactInfo,
+		Evidence:    req.Evidence,
+		Description: req.Description,
 	}
 
 	dto, err := h.removalService.CreateRemovalRequest(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("削除申請の作成に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "削除申請",
+			Message:  "削除申請の作成に失敗しました",
+		})
 		return
 	}
 
@@ -72,7 +79,7 @@ func (h *RemovalHandler) GetRemovalRequest(c *gin.Context) {
 
 	dto, err := h.removalService.GetRemovalRequest(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("削除申請"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "削除申請"})
 		return
 	}
 
@@ -84,7 +91,9 @@ func (h *RemovalHandler) GetRemovalRequest(c *gin.Context) {
 func (h *RemovalHandler) ListAllRemovalRequests(c *gin.Context) {
 	dtos, err := h.removalService.ListAllRemovalRequests(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("削除申請一覧の取得に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "削除申請一覧の取得に失敗しました",
+		})
 		return
 	}
 
@@ -99,7 +108,9 @@ func (h *RemovalHandler) ListAllRemovalRequests(c *gin.Context) {
 func (h *RemovalHandler) ListPendingRemovalRequests(c *gin.Context) {
 	dtos, err := h.removalService.ListPendingRemovalRequests(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("保留中削除申請の取得に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "保留中削除申請の取得に失敗しました",
+		})
 		return
 	}
 
@@ -131,7 +142,10 @@ func (h *RemovalHandler) UpdateStatus(c *gin.Context) {
 
 	dto, err := h.removalService.UpdateStatus(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("ステータスの更新に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Resource: "削除申請",
+			Message:  "ステータスの更新に失敗しました",
+		})
 		return
 	}
 
