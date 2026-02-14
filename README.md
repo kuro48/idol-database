@@ -127,6 +127,11 @@ internal/
 - **データベース**: MongoDB v2
 - **アーキテクチャ**: DDD（ドメイン駆動設計）
 
+### Clean Architecture 移行ドキュメント（2026-02開始）
+- [依存マップ（Issue #12）](docs/clean-architecture/dependency-map.md)
+- [境界違反バックログ（Issue #13）](docs/clean-architecture/boundary-backlog.md)
+- [ADR-001 レイヤ定義・Port方針・命名規約（Issue #14）](docs/clean-architecture/adr-001-layer-port-conventions.md)
+
 ---
 
 ## 🚀 セットアップ
