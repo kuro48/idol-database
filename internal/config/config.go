@@ -32,8 +32,8 @@ func Load() (*Config, error) {
 	_ = godotenv.Load(".env")
 
 	cfg := &Config{
-		MongoDBURI:      getEnv("MONGODB_URI", ""),
-		MongoDBDatabase: getEnv("MONGODB_DATABASE", ""),
+		MongoDBURI:      getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+		MongoDBDatabase: getEnv("MONGODB_DATABASE", "idol_database"),
 		ServerPort:      getEnv("SERVER_PORT", "8081"),
 		GinMode:         getEnv("GIN_MODE", "debug"),
 	}
