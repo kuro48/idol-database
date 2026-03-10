@@ -1,7 +1,8 @@
 # ADR-001: レイヤ定義・Port方針・命名規約
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-02-14
+- Accepted: 2026-03-10
 - Related Issues: #11, #12, #13, #14
 
 ## Context
