@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "codex/**", "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./cmd/api
+
+      - name: Test
+        run: go test ./...
+
+  boundary-check:
+    name: Layer Boundary Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check domain layer has no internal imports (except domain itself)
+        run: |
+          violations=$(grep -rn \
+            'github.com/kuro48/idol-api/internal/\(application\|usecase\|interface\|infrastructure\)' \
+            internal/domain/ --include='*.go' || true)
+          if [ -n "$violations" ]; then
+            echo "BOUNDARY VIOLATION: domain layer imports upper layers"
+            echo "$violations"
+            exit 1
+          fi
+          echo "domain boundary: OK"
+
+      - name: Check application layer has no usecase/interface imports
+        run: |
+          violations=$(grep -rn \
+            'github.com/kuro48/idol-api/internal/\(usecase\|interface\)' \
+            internal/application/ --include='*.go' || true)
+          if [ -n "$violations" ]; then
+            echo "BOUNDARY VIOLATION: application layer imports usecase or interface layers"
+            echo "$violations"
+            exit 1
+          fi
+          echo "application boundary: OK"
+
+      - name: Check infrastructure layer has no usecase/interface/application imports
+        run: |
+          violations=$(grep -rn \
+            'github.com/kuro48/idol-api/internal/\(usecase\|interface\|application\)' \
+            internal/infrastructure/ --include='*.go' || true)
+          if [ -n "$violations" ]; then
+            echo "BOUNDARY VIOLATION: infrastructure layer imports upper layers"
+            echo "$violations"
+            exit 1
+          fi
+          echo "infrastructure boundary: OK"
+
+  openapi-contract:
+    name: OpenAPI Contract Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Regenerate OpenAPI docs
+        run: swag init -g cmd/api/main.go -o docs
+
+      - name: Check for OpenAPI spec drift
+        run: |
+          if ! git diff --exit-code docs/swagger.json docs/swagger.yaml docs/docs.go; then
+            echo "ERROR: OpenAPI spec is out of date."
+            echo "Please run the following command and commit the result:"
+            echo "  swag init -g cmd/api/main.go -o docs"
+            exit 1
+          fi
+          echo "OpenAPI spec is up to date: OK"
+
+      - name: Validate OpenAPI spec format
+        run: |
+          pip install openapi-spec-validator --quiet
+          python -c "
+          from openapi_spec_validator import validate
+          from openapi_spec_validator.readers import read_from_filename
+          spec_dict, spec_url = read_from_filename('docs/swagger.json')
+          validate(spec_dict)
+          print('OpenAPI spec validation: OK')
+          "
+
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t idol-api:ci .
