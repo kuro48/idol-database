@@ -9,10 +9,10 @@ import (
 )
 
 type GroupHandler struct {
-	usecase *group.Usecase
+	usecase group.GroupUseCase
 }
 
-func NewGroupHandler(usecase *group.Usecase) *GroupHandler {
+func NewGroupHandler(usecase group.GroupUseCase) *GroupHandler {
 	return &GroupHandler{
 		usecase: usecase,
 	}
