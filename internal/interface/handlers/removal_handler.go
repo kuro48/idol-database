@@ -49,7 +49,7 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 	cmd := removal.CreateRemovalRequestCommand{
 		TargetType:  req.TargetType,
 		TargetID:    req.TargetID,
-		Requester:   req.RequesterType,
+		RequesterType: req.RequesterType,
 		Reason:      req.Reason,
 		ContactInfo: req.ContactInfo,
 		Evidence:    req.Evidence,
