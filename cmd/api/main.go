@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -134,9 +135,10 @@ func main() {
 	router.Use(middleware.Logger())              // 構造化ログ
 	router.Use(middleware.ErrorHandler())        // エラーハンドリング
 
-	// CORS設定
+	// CORS設定（CORS_ALLOWED_ORIGINS 環境変数で制御）
+	corsOrigins := strings.Split(cfg.CORSAllowedOrigins, ",")
 	corsConfig := cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:8080"},
+		AllowOrigins:     corsOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
