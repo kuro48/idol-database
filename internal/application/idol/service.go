@@ -36,7 +36,7 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, input CreateInput) 
 	}
 
 	var birthdate *idol.Birthdate
-	if input.Birthdate != nil {
+	if input.Birthdate != nil && *input.Birthdate != "" {
 		bd, err := idol.NewBirthdateFromString(*input.Birthdate)
 		if err != nil {
 			return nil, fmt.Errorf("生年月日の生成エラー: %w", err)
@@ -121,12 +121,14 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, input UpdateInput) 
 		}
 	}
 
-	if input.Birthdate != nil {
+	if input.Birthdate != nil && *input.Birthdate != "" {
 		bd, err := idol.NewBirthdateFromString(*input.Birthdate)
 		if err != nil {
 			return fmt.Errorf("生年月日の生成エラー: %w", err)
 		}
 		existingIdol.UpdateBirthdate(&bd)
+	} else if input.Birthdate != nil && *input.Birthdate == "" {
+		existingIdol.UpdateBirthdate(nil)
 	}
 
 	if input.AgencyID != nil {
