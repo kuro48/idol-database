@@ -74,6 +74,28 @@ func (u *Usecase) GetRemovalRequest(ctx context.Context, id string) (*RemovalReq
 	return &dto, nil
 }
 
+// GetRemovalRequestPublic は削除申請を公開情報のみで取得する（contact_info等の機微情報を除外）
+func (u *Usecase) GetRemovalRequestPublic(ctx context.Context, id string) (*PublicRemovalRequestDTO, error) {
+	request, err := u.removalApp.GetRemovalRequest(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	dto := &PublicRemovalRequestDTO{
+		ID:          request.ID().Value(),
+		TargetID:    request.TargetID(),
+		TargetType:  string(request.TargetType()),
+		Requester:   string(request.Requester().Type()),
+		Reason:      request.Reason().Value(),
+		Evidence:    request.Evidence().Value(),
+		Description: request.Description().Value(),
+		Status:      string(request.Status()),
+		CreatedAt:   request.CreatedAt(),
+		UpdatedAt:   request.UpdatedAt(),
+	}
+	return dto, nil
+}
+
 // ListAllRemovalRequests は全ての削除申請を取得する
 func (u *Usecase) ListAllRemovalRequests(ctx context.Context) ([]*RemovalRequestDTO, error) {
 	requests, err := u.removalApp.ListAllRemovalRequests(ctx)

@@ -77,7 +77,7 @@ func (h *RemovalHandler) GetRemovalRequest(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.removalService.GetRemovalRequest(c.Request.Context(), id)
+	dto, err := h.removalService.GetRemovalRequestPublic(c.Request.Context(), id)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "削除申請"})
 		return
