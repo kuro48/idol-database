@@ -11,11 +11,11 @@ import (
 
 // TagHandler はタグのハンドラー
 type TagHandler struct {
-	usecase *tag.Usecase
+	usecase tag.TagUseCase
 }
 
 // NewTagHandler はタグハンドラーを作成する
-func NewTagHandler(usecase *tag.Usecase) *TagHandler {
+func NewTagHandler(usecase tag.TagUseCase) *TagHandler {
 	return &TagHandler{
 		usecase: usecase,
 	}
