@@ -121,7 +121,7 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		tagIDs = []string{}
 	}
 
-	return idol.Reconstruct(id, name, &birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
+	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
