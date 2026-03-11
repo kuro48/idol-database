@@ -546,6 +546,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/idols/{id}/restore": {
+            "put": {
+                "description": "削除されたアイドルを復元する（管理者専用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "アイドル復元",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/idols/{id}/social-links": {
             "put": {
                 "description": "アイドルのSNS/外部リンク情報を更新する",
