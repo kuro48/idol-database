@@ -277,3 +277,32 @@ func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "SNSリンクが更新されました"})
 }
+
+// GetDuplicateCandidates は重複候補アイドルを返す（管理者向け）
+// @Summary      重複候補取得
+// @Description  指定したアイドルの重複候補を返す（管理者専用）
+// @Tags         idols
+// @Produce      json
+// @Param        id path string true "アイドルID"
+// @Success      200 {array} idol.DuplicateCandidateDTO
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /idols/{id}/duplicate-candidates [get]
+func (h *IdolHandler) GetDuplicateCandidates(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+		return
+	}
+
+	candidates, err := h.usecase.FindDuplicateCandidates(c.Request.Context(), id)
+	if err != nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  candidates,
+		"total": len(candidates),
+	})
+}

@@ -269,3 +269,12 @@ func (s *ApplicationService) SearchIdols(ctx context.Context, criteria idol.Sear
 
 	return idols, total, nil
 }
+
+// FindDuplicateCandidates は指定したアイドルIDの重複候補を返す
+func (s *ApplicationService) FindDuplicateCandidates(ctx context.Context, id string) ([]*idol.DuplicateCandidate, error) {
+	target, err := s.GetIdol(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.domainService.FindDuplicateCandidates(ctx, target)
+}
