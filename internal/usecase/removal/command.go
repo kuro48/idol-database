@@ -4,7 +4,7 @@ package removal
 type CreateRemovalRequestCommand struct {
 	TargetType  string `json:"target_type" binding:"required"`
 	TargetID    string `json:"target_id" binding:"required"`
-	Requester   string `json:"requester" binding:"required"`
+	RequesterType string `json:"requester_type" binding:"required"`
 	Reason      string `json:"reason" binding:"required"`
 	ContactInfo string `json:"contact_info" binding:"required,email"`
 	Evidence    string `json:"evidence"`
