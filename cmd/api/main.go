@@ -178,11 +178,17 @@ func main() {
 
 		removalRequests := v1.Group("/removal-requests")
 		{
-			removalRequests.POST("", removalHandler.CreateRemovalRequest)              // 削除申請作成
-			removalRequests.GET("", removalHandler.ListAllRemovalRequests)             // 全削除申請取得（管理者用）
-			removalRequests.GET("/pending", removalHandler.ListPendingRemovalRequests) // 保留中取得（管理者用）
-			removalRequests.GET("/:id", removalHandler.GetRemovalRequest)              // 削除申請詳細取得
-			removalRequests.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新（管理者用）
+			removalRequests.POST("", removalHandler.CreateRemovalRequest) // 削除申請作成（公開）
+			removalRequests.GET("/:id", removalHandler.GetRemovalRequest) // 削除申請詳細取得（公開）
+		}
+
+		// 管理者専用エンドポイント（ADMIN_API_KEY 認証必須）
+		adminAuth := middleware.AdminAuth(cfg.AdminAPIKey)
+		adminRemoval := v1.Group("/removal-requests", adminAuth)
+		{
+			adminRemoval.GET("", removalHandler.ListAllRemovalRequests)             // 全削除申請取得
+			adminRemoval.GET("/pending", removalHandler.ListPendingRemovalRequests) // 保留中取得
+			adminRemoval.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新
 		}
 
 		groups := v1.Group("/groups")

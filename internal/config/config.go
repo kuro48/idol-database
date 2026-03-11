@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	MongoDBURI          string
-	MongoDBDatabase     string
-	ServerPort          string
-	GinMode             string
-	CORSAllowedOrigins  string // カンマ区切り。空の場合はデフォルト値を使用
+	MongoDBURI         string
+	MongoDBDatabase    string
+	ServerPort         string
+	GinMode            string
+	CORSAllowedOrigins string // カンマ区切り。空の場合はデフォルト値を使用
+	AdminAPIKey        string // 管理系API認証キー（必須）
 }
 
 // ValidationError は設定バリデーションエラー
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 		ServerPort:         getEnv("SERVER_PORT", "8081"),
 		GinMode:            getEnv("GIN_MODE", "debug"),
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
+		AdminAPIKey:        getEnv("ADMIN_API_KEY", ""),
 	}
 
 	// バリデーション実行
