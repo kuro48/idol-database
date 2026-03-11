@@ -139,6 +139,22 @@ func main() {
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
 	router := gin.New()
 
+	// 信頼するプロキシを設定（空の場合はプロキシを信頼しない）
+	if cfg.TrustedProxies != "" {
+		trustedProxies := strings.Split(cfg.TrustedProxies, ",")
+		for i, p := range trustedProxies {
+			trustedProxies[i] = strings.TrimSpace(p)
+		}
+		if err := router.SetTrustedProxies(trustedProxies); err != nil {
+			log.Printf("⚠️  信頼プロキシ設定エラー: %v", err)
+		}
+	} else {
+		// プロキシを信頼しない（RemoteAddr を直接使用）
+		if err := router.SetTrustedProxies(nil); err != nil {
+			log.Printf("⚠️  信頼プロキシ設定エラー: %v", err)
+		}
+	}
+
 	// ミドルウェア設定（順序重要）
 	router.Use(gin.Recovery())                   // パニック回復
 	router.Use(middleware.Logger())              // 構造化ログ
