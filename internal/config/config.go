@@ -98,6 +98,14 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// 本番モードでは AdminAPIKey を必須とする
+	if c.GinMode == "release" && c.AdminAPIKey == "" {
+		return &ValidationError{
+			Field:   "ADMIN_API_KEY",
+			Message: "本番環境では ADMIN_API_KEY の設定が必須です",
+		}
+	}
+
 	return nil
 }
 
