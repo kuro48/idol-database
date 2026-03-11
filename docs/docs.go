@@ -23,6 +23,165 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/export/idols": {
+            "get": {
+                "description": "全アイドルデータをJSON/JSONL形式でエクスポートする（管理者専用、レート制限あり）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "export"
+                ],
+                "summary": "アイドルエクスポート",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "json",
+                        "description": "出力形式 (json|jsonl)",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/export/logs": {
+            "get": {
+                "description": "エクスポートの実行履歴を返す（管理者専用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "export"
+                ],
+                "summary": "エクスポート実行履歴",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "件数上限（最大100、デフォルト50）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/admin/webhooks": {
+            "get": {
+                "description": "Webhook購読一覧を返す（管理者専用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Webhook購読一覧",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.SubscriptionResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいWebhook購読を作成する（管理者専用）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Webhook購読作成",
+                "parameters": [
+                    {
+                        "description": "購読設定",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateSubscriptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SubscriptionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/webhooks/{id}": {
+            "delete": {
+                "description": "Webhook購読を削除する（管理者専用）",
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Webhook購読削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "購読ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "description": "条件を指定してイベント一覧を取得（検索・フィルタリング・ページネーション対応）",
@@ -403,6 +562,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/idols/bulk": {
+            "post": {
+                "description": "複数のアイドルを一括作成する（write認証必須、最大500件）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "アイドル一括作成",
+                "parameters": [
+                    {
+                        "description": "バルク作成リクエスト",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.BulkCreateIdolsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/idol.BulkResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/idols/{id}": {
             "get": {
                 "description": "IDを指定してアイドル情報を取得する",
@@ -539,6 +744,148 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/idols/{id}/duplicate-candidates": {
+            "get": {
+                "description": "指定したアイドルの重複候補を返す（管理者専用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "重複候補取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/idol.DuplicateCandidateDTO"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/idols/{id}/external-ids": {
+            "get": {
+                "description": "アイドルの外部サービスIDマッピングを取得する",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "外部IDマッピング取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "アイドルの外部サービスIDマッピングを更新する（write認証必須）。空文字列を指定した場合は該当IDを削除。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "idols"
+                ],
+                "summary": "外部IDマッピング更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "アイドルID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "外部IDマッピング",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateExternalIDsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/middleware.ErrorResponse"
                         }
@@ -1047,6 +1394,38 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.BulkCreateIdolsRequest": {
+            "type": "object",
+            "required": [
+                "idols"
+            ],
+            "properties": {
+                "idols": {
+                    "type": "array",
+                    "maxItems": 500,
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "name"
+                        ],
+                        "properties": {
+                            "agency_id": {
+                                "type": "string"
+                            },
+                            "birthdate": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 100,
+                                "minLength": 1
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "handlers.CreateIdolRequest": {
             "type": "object",
             "required": [
@@ -1066,6 +1445,69 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.CreateSubscriptionRequest": {
+            "type": "object",
+            "required": [
+                "events",
+                "url"
+            ],
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.SubscriptionResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "secret": {
+                    "description": "作成時のみ返す",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.UpdateExternalIDsRequest": {
+            "type": "object",
+            "required": [
+                "external_ids"
+            ],
+            "properties": {
+                "external_ids": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "handlers.UpdateIdolRequest": {
             "type": "object",
             "properties": {
@@ -1079,6 +1521,57 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 1
+                }
+            }
+        },
+        "idol.BulkError": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "idol.BulkResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/idol.IdolDTO"
+                    }
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/idol.BulkError"
+                    }
+                },
+                "success_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "idol.DuplicateCandidateDTO": {
+            "type": "object",
+            "properties": {
+                "idol": {
+                    "$ref": "#/definitions/idol.IdolDTO"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
                 }
             }
         },
@@ -1099,6 +1592,13 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "external_ids": {
+                    "description": "外部サービスIDマッピング",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "id": {
                     "type": "string"
