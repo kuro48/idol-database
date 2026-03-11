@@ -12,6 +12,7 @@ func TestLoad(t *testing.T) {
 		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "9000")
 		t.Setenv("GIN_MODE", "release")
+		t.Setenv("ADMIN_API_KEY", "test-admin-key")
 
 		cfg, err := Load()
 
@@ -77,6 +78,36 @@ func TestLoad(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, cfg)
+	})
+
+	t.Run("release mode without ADMIN_API_KEY returns error", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "8081")
+		t.Setenv("GIN_MODE", "release")
+		t.Setenv("ADMIN_API_KEY", "")
+
+		cfg, err := Load()
+
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+		var valErr *ValidationError
+		assert.ErrorAs(t, err, &valErr)
+		assert.Equal(t, "ADMIN_API_KEY", valErr.Field)
+	})
+
+	t.Run("release mode with ADMIN_API_KEY succeeds", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "8081")
+		t.Setenv("GIN_MODE", "release")
+		t.Setenv("ADMIN_API_KEY", "secret-admin-key")
+
+		cfg, err := Load()
+
+		assert.NoError(t, err)
+		assert.NotNil(t, cfg)
+		assert.Equal(t, "secret-admin-key", cfg.AdminAPIKey)
 	})
 }
 
