@@ -410,18 +410,6 @@
                     },
                     {
                         "type": "string",
-                        "description": "国籍（完全一致）",
-                        "name": "nationality",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "グループID",
-                        "name": "group_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
                         "description": "事務所ID",
                         "name": "agency_id",
                         "in": "query"

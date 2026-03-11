@@ -672,14 +672,6 @@ paths:
         in: query
         name: name
         type: string
-      - description: 国籍（完全一致）
-        in: query
-        name: nationality
-        type: string
-      - description: グループID
-        in: query
-        name: group_id
-        type: string
       - description: 事務所ID
         in: query
         name: agency_id

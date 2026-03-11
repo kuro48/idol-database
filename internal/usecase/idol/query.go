@@ -25,10 +25,8 @@ type IdolDTO struct {
 // ListIdolsQuery はアイドル一覧取得クエリ
 type ListIdolsQuery struct {
 	// 検索条件
-	Name        *string `form:"name"`        // 部分一致検索
-	Nationality *string `form:"nationality"` // 完全一致
-	GroupID     *string `form:"group_id"`    // グループIDフィルター
-	AgencyID    *string `form:"agency_id"`   // 事務所IDフィルター
+	Name     *string `form:"name"`      // 部分一致検索
+	AgencyID *string `form:"agency_id"` // 事務所IDフィルター
 
 	// 年齢範囲
 	AgeMin *int `form:"age_min"`
