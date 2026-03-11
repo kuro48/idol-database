@@ -52,9 +52,13 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 		return
 	}
 
+	var birthdate *string
+	if req.Birthdate != "" {
+		birthdate = &req.Birthdate
+	}
 	cmd := idol.CreateIdolCommand{
 		Name:      req.Name,
-		Birthdate: &req.Birthdate,
+		Birthdate: birthdate,
 		AgencyID:  req.AgencyID,
 	}
 
