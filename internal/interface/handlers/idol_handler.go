@@ -64,7 +64,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 
 	dto, err := h.usecase.CreateIdol(middleware.AuditContextFor(c), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの作成に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "アイドルの作成に失敗しました"})
 		return
 	}
 
@@ -145,7 +145,7 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 	// 検索実行
 	result, err := h.usecase.SearchIdols(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("検索に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "検索に失敗しました"})
 		return
 	}
 
@@ -186,7 +186,7 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 
 	err := h.usecase.UpdateIdol(middleware.AuditContextFor(c), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの更新に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "アイドルの更新に失敗しました"})
 		return
 	}
 
@@ -215,7 +215,7 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 
 	err := h.usecase.DeleteIdol(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの削除に失敗しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "アイドルの削除に失敗しました"})
 		return
 	}
 
@@ -349,7 +349,7 @@ func (h *IdolHandler) BulkCreateIdols(c *gin.Context) {
 
 	result, err := h.usecase.BulkCreateIdols(middleware.AuditContextFor(c), cmds)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("バルク作成処理中にエラーが発生しました"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "バルク作成処理中にエラーが発生しました"})
 		return
 	}
 
