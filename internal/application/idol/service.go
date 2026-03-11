@@ -155,6 +155,20 @@ func (s *ApplicationService) DeleteIdol(ctx context.Context, id string) error {
 	return nil
 }
 
+// RestoreIdol はソフトデリートされたアイドルを復元する
+func (s *ApplicationService) RestoreIdol(ctx context.Context, id string) error {
+	idolID, err := idol.NewIdolID(id)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	if err := s.repository.Restore(ctx, idolID); err != nil {
+		return fmt.Errorf("アイドルの復元エラー: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateSocialLinks はSNS/外部リンクを更新する
 func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, input UpdateSocialLinksInput) error {
 	id, err := idol.NewIdolID(input.ID)

@@ -13,6 +13,9 @@ type Repository interface {
 	// Delete はタグを削除する
 	Delete(ctx context.Context, id TagID) error
 
+	// Restore はソフトデリートされたタグを復元する
+	Restore(ctx context.Context, id TagID) error
+
 	// FindByID はIDでタグを検索する
 	FindByID(ctx context.Context, id TagID) (*Tag, error)
 

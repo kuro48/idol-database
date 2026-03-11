@@ -19,6 +19,9 @@ type Repository interface {
 	// Delete はアイドルを削除する
 	Delete(ctx context.Context, id IdolID) error
 
+	// Restore はソフトデリートされたアイドルを復元する
+	Restore(ctx context.Context, id IdolID) error
+
 	// ExistsByName は同じ名前のアイドルが存在するかチェック
 	ExistsByName(ctx context.Context, name IdolName) (bool, error)
 

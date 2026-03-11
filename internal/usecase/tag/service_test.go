@@ -83,6 +83,13 @@ func (r *inMemoryTagRepo) Exists(_ context.Context, id domaintag.TagID) (bool, e
 	return ok, nil
 }
 
+func (r *inMemoryTagRepo) Restore(_ context.Context, id domaintag.TagID) error {
+	if _, ok := r.data[id.String()]; !ok {
+		return fmt.Errorf("削除済みタグが見つかりません: %s", id.String())
+	}
+	return nil
+}
+
 func newTagUsecase() ucTag.TagUseCase {
 	repo := newInMemoryTagRepo()
 	appSvc := appTag.NewApplicationService(repo)

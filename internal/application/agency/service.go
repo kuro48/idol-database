@@ -158,6 +158,20 @@ func (s *ApplicationService) DeleteAgency(ctx context.Context, id string) error 
 	return nil
 }
 
+// RestoreAgency はソフトデリートされた事務所を復元する
+func (s *ApplicationService) RestoreAgency(ctx context.Context, id string) error {
+	agencyID, err := agency.NewAgencyID(id)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	if err := s.repository.Restore(ctx, agencyID); err != nil {
+		return fmt.Errorf("事務所の復元エラー: %w", err)
+	}
+
+	return nil
+}
+
 // generateID はIDを生成する（簡易実装）
 func generateID() string {
 	// 実際にはMongoDBのObjectIDを生成する

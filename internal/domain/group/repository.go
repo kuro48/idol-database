@@ -18,6 +18,9 @@ type Repository interface {
 	// Delete はグループを削除する
 	Delete(ctx context.Context, id GroupID) error
 
+	// Restore はソフトデリートされたグループを復元する
+	Restore(ctx context.Context, id GroupID) error
+
 	// ExistsByName は同じ名前のグループが存在するかチェック
 	ExistsByName(ctx context.Context, name GroupName) (bool, error)
 }
