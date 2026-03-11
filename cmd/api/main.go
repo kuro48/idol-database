@@ -164,26 +164,36 @@ func main() {
 	// Swagger UI
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// APIキー設定
+	apiKeyCfg := middleware.APIKeyConfig{
+		WriteAPIKey: cfg.WriteAPIKey,
+		AdminAPIKey: cfg.AdminAPIKey,
+	}
+	writeAuth := middleware.WriteAuth(apiKeyCfg)
+	adminAuth := middleware.AdminAuth(cfg.AdminAPIKey)
+
 	v1 := router.Group("/api/v1")
 	{
+		// アイドル: 読み取りは公開、書き込みは write スコープ必須
 		idols := v1.Group("/idols")
 		{
-			idols.POST("", idolHandler.CreateIdol)                     // 新規作成
-			idols.GET("", idolHandler.ListIdols)                       // 一覧取得
-			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得
-			idols.PUT("/:id", idolHandler.UpdateIdol)                  // 更新
-			idols.DELETE("/:id", idolHandler.DeleteIdol)               // 削除
-			idols.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
+			idols.GET("", idolHandler.ListIdols)        // 一覧取得（公開）
+			idols.GET("/:id", idolHandler.GetIdol)      // 詳細取得（公開）
+		}
+		idolsWrite := v1.Group("/idols", writeAuth)
+		{
+			idolsWrite.POST("", idolHandler.CreateIdol)                        // 新規作成
+			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                     // 更新
+			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                  // 削除
+			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
 		}
 
+		// 削除申請: 申請・参照は公開、管理は admin スコープ必須
 		removalRequests := v1.Group("/removal-requests")
 		{
 			removalRequests.POST("", removalHandler.CreateRemovalRequest) // 削除申請作成（公開）
 			removalRequests.GET("/:id", removalHandler.GetRemovalRequest) // 削除申請詳細取得（公開）
 		}
-
-		// 管理者専用エンドポイント（ADMIN_API_KEY 認証必須）
-		adminAuth := middleware.AdminAuth(cfg.AdminAPIKey)
 		adminRemoval := v1.Group("/removal-requests", adminAuth)
 		{
 			adminRemoval.GET("", removalHandler.ListAllRemovalRequests)             // 全削除申請取得
@@ -191,22 +201,30 @@ func main() {
 			adminRemoval.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新
 		}
 
+		// グループ: 読み取りは公開、書き込みは write スコープ必須
 		groups := v1.Group("/groups")
 		{
-			groups.POST("", groupHandler.CreateGroup)
 			groups.GET("", groupHandler.ListGroup)
 			groups.GET("/:id", groupHandler.GetGroup)
-			groups.PUT("/:id", groupHandler.UpdateGroup)
-			groups.DELETE("/:id", groupHandler.DeleteGroup)
+		}
+		groupsWrite := v1.Group("/groups", writeAuth)
+		{
+			groupsWrite.POST("", groupHandler.CreateGroup)
+			groupsWrite.PUT("/:id", groupHandler.UpdateGroup)
+			groupsWrite.DELETE("/:id", groupHandler.DeleteGroup)
 		}
 
+		// 事務所: 読み取りは公開、書き込みは write スコープ必須
 		agencies := v1.Group("/agencies")
 		{
-			agencies.POST("", agencyHandler.CreateAgency)
 			agencies.GET("", agencyHandler.ListAgencies)
 			agencies.GET("/:id", agencyHandler.GetAgency)
-			agencies.PUT("/:id", agencyHandler.UpdateAgency)
-			agencies.DELETE("/:id", agencyHandler.DeleteAgency)
+		}
+		agenciesWrite := v1.Group("/agencies", writeAuth)
+		{
+			agenciesWrite.POST("", agencyHandler.CreateAgency)
+			agenciesWrite.PUT("/:id", agencyHandler.UpdateAgency)
+			agenciesWrite.DELETE("/:id", agencyHandler.DeleteAgency)
 		}
 
 		terms := v1.Group("/terms")
@@ -215,25 +233,33 @@ func main() {
 			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
 		}
 
+		// イベント: 読み取りは公開、書き込みは write スコープ必須
 		events := v1.Group("/events")
 		{
-			events.POST("", eventHandler.CreateEvent)                               // イベント作成
-			events.GET("", eventHandler.ListEvents)                                 // イベント一覧取得（検索機能付き）
-			events.GET("/upcoming", eventHandler.GetUpcomingEvents)                 // 今後のイベント取得
-			events.GET("/:id", eventHandler.GetEvent)                               // イベント詳細取得
-			events.PUT("/:id", eventHandler.UpdateEvent)                            // イベント更新
-			events.DELETE("/:id", eventHandler.DeleteEvent)                         // イベント削除
-			events.POST("/:id/performers", eventHandler.AddPerformer)               // パフォーマー追加
-			events.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
+			events.GET("", eventHandler.ListEvents)            // イベント一覧取得（検索機能付き）
+			events.GET("/upcoming", eventHandler.GetUpcomingEvents) // 今後のイベント取得
+			events.GET("/:id", eventHandler.GetEvent)          // イベント詳細取得
+		}
+		eventsWrite := v1.Group("/events", writeAuth)
+		{
+			eventsWrite.POST("", eventHandler.CreateEvent)                               // イベント作成
+			eventsWrite.PUT("/:id", eventHandler.UpdateEvent)                            // イベント更新
+			eventsWrite.DELETE("/:id", eventHandler.DeleteEvent)                         // イベント削除
+			eventsWrite.POST("/:id/performers", eventHandler.AddPerformer)               // パフォーマー追加
+			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
 		}
 
+		// タグ: 読み取りは公開、書き込みは write スコープ必須
 		tags := v1.Group("/tags")
 		{
-			tags.POST("", tagHandler.CreateTag)       // タグ作成
-			tags.GET("", tagHandler.ListTags)         // タグ一覧取得
-			tags.GET("/:id", tagHandler.GetTag)       // タグ詳細取得
-			tags.PUT("/:id", tagHandler.UpdateTag)    // タグ更新
-			tags.DELETE("/:id", tagHandler.DeleteTag) // タグ削除
+			tags.GET("", tagHandler.ListTags)      // タグ一覧取得
+			tags.GET("/:id", tagHandler.GetTag)    // タグ詳細取得
+		}
+		tagsWrite := v1.Group("/tags", writeAuth)
+		{
+			tagsWrite.POST("", tagHandler.CreateTag)       // タグ作成
+			tagsWrite.PUT("/:id", tagHandler.UpdateTag)    // タグ更新
+			tagsWrite.DELETE("/:id", tagHandler.DeleteTag) // タグ削除
 		}
 	}
 
