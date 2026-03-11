@@ -27,6 +27,13 @@ func NewUsecase(appService *appIdol.ApplicationService, agencyApp *appAgency.App
 
 // CreateIdol はアイドルを作成する
 func (u *Usecase) CreateIdol(ctx context.Context, cmd CreateIdolCommand) (*IdolDTO, error) {
+	// AgencyIDが指定された場合は存在確認
+	if cmd.AgencyID != nil {
+		if _, err := u.agencyApp.GetAgency(ctx, *cmd.AgencyID); err != nil {
+			return nil, fmt.Errorf("指定された事務所が見つかりません: %w", err)
+		}
+	}
+
 	entity, err := u.appService.CreateIdol(ctx, appIdol.CreateInput{
 		Name:      cmd.Name,
 		Birthdate: cmd.Birthdate,
@@ -77,6 +84,13 @@ func (u *Usecase) ListIdols(ctx context.Context, query ListIdolsQuery) ([]*IdolD
 
 // UpdateIdol はアイドルを更新する
 func (u *Usecase) UpdateIdol(ctx context.Context, cmd UpdateIdolCommand) error {
+	// AgencyIDが指定された場合は存在確認
+	if cmd.AgencyID != nil {
+		if _, err := u.agencyApp.GetAgency(ctx, *cmd.AgencyID); err != nil {
+			return fmt.Errorf("指定された事務所が見つかりません: %w", err)
+		}
+	}
+
 	return u.appService.UpdateIdol(ctx, appIdol.UpdateInput{
 		ID:        cmd.ID,
 		Name:      cmd.Name,
