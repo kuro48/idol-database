@@ -43,6 +43,9 @@ type eventDocument struct {
 	CreatedBy     string     `bson:"created_by,omitempty"`
 	UpdatedBy     string     `bson:"updated_by,omitempty"`
 	Source        string     `bson:"source,omitempty"`
+	IsDeleted     bool       `bson:"is_deleted,omitempty"`
+	DeletedAt     *time.Time `bson:"deleted_at,omitempty"`
+	DeletedBy     string     `bson:"deleted_by,omitempty"`
 }
 
 // Save は新しいイベントを保存する
@@ -61,7 +64,7 @@ func (r *EventRepository) Save(ctx context.Context, e *event.Event) error {
 // FindByID はIDでイベントを検索する
 func (r *EventRepository) FindByID(ctx context.Context, id event.EventID) (*event.Event, error) {
 	var doc eventDocument
-	err := r.collection.FindOne(ctx, bson.M{"_id": id.Value()}).Decode(&doc)
+	err := r.collection.FindOne(ctx, bson.M{"_id": id.Value(), "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, fmt.Errorf("イベントが見つかりません: %w", err)
@@ -131,14 +134,49 @@ func (r *EventRepository) Update(ctx context.Context, e *event.Event) error {
 	return nil
 }
 
-// Delete はイベントを削除する
+// Delete はイベントをソフトデリートする
 func (r *EventRepository) Delete(ctx context.Context, id event.EventID) error {
-	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": id.Value()})
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": id.Value(), "is_deleted": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": audit.ActorFrom(ctx),
+			"updated_at": now,
+		}},
+	)
 	if err != nil {
 		return fmt.Errorf("イベントの削除エラー: %w", err)
 	}
-	if result.DeletedCount == 0 {
+	if result.MatchedCount == 0 {
 		return fmt.Errorf("イベントが見つかりません")
+	}
+	return nil
+}
+
+// Restore はソフトデリートされたイベントを復元する
+func (r *EventRepository) Restore(ctx context.Context, id event.EventID) error {
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": id.Value(), "is_deleted": true},
+		bson.M{
+			"$set": bson.M{
+				"is_deleted": false,
+				"updated_at": now,
+				"updated_by": audit.ActorFrom(ctx),
+			},
+			"$unset": bson.M{
+				"deleted_at": "",
+				"deleted_by": "",
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("イベント復元エラー: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("削除済みイベントが見つかりません")
 	}
 	return nil
 }
@@ -147,6 +185,7 @@ func (r *EventRepository) Delete(ctx context.Context, id event.EventID) error {
 func (r *EventRepository) FindUpcoming(ctx context.Context, limit int) ([]*event.Event, error) {
 	filter := bson.M{
 		"start_date_time": bson.M{"$gte": time.Now()},
+		"is_deleted":      bson.M{"$ne": true},
 	}
 
 	opts := options.Find().
@@ -180,6 +219,7 @@ func (r *EventRepository) FindUpcoming(ctx context.Context, limit int) ([]*event
 func (r *EventRepository) FindByPerformer(ctx context.Context, performerID string, limit int) ([]*event.Event, error) {
 	filter := bson.M{
 		"performer_ids": bson.M{"$in": []string{performerID}},
+		"is_deleted":    bson.M{"$ne": true},
 	}
 
 	opts := options.Find().
@@ -264,7 +304,7 @@ func fromEventDocument(doc *eventDocument) (*event.Event, error) {
 
 // buildEventFilter は検索条件からMongoDBフィルタを構築する
 func buildEventFilter(criteria event.SearchCriteria) bson.M {
-	filter := bson.M{}
+	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
 	// イベントタイプ
 	if criteria.EventType != nil {

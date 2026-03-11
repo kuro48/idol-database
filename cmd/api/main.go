@@ -201,6 +201,10 @@ func main() {
 			adminRemoval.GET("/pending", removalHandler.ListPendingRemovalRequests) // 保留中取得
 			adminRemoval.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新
 		}
+		idolsAdmin := v1.Group("/idols", adminAuth)
+		{
+			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol) // アイドル復元
+		}
 
 		// グループ: 読み取りは公開、書き込みは write スコープ必須
 		groups := v1.Group("/groups")

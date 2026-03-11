@@ -90,6 +90,11 @@ func (u *Usecase) DeleteIdol(ctx context.Context, cmd DeleteIdolCommand) error {
 	return u.appService.DeleteIdol(ctx, cmd.ID)
 }
 
+// RestoreIdol はソフトデリートされたアイドルを復元する
+func (u *Usecase) RestoreIdol(ctx context.Context, id string) error {
+	return u.appService.RestoreIdol(ctx, id)
+}
+
 // UpdateSocialLinks はSNS/外部リンクを更新する
 func (u *Usecase) UpdateSocialLinks(ctx context.Context, cmd UpdateSocialLinksCommand) error {
 	return u.appService.UpdateSocialLinks(ctx, appIdol.UpdateSocialLinksInput{

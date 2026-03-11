@@ -38,6 +38,9 @@ type idolDocument struct {
 	CreatedBy   string               `bson:"created_by,omitempty"`
 	UpdatedBy   string               `bson:"updated_by,omitempty"`
 	Source      string               `bson:"source,omitempty"`
+	IsDeleted   bool                 `bson:"is_deleted,omitempty"`
+	DeletedAt   *time.Time           `bson:"deleted_at,omitempty"`
+	DeletedBy   string               `bson:"deleted_by,omitempty"`
 }
 
 // socialLinksDocument はSNS/外部リンクのドキュメント構造
@@ -185,7 +188,7 @@ func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
 	return nil
 }
 
-// FindByID はIDでアイドルを検索する
+// FindByID はIDでアイドルを検索する（削除済みを除く）
 func (r *IdolRepository) FindByID(ctx context.Context, id idol.IdolID) (*idol.Idol, error) {
 	objectID, err := bson.ObjectIDFromHex(id.Value())
 	if err != nil {
@@ -193,7 +196,7 @@ func (r *IdolRepository) FindByID(ctx context.Context, id idol.IdolID) (*idol.Id
 	}
 
 	var doc idolDocument
-	err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&doc)
+	err = r.collection.FindOne(ctx, bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("アイドルが見つかりません")
@@ -204,9 +207,9 @@ func (r *IdolRepository) FindByID(ctx context.Context, id idol.IdolID) (*idol.Id
 	return toDomain(&doc)
 }
 
-// FindAll は全てのアイドルを取得する
+// FindAll は全てのアイドルを取得する（削除済みを除く）
 func (r *IdolRepository) FindAll(ctx context.Context) ([]*idol.Idol, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{})
+	cursor, err := r.collection.Find(ctx, bson.M{"is_deleted": bson.M{"$ne": true}})
 	if err != nil {
 		return nil, fmt.Errorf("アイドル一覧取得エラー: %w", err)
 	}
@@ -261,20 +264,61 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 	return nil
 }
 
-// Delete はアイドルを削除する
+// Delete はアイドルをソフトデリートする
 func (r *IdolRepository) Delete(ctx context.Context, id idol.IdolID) error {
 	objectID, err := bson.ObjectIDFromHex(id.Value())
 	if err != nil {
 		return fmt.Errorf("無効なID形式: %w", err)
 	}
 
-	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": objectID})
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": audit.ActorFrom(ctx),
+			"updated_at": now,
+		}},
+	)
 	if err != nil {
 		return fmt.Errorf("アイドル削除エラー: %w", err)
 	}
 
-	if result.DeletedCount == 0 {
+	if result.MatchedCount == 0 {
 		return errors.New("アイドルが見つかりません")
+	}
+
+	return nil
+}
+
+// Restore はソフトデリートされたアイドルを復元する
+func (r *IdolRepository) Restore(ctx context.Context, id idol.IdolID) error {
+	objectID, err := bson.ObjectIDFromHex(id.Value())
+	if err != nil {
+		return fmt.Errorf("無効なID形式: %w", err)
+	}
+
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": true},
+		bson.M{"$set": bson.M{
+			"is_deleted": false,
+			"deleted_at": nil,
+			"deleted_by": "",
+			"updated_at": now,
+			"updated_by": audit.ActorFrom(ctx),
+		}, "$unset": bson.M{
+			"deleted_at": "",
+			"deleted_by": "",
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("アイドル復元エラー: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("削除済みアイドルが見つかりません")
 	}
 
 	return nil
@@ -355,7 +399,7 @@ func (r *IdolRepository) Search(ctx context.Context, criteria idol.SearchCriteri
 }
 
 func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
-	filter := bson.M{}
+	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
 	// 名前検索（部分一致）
 	if criteria.Name != nil {

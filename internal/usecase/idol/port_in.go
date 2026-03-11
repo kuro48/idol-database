@@ -10,5 +10,6 @@ type IdolUseCase interface {
 	SearchIdols(ctx context.Context, query ListIdolsQuery) (*SearchResult, error)
 	UpdateIdol(ctx context.Context, cmd UpdateIdolCommand) error
 	DeleteIdol(ctx context.Context, cmd DeleteIdolCommand) error
+	RestoreIdol(ctx context.Context, id string) error
 	UpdateSocialLinks(ctx context.Context, cmd UpdateSocialLinksCommand) error
 }

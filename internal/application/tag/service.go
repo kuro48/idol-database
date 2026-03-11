@@ -88,6 +88,20 @@ func (s *ApplicationService) DeleteTag(ctx context.Context, id string) error {
 	return nil
 }
 
+// RestoreTag はソフトデリートされたタグを復元する
+func (s *ApplicationService) RestoreTag(ctx context.Context, id string) error {
+	tagID, err := tag.NewTagID(id)
+	if err != nil {
+		return fmt.Errorf("タグID検証エラー: %w", err)
+	}
+
+	if err := s.repository.Restore(ctx, tagID); err != nil {
+		return fmt.Errorf("タグ復元エラー: %w", err)
+	}
+
+	return nil
+}
+
 // GetTag はタグを取得する
 func (s *ApplicationService) GetTag(ctx context.Context, id string) (*tag.Tag, error) {
 	tagID, err := tag.NewTagID(id)

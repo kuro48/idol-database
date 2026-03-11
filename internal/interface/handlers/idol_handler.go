@@ -218,6 +218,31 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
 
+// RestoreIdol はソフトデリートされたアイドルを復元する
+// @Summary      アイドル復元
+// @Description  削除されたアイドルを復元する（管理者専用）
+// @Tags         idols
+// @Produce      json
+// @Param        id path string true "アイドルID"
+// @Success      200 {object} map[string]string
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /idols/{id}/restore [put]
+func (h *IdolHandler) RestoreIdol(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDが必要です"))
+		return
+	}
+
+	if err := h.usecase.RestoreIdol(middleware.AuditContextFor(c), id); err != nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "アイドルが復元されました"})
+}
+
 // UpdateSocialLinks はSNS/外部リンクを更新する
 // @Summary      SNS/外部リンク更新
 // @Description  アイドルのSNS/外部リンク情報を更新する
