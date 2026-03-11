@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/tag"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -31,6 +32,9 @@ type tagDocument struct {
 	Category    string        `bson:"category"`
 	Description string        `bson:"description"`
 	CreatedAt   time.Time     `bson:"created_at"`
+	CreatedBy   string        `bson:"created_by,omitempty"`
+	UpdatedBy   string        `bson:"updated_by,omitempty"`
+	Source      string        `bson:"source,omitempty"`
 }
 
 // toTagDocument はドメインモデルをMongoDBドキュメントに変換する
@@ -72,6 +76,10 @@ func (r *TagRepository) Save(ctx context.Context, t *tag.Tag) error {
 		return errors.New("タグIDが設定されていません")
 	}
 
+	doc.CreatedBy = audit.ActorFrom(ctx)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
+	doc.Source = audit.SourceFrom(ctx)
+
 	_, err = r.collection.InsertOne(ctx, doc)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -96,6 +104,7 @@ func (r *TagRepository) Update(ctx context.Context, t *tag.Tag) error {
 			"name":        doc.Name,
 			"category":    doc.Category,
 			"description": doc.Description,
+			"updated_by":  audit.ActorFrom(ctx),
 		},
 	}
 

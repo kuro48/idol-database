@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/event"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -26,24 +27,30 @@ func NewEventRepository(db *mongo.Database) *EventRepository {
 
 // eventDocument はMongoDBに保存するイベントドキュメント
 type eventDocument struct {
-	ID            string    `bson:"_id,omitempty"`
-	Title         string    `bson:"title"`
-	EventType     string    `bson:"event_type"`
-	StartDateTime time.Time `bson:"start_date_time"`
+	ID            string     `bson:"_id,omitempty"`
+	Title         string     `bson:"title"`
+	EventType     string     `bson:"event_type"`
+	StartDateTime time.Time  `bson:"start_date_time"`
 	EndDateTime   *time.Time `bson:"end_date_time,omitempty"`
-	VenueID       *string   `bson:"venue_id,omitempty"`
-	PerformerIDs  []string  `bson:"performer_ids"`
-	TicketURL     *string   `bson:"ticket_url,omitempty"`
-	OfficialURL   *string   `bson:"official_url,omitempty"`
-	Description   *string   `bson:"description,omitempty"`
-	Tags          []string  `bson:"tags"`
-	CreatedAt     time.Time `bson:"created_at"`
-	UpdatedAt     time.Time `bson:"updated_at"`
+	VenueID       *string    `bson:"venue_id,omitempty"`
+	PerformerIDs  []string   `bson:"performer_ids"`
+	TicketURL     *string    `bson:"ticket_url,omitempty"`
+	OfficialURL   *string    `bson:"official_url,omitempty"`
+	Description   *string    `bson:"description,omitempty"`
+	Tags          []string   `bson:"tags"`
+	CreatedAt     time.Time  `bson:"created_at"`
+	UpdatedAt     time.Time  `bson:"updated_at"`
+	CreatedBy     string     `bson:"created_by,omitempty"`
+	UpdatedBy     string     `bson:"updated_by,omitempty"`
+	Source        string     `bson:"source,omitempty"`
 }
 
 // Save は新しいイベントを保存する
 func (r *EventRepository) Save(ctx context.Context, e *event.Event) error {
 	doc := toEventDocument(e)
+	doc.CreatedBy = audit.ActorFrom(ctx)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
+	doc.Source = audit.SourceFrom(ctx)
 	_, err := r.collection.InsertOne(ctx, doc)
 	if err != nil {
 		return fmt.Errorf("イベントの保存エラー: %w", err)
@@ -113,6 +120,7 @@ func (r *EventRepository) Count(ctx context.Context, criteria event.SearchCriter
 // Update は既存のイベントを更新する
 func (r *EventRepository) Update(ctx context.Context, e *event.Event) error {
 	doc := toEventDocument(e)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
 	result, err := r.collection.ReplaceOne(ctx, bson.M{"_id": e.ID().Value()}, doc)
 	if err != nil {
 		return fmt.Errorf("イベントの更新エラー: %w", err)

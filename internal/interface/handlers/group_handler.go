@@ -43,7 +43,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		DisbandDate:   req.DisbandDate,
 	}
 
-	dto, err := h.usecase.CreateGroup(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateGroup(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "グループ",
@@ -107,7 +107,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		DisbandDate:   req.DisbandDate,
 	}
 
-	err := h.usecase.UpdateGroup(c.Request.Context(), cmd)
+	err := h.usecase.UpdateGroup(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "グループ",

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/idol"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -34,6 +35,9 @@ type idolDocument struct {
 	TagIDs      []string             `bson:"tag_ids,omitempty"`
 	CreatedAt   time.Time            `bson:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"`
+	CreatedBy   string               `bson:"created_by,omitempty"`
+	UpdatedBy   string               `bson:"updated_by,omitempty"`
+	Source      string               `bson:"source,omitempty"`
 }
 
 // socialLinksDocument はSNS/外部リンクのドキュメント構造
@@ -162,6 +166,9 @@ func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
 		doc.ID = bson.NewObjectID()
 		doc.CreatedAt = time.Now()
 		doc.UpdatedAt = time.Now()
+		doc.CreatedBy = audit.ActorFrom(ctx)
+		doc.UpdatedBy = audit.ActorFrom(ctx)
+		doc.Source = audit.SourceFrom(ctx)
 
 		newID, err := idol.NewIdolID(doc.ID.Hex())
 		if err != nil {
@@ -238,6 +245,7 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 			"birthdate":  doc.Birthdate,
 			"agency_id":  doc.AgencyID,
 			"updated_at": doc.UpdatedAt,
+			"updated_by": audit.ActorFrom(ctx),
 		},
 	}
 

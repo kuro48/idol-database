@@ -28,7 +28,7 @@ func (h *AgencyHandler) CreateAgency(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.usecase.CreateAgency(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateAgency(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "事務所",
@@ -97,7 +97,7 @@ func (h *AgencyHandler) UpdateAgency(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.usecase.UpdateAgency(c.Request.Context(), cmd)
+	err := h.usecase.UpdateAgency(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "事務所",

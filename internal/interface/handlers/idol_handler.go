@@ -58,7 +58,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 		AgencyID:  req.AgencyID,
 	}
 
-	dto, err := h.usecase.CreateIdol(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateIdol(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの作成に失敗しました"))
 		return
@@ -180,7 +180,7 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 		AgencyID:  req.AgencyID,
 	}
 
-	err := h.usecase.UpdateIdol(c.Request.Context(), cmd)
+	err := h.usecase.UpdateIdol(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("アイドルの更新に失敗しました"))
 		return
@@ -244,7 +244,7 @@ func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.usecase.UpdateSocialLinks(c.Request.Context(), cmd)
+	err := h.usecase.UpdateSocialLinks(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
 		return
