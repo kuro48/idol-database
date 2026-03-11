@@ -4,6 +4,8 @@ import "time"
 
 type SearchCriteria struct {
 	Name          *string
+	Nationality   *string
+	GroupID       *string
 	AgencyID      *string
 	AgeMin        *int
 	AgeMax        *int
