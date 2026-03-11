@@ -125,19 +125,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.SearchResult"
+                            "$ref": "#/definitions/event.SearchResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -161,7 +161,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.CreateEventCommand"
+                            "$ref": "#/definitions/event.CreateEventCommand"
                         }
                     }
                 ],
@@ -169,19 +169,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO"
+                            "$ref": "#/definitions/event.EventDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -213,19 +213,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO"
+                            "$ref": "#/definitions/event.EventDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -341,19 +341,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.SearchResult"
+                            "$ref": "#/definitions/idol.SearchResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -377,7 +377,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_interface_handlers.CreateIdolRequest"
+                            "$ref": "#/definitions/handlers.CreateIdolRequest"
                         }
                     }
                 ],
@@ -385,19 +385,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO"
+                            "$ref": "#/definitions/idol.IdolDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -435,19 +435,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO"
+                            "$ref": "#/definitions/idol.IdolDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -478,7 +478,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_interface_handlers.UpdateIdolRequest"
+                            "$ref": "#/definitions/handlers.UpdateIdolRequest"
                         }
                     }
                 ],
@@ -495,13 +495,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -534,13 +534,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -573,7 +573,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.UpdateSocialLinksCommand"
+                            "$ref": "#/definitions/idol.UpdateSocialLinksCommand"
                         }
                     }
                 ],
@@ -590,7 +590,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -647,19 +647,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.SearchResult"
+                            "$ref": "#/definitions/tag.SearchResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -683,7 +683,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.CreateTagCommand"
+                            "$ref": "#/definitions/tag.CreateTagCommand"
                         }
                     }
                 ],
@@ -691,19 +691,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO"
+                            "$ref": "#/definitions/tag.TagDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -735,19 +735,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO"
+                            "$ref": "#/definitions/tag.TagDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -778,7 +778,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.UpdateTagCommand"
+                            "$ref": "#/definitions/tag.UpdateTagCommand"
                         }
                     }
                 ],
@@ -795,13 +795,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -834,13 +834,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse"
+                            "$ref": "#/definitions/middleware.ErrorResponse"
                         }
                     }
                 }
@@ -848,29 +848,34 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_kuro48_idol-api_internal_application_event.CreateEventCommand": {
+        "event.CreateEventCommand": {
             "type": "object",
+            "required": [
+                "event_type",
+                "start_date_time",
+                "title"
+            ],
             "properties": {
                 "description": {
                     "type": "string"
                 },
-                "endDateTime": {
+                "end_date_time": {
                     "description": "RFC3339形式（オプション）",
                     "type": "string"
                 },
-                "eventType": {
+                "event_type": {
                     "type": "string"
                 },
-                "officialURL": {
+                "official_url": {
                     "type": "string"
                 },
-                "performerIDs": {
+                "performer_ids": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "startDateTime": {
+                "start_date_time": {
                     "description": "RFC3339形式",
                     "type": "string"
                 },
@@ -880,18 +885,18 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "ticketURL": {
+                "ticket_url": {
                     "type": "string"
                 },
                 "title": {
                     "type": "string"
                 },
-                "venueID": {
+                "venue_id": {
                     "type": "string"
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_event.EventDTO": {
+        "event.EventDTO": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -941,7 +946,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_event.PaginationLinks": {
+        "event.PaginationLinks": {
             "type": "object",
             "properties": {
                 "first": {
@@ -958,7 +963,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_event.PaginationMeta": {
+        "event.PaginationMeta": {
             "type": "object",
             "properties": {
                 "has_next": {
@@ -981,24 +986,59 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_event.SearchResult": {
+        "event.SearchResult": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.EventDTO"
+                        "$ref": "#/definitions/event.EventDTO"
                     }
                 },
                 "links": {
-                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.PaginationLinks"
+                    "$ref": "#/definitions/event.PaginationLinks"
                 },
                 "meta": {
-                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_event.PaginationMeta"
+                    "$ref": "#/definitions/event.PaginationMeta"
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_idol.IdolDTO": {
+        "handlers.CreateIdolRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "agency_id": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
+        "handlers.UpdateIdolRequest": {
+            "type": "object",
+            "properties": {
+                "agency_id": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
+        "idol.IdolDTO": {
             "type": "object",
             "properties": {
                 "age": {
@@ -1030,7 +1070,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_idol.PaginationLinks": {
+        "idol.PaginationLinks": {
             "type": "object",
             "properties": {
                 "first": {
@@ -1047,7 +1087,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_idol.PaginationMeta": {
+        "idol.PaginationMeta": {
             "type": "object",
             "properties": {
                 "has_next": {
@@ -1070,24 +1110,24 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_idol.SearchResult": {
+        "idol.SearchResult": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.IdolDTO"
+                        "$ref": "#/definitions/idol.IdolDTO"
                     }
                 },
                 "links": {
-                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.PaginationLinks"
+                    "$ref": "#/definitions/idol.PaginationLinks"
                 },
                 "meta": {
-                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_idol.PaginationMeta"
+                    "$ref": "#/definitions/idol.PaginationMeta"
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_idol.UpdateSocialLinksCommand": {
+        "idol.UpdateSocialLinksCommand": {
             "type": "object",
             "properties": {
                 "facebook": {
@@ -1116,7 +1156,19 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_tag.CreateTagCommand": {
+        "middleware.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "details": {},
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "tag.CreateTagCommand": {
             "type": "object",
             "required": [
                 "category",
@@ -1142,7 +1194,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_tag.PaginationLinks": {
+        "tag.PaginationLinks": {
             "type": "object",
             "properties": {
                 "first": {
@@ -1159,7 +1211,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_tag.PaginationMeta": {
+        "tag.PaginationMeta": {
             "type": "object",
             "properties": {
                 "has_next": {
@@ -1182,24 +1234,24 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_tag.SearchResult": {
+        "tag.SearchResult": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.TagDTO"
+                        "$ref": "#/definitions/tag.TagDTO"
                     }
                 },
                 "links": {
-                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.PaginationLinks"
+                    "$ref": "#/definitions/tag.PaginationLinks"
                 },
                 "meta": {
-                    "$ref": "#/definitions/github_com_kuro48_idol-api_internal_application_tag.PaginationMeta"
+                    "$ref": "#/definitions/tag.PaginationMeta"
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_tag.TagDTO": {
+        "tag.TagDTO": {
             "type": "object",
             "properties": {
                 "category": {
@@ -1219,7 +1271,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_kuro48_idol-api_internal_application_tag.UpdateTagCommand": {
+        "tag.UpdateTagCommand": {
             "type": "object",
             "required": [
                 "category",
@@ -1247,53 +1299,6 @@ const docTemplate = `{
                     "maxLength": 50
                 }
             }
-        },
-        "github_com_kuro48_idol-api_internal_interface_middleware.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "details": {},
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_interface_handlers.CreateIdolRequest": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "agency_id": {
-                    "type": "string"
-                },
-                "birthdate": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 1
-                }
-            }
-        },
-        "internal_interface_handlers.UpdateIdolRequest": {
-            "type": "object",
-            "properties": {
-                "agency_id": {
-                    "type": "string"
-                },
-                "birthdate": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 1
-                }
-            }
         }
     }
 }`
@@ -1301,7 +1306,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:27018",
+	Host:             "localhost:8081",
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http", "https"},
 	Title:            "Idol API",
