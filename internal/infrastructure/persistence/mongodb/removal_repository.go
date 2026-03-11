@@ -39,11 +39,15 @@ type removalDocument struct {
 }
 
 // toRemovalDocument はドメインモデルをMongoDBドキュメントに変換する
-func toRemovalDocument(r *removal.RemovalRequest) *removalDocument {
+func toRemovalDocument(r *removal.RemovalRequest) (*removalDocument, error) {
 	// IDの文字列をObjectIDに変換（空の場合はゼロ値）
 	var objectID bson.ObjectID
 	if r.ID().Value() != "" {
-		objectID, _ = bson.ObjectIDFromHex(r.ID().Value())
+		var err error
+		objectID, err = bson.ObjectIDFromHex(r.ID().Value())
+		if err != nil {
+			return nil, fmt.Errorf("無効な削除申請ID %q: %w", r.ID().Value(), err)
+		}
 	}
 
 	return &removalDocument{
@@ -58,7 +62,7 @@ func toRemovalDocument(r *removal.RemovalRequest) *removalDocument {
 		Status:      string(r.Status()),
 		CreatedAt:   r.CreatedAt(),
 		UpdatedAt:   r.UpdatedAt(),
-	}
+	}, nil
 }
 
 // toRemovalDomain はMongoDBドキュメントをドメインモデルに変換する
@@ -120,7 +124,10 @@ func toRemovalDomain(doc *removalDocument) (*removal.RemovalRequest, error) {
 
 // Save は新しい削除申請を保存する
 func (r *RemovalRepository) Save(ctx context.Context, request *removal.RemovalRequest) error {
-	doc := toRemovalDocument(request)
+	doc, err := toRemovalDocument(request)
+	if err != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err)
+	}
 
 	// 新規作成の場合はIDを生成
 	if doc.ID.IsZero() {
@@ -135,9 +142,8 @@ func (r *RemovalRepository) Save(ctx context.Context, request *removal.RemovalRe
 		request.SetID(newID)
 	}
 
-	_, err := r.collection.InsertOne(ctx, doc)
-	if err != nil {
-		return fmt.Errorf("削除申請の保存エラー: %w", err)
+	if _, insertErr := r.collection.InsertOne(ctx, doc); insertErr != nil {
+		return fmt.Errorf("削除申請の保存エラー: %w", insertErr)
 	}
 
 	return nil
@@ -219,7 +225,10 @@ func (r *RemovalRepository) Update(ctx context.Context, request *removal.Removal
 		return fmt.Errorf("無効なID形式: %w", err)
 	}
 
-	doc := toRemovalDocument(request)
+	doc, err2 := toRemovalDocument(request)
+	if err2 != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err2)
+	}
 	doc.UpdatedAt = time.Now()
 
 	updateDoc := bson.M{

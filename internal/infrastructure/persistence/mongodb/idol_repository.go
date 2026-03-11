@@ -56,9 +56,12 @@ type socialLinksDocument struct {
 }
 
 // toDocument はドメインモデルをMongoDBドキュメントに変換する
-func toIdolDocument(i *idol.Idol) *idolDocument {
+func toIdolDocument(i *idol.Idol) (*idolDocument, error) {
 	// IDの文字列をObjectIDに変換
-	objectID, _ := bson.ObjectIDFromHex(i.ID().Value())
+	objectID, err := bson.ObjectIDFromHex(i.ID().Value())
+	if err != nil && i.ID().Value() != "" {
+		return nil, fmt.Errorf("無効なアイドルID %q: %w", i.ID().Value(), err)
+	}
 
 	var socialLinksDoc *socialLinksDocument
 	if i.SocialLinks() != nil {
@@ -91,7 +94,7 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 		TagIDs:      i.TagIDs(),
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
-	}
+	}, nil
 }
 
 // toSocialLinksDocument はSocialLinksをドキュメントに変換する
@@ -184,7 +187,10 @@ func toSocialLinksDomain(doc *socialLinksDocument) *idol.SocialLinks {
 
 // Save は新しいアイドルを保存する
 func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
-	doc := toIdolDocument(i)
+	doc, err := toIdolDocument(i)
+	if err != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err)
+	}
 
 	// 新規作成の場合はIDを生成
 	if doc.ID.IsZero() {
@@ -202,9 +208,8 @@ func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
 		i.SetID(newID)
 	}
 
-	_, err := r.collection.InsertOne(ctx, doc)
-	if err != nil {
-		return fmt.Errorf("アイドルの保存エラー: %w", err)
+	if _, insertErr := r.collection.InsertOne(ctx, doc); insertErr != nil {
+		return fmt.Errorf("アイドルの保存エラー: %w", insertErr)
 	}
 
 	return nil
@@ -261,7 +266,10 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 		return fmt.Errorf("無効なID形式: %w", err)
 	}
 
-	doc := toIdolDocument(i)
+	doc, err := toIdolDocument(i)
+	if err != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err)
+	}
 	doc.UpdatedAt = time.Now()
 
 	setFields := bson.M{
