@@ -30,6 +30,7 @@ import (
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
+	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
@@ -73,6 +74,8 @@ func main() {
 	agencyRepo := mongodb.NewAgencyRepository(db.Database)
 	eventRepo := mongodb.NewEventRepository(db.Database)
 	tagRepo := mongodb.NewTagRepository(db.Database)
+	webhookSubRepo := mongodb.NewWebhookSubscriptionRepository(db.Database)
+	webhookDelRepo := mongodb.NewWebhookDeliveryRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -109,6 +112,7 @@ func main() {
 	agencyAppService := appAgency.NewApplicationService(agencyRepo)
 	eventAppService := appEvent.NewApplicationService(eventRepo)
 	tagAppService := appTag.NewApplicationService(tagRepo)
+	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
 
 	// ユースケース層
 	idolUsecase := usecaseIdol.NewUsecase(idolAppService, agencyAppService)
@@ -126,6 +130,7 @@ func main() {
 	eventHandler := handlers.NewEventHandler(eventUsecase)
 	tagHandler := handlers.NewTagHandler(tagUsecase)
 	termHandler := handlers.NewTermHandler("./static")
+	webhookHandler := handlers.NewWebhookHandler(webhookAppService)
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
 	router := gin.New()
@@ -205,6 +210,14 @@ func main() {
 		{
 			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                          // アイドル復元
 			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates)  // 重複候補取得
+		}
+
+		// Webhook管理（admin スコープ必須）
+		adminWebhooks := v1.Group("/admin/webhooks", adminAuth)
+		{
+			adminWebhooks.POST("", webhookHandler.CreateSubscription)    // 購読作成
+			adminWebhooks.GET("", webhookHandler.ListSubscriptions)      // 購読一覧
+			adminWebhooks.DELETE("/:id", webhookHandler.DeleteSubscription) // 購読削除
 		}
 
 		// グループ: 読み取りは公開、書き込みは write スコープ必須
