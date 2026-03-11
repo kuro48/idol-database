@@ -49,7 +49,7 @@ func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalReq
 	request, err := u.removalApp.CreateRemovalRequest(ctx, appRemoval.CreateInput{
 		TargetType:  cmd.TargetType,
 		TargetID:    cmd.TargetID,
-		Requester:   cmd.Requester,
+		Requester:   cmd.RequesterType,
 		Reason:      cmd.Reason,
 		ContactInfo: cmd.ContactInfo,
 		Evidence:    cmd.Evidence,
@@ -82,16 +82,16 @@ func (u *Usecase) GetRemovalRequestPublic(ctx context.Context, id string) (*Publ
 	}
 
 	dto := &PublicRemovalRequestDTO{
-		ID:          request.ID().Value(),
-		TargetID:    request.TargetID(),
-		TargetType:  string(request.TargetType()),
-		Requester:   string(request.Requester().Type()),
-		Reason:      request.Reason().Value(),
-		Evidence:    request.Evidence().Value(),
-		Description: request.Description().Value(),
-		Status:      string(request.Status()),
-		CreatedAt:   request.CreatedAt(),
-		UpdatedAt:   request.UpdatedAt(),
+		ID:            request.ID().Value(),
+		TargetID:      request.TargetID(),
+		TargetType:    string(request.TargetType()),
+		RequesterType: string(request.Requester().Type()),
+		Reason:        request.Reason().Value(),
+		Evidence:      request.Evidence().Value(),
+		Description:   request.Description().Value(),
+		Status:        string(request.Status()),
+		CreatedAt:     request.CreatedAt(),
+		UpdatedAt:     request.UpdatedAt(),
 	}
 	return dto, nil
 }
@@ -167,17 +167,17 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*R
 // toDTO はエンティティをDTOに変換する
 func toDTO(request *domain.RemovalRequest) RemovalRequestDTO {
 	return RemovalRequestDTO{
-		ID:          request.ID().Value(),
-		TargetID:    request.TargetID(),
-		TargetType:  string(request.TargetType()),
-		Requester:   string(request.Requester().Type()),
-		Reason:      request.Reason().Value(),
-		ContactInfo: request.ContactInfo().Value(),
-		Evidence:    request.Evidence().Value(),
-		Description: request.Description().Value(),
-		Status:      string(request.Status()),
-		CreatedAt:   request.CreatedAt(),
-		UpdatedAt:   request.UpdatedAt(),
+		ID:            request.ID().Value(),
+		TargetID:      request.TargetID(),
+		TargetType:    string(request.TargetType()),
+		RequesterType: string(request.Requester().Type()),
+		Reason:        request.Reason().Value(),
+		ContactInfo:   request.ContactInfo().Value(),
+		Evidence:      request.Evidence().Value(),
+		Description:   request.Description().Value(),
+		Status:        string(request.Status()),
+		CreatedAt:     request.CreatedAt(),
+		UpdatedAt:     request.UpdatedAt(),
 	}
 }
 
