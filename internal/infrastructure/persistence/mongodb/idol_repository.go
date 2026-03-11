@@ -32,6 +32,7 @@ type idolDocument struct {
 	Birthdate   *time.Time           `bson:"birthdate,omitempty"`
 	AgencyID    *string              `bson:"agency_id,omitempty"`
 	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
+	ExternalIDs map[string]string    `bson:"external_ids,omitempty"`
 	TagIDs      []string             `bson:"tag_ids,omitempty"`
 	CreatedAt   time.Time            `bson:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"`
@@ -70,12 +71,23 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 		birthdate = &bd
 	}
 
+	// ExternalIDs の変換
+	var externalIDsDoc map[string]string
+	if extIDs := i.ExternalIDs(); !extIDs.IsEmpty() {
+		rawIDs := extIDs.All()
+		externalIDsDoc = make(map[string]string, len(rawIDs))
+		for k, v := range rawIDs {
+			externalIDsDoc[string(k)] = v
+		}
+	}
+
 	return &idolDocument{
 		ID:          objectID,
 		Name:        i.Name().Value(),
 		Birthdate:   birthdate,
 		AgencyID:    i.AgencyID(),
 		SocialLinks: socialLinksDoc,
+		ExternalIDs: externalIDsDoc,
 		TagIDs:      i.TagIDs(),
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
@@ -123,12 +135,22 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		socialLinks = toSocialLinksDomain(doc.SocialLinks)
 	}
 
+	// ExternalIDs の再構築
+	var externalIDs *idol.ExternalIDs
+	if len(doc.ExternalIDs) > 0 {
+		typedIDs := make(map[idol.ExternalIDKind]string, len(doc.ExternalIDs))
+		for k, v := range doc.ExternalIDs {
+			typedIDs[idol.ExternalIDKind(k)] = v
+		}
+		externalIDs = idol.ReconstructExternalIDs(typedIDs)
+	}
+
 	tagIDs := doc.TagIDs
 	if tagIDs == nil {
 		tagIDs = []string{}
 	}
 
-	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
+	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, externalIDs, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
@@ -242,14 +264,18 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 	doc := toIdolDocument(i)
 	doc.UpdatedAt = time.Now()
 
+	setFields := bson.M{
+		"name":       doc.Name,
+		"birthdate":  doc.Birthdate,
+		"agency_id":  doc.AgencyID,
+		"updated_at": doc.UpdatedAt,
+		"updated_by": audit.ActorFrom(ctx),
+	}
+	if doc.ExternalIDs != nil {
+		setFields["external_ids"] = doc.ExternalIDs
+	}
 	updateDoc := bson.M{
-		"$set": bson.M{
-			"name":       doc.Name,
-			"birthdate":  doc.Birthdate,
-			"agency_id":  doc.AgencyID,
-			"updated_at": doc.UpdatedAt,
-			"updated_by": audit.ActorFrom(ctx),
-		},
+		"$set": setFields,
 	}
 
 	result, err := r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, updateDoc)
@@ -452,6 +478,20 @@ func (r *IdolRepository) Count(ctx context.Context, criteria idol.SearchCriteria
 	return r.collection.CountDocuments(ctx, filter)
 }
 
+// FindByExternalID は外部IDでアイドルを検索する
+func (r *IdolRepository) FindByExternalID(ctx context.Context, kind idol.ExternalIDKind, value string) (*idol.Idol, error) {
+	field := "external_ids." + string(kind)
+	var doc idolDocument
+	err := r.collection.FindOne(ctx, bson.M{field: value, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // 見つからない場合はnil
+		}
+		return nil, fmt.Errorf("外部ID検索エラー: %w", err)
+	}
+	return toDomain(&doc)
+}
+
 // EnsureIndexes は検索パフォーマンス向上のためのインデックスを作成
 func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
     indexes := []mongo.IndexModel{
@@ -526,6 +566,20 @@ func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
                 {Key: "created_at", Value: -1},
             },
         },
+    }
+
+    // 外部ID種別ごとのスパース一意インデックス
+    externalIDKinds := []string{
+        "twitter", "instagram", "tiktok", "youtube_channel",
+        "spotify_artist", "apple_music_artist", "ameba", "note",
+        "wikipedia_ja", "wikipedia_en",
+    }
+    for _, kind := range externalIDKinds {
+        field := "external_ids." + kind
+        indexes = append(indexes, mongo.IndexModel{
+            Keys:    bson.D{{Key: field, Value: 1}},
+            Options: options.Index().SetSparse(true).SetUnique(true).SetName("unique_ext_" + kind),
+        })
     }
 
     _, err := r.collection.Indexes().CreateMany(ctx, indexes)

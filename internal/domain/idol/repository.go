@@ -31,4 +31,7 @@ type Repository interface {
 	Search(ctx context.Context, criteria SearchCriteria) ([]*Idol, error)
 
 	Count(ctx context.Context, criteria SearchCriteria) (int64, error)
+
+	// FindByExternalID は外部IDでアイドルを検索する（一意制約チェック用）
+	FindByExternalID(ctx context.Context, kind ExternalIDKind, value string) (*Idol, error)
 }
