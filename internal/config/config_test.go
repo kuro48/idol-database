@@ -23,39 +23,9 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, "release", cfg.GinMode)
 	})
 
-	t.Run("missing MONGODB_URI returns error", func(t *testing.T) {
+	t.Run("default values are applied when env vars are empty", func(t *testing.T) {
 		t.Setenv("MONGODB_URI", "")
-		t.Setenv("MONGODB_DATABASE", "test_database")
-		t.Setenv("SERVER_PORT", "8081")
-		t.Setenv("GIN_MODE", "debug")
-
-		cfg, err := Load()
-
-		assert.Error(t, err)
-		assert.Nil(t, cfg)
-		var valErr *ValidationError
-		assert.ErrorAs(t, err, &valErr)
-		assert.Equal(t, "MONGODB_URI", valErr.Field)
-	})
-
-	t.Run("missing MONGODB_DATABASE returns error", func(t *testing.T) {
-		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
 		t.Setenv("MONGODB_DATABASE", "")
-		t.Setenv("SERVER_PORT", "8081")
-		t.Setenv("GIN_MODE", "debug")
-
-		cfg, err := Load()
-
-		assert.Error(t, err)
-		assert.Nil(t, cfg)
-		var valErr *ValidationError
-		assert.ErrorAs(t, err, &valErr)
-		assert.Equal(t, "MONGODB_DATABASE", valErr.Field)
-	})
-
-	t.Run("default SERVER_PORT and GIN_MODE are applied", func(t *testing.T) {
-		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
-		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "")
 		t.Setenv("GIN_MODE", "")
 
@@ -63,7 +33,25 @@ func TestLoad(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg)
+		assert.Equal(t, "mongodb://localhost:27017", cfg.MongoDBURI)
+		assert.Equal(t, "idol_database", cfg.MongoDBDatabase)
 		assert.Equal(t, "8081", cfg.ServerPort)
+		assert.Equal(t, "debug", cfg.GinMode)
+	})
+
+	t.Run("partial environment variables use defaults for missing", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://custom:custom@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "")
+		t.Setenv("SERVER_PORT", "3000")
+		t.Setenv("GIN_MODE", "")
+
+		cfg, err := Load()
+
+		assert.NoError(t, err)
+		assert.NotNil(t, cfg)
+		assert.Equal(t, "mongodb://custom:custom@localhost:27017", cfg.MongoDBURI)
+		assert.Equal(t, "idol_database", cfg.MongoDBDatabase)
+		assert.Equal(t, "3000", cfg.ServerPort)
 		assert.Equal(t, "debug", cfg.GinMode)
 	})
 
