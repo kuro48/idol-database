@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/group"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -48,6 +49,7 @@ func (r *GroupRepository) FindAll(ctx context.Context) ([]*group.Group, error) {
 func (r *GroupRepository) Update(ctx context.Context, g *group.Group) error {
 	doc := toGroupDocument(g)
 	doc.UpdatedAt = time.Now()
+	doc.UpdatedBy = audit.ActorFrom(ctx)
 
 	objectID, err := bson.ObjectIDFromHex(g.ID().Value())
 	if err != nil {
@@ -83,6 +85,9 @@ type groupDocument struct {
 	DisbandDate   *time.Time    `bson:"disband_date,omitempty"`
 	CreatedAt     time.Time     `bson:"created_at"`
 	UpdatedAt     time.Time     `bson:"updated_at"`
+	CreatedBy     string        `bson:"created_by,omitempty"`
+	UpdatedBy     string        `bson:"updated_by,omitempty"`
+	Source        string        `bson:"source,omitempty"`
 }
 
 func toGroupDocument(g *group.Group) *groupDocument {
@@ -154,6 +159,9 @@ func (r *GroupRepository) Save(ctx context.Context, g *group.Group) error {
 		doc.ID = bson.NewObjectID()
 		doc.CreatedAt = time.Now()
 		doc.UpdatedAt = time.Now()
+		doc.CreatedBy = audit.ActorFrom(ctx)
+		doc.UpdatedBy = audit.ActorFrom(ctx)
+		doc.Source = audit.SourceFrom(ctx)
 
 		// エンティティにIDを設定
 		id, err := group.NewGroupID(doc.ID.Hex())

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/agency"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -35,11 +36,17 @@ type agencyDocument struct {
 	LogoURL         *string    `bson:"logo_url,omitempty"`
 	CreatedAt       time.Time  `bson:"created_at"`
 	UpdatedAt       time.Time  `bson:"updated_at"`
+	CreatedBy       string     `bson:"created_by,omitempty"`
+	UpdatedBy       string     `bson:"updated_by,omitempty"`
+	Source          string     `bson:"source,omitempty"`
 }
 
 // Save は事務所を保存する
 func (r *AgencyRepository) Save(ctx context.Context, a *agency.Agency) error {
 	doc := toAgencyDocument(a)
+	doc.CreatedBy = audit.ActorFrom(ctx)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
+	doc.Source = audit.SourceFrom(ctx)
 	_, err := r.collection.InsertOne(ctx, doc)
 	if err != nil {
 		return fmt.Errorf("事務所の保存エラー: %w", err)
@@ -88,6 +95,7 @@ func (r *AgencyRepository) FindAll(ctx context.Context) ([]*agency.Agency, error
 // Update は事務所を更新する
 func (r *AgencyRepository) Update(ctx context.Context, a *agency.Agency) error {
 	doc := toAgencyDocument(a)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
 	result, err := r.collection.ReplaceOne(ctx, bson.M{"_id": a.ID().Value()}, doc)
 	if err != nil {
 		return fmt.Errorf("事務所の更新エラー: %w", err)

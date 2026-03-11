@@ -134,6 +134,7 @@ func main() {
 	router.Use(gin.Recovery())                   // パニック回復
 	router.Use(middleware.Logger())              // 構造化ログ
 	router.Use(middleware.ErrorHandler())        // エラーハンドリング
+	router.Use(middleware.AuditContext())        // 監査コンテキスト（作成者・ソース追跡）
 
 	// CORS設定（CORS_ALLOWED_ORIGINS 環境変数で制御）
 	corsOrigins := strings.Split(cfg.CORSAllowedOrigins, ",")
