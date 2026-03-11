@@ -14,6 +14,7 @@ type Config struct {
 	ServerPort         string
 	GinMode            string
 	CORSAllowedOrigins string // カンマ区切り。空の場合はデフォルト値を使用
+	WriteAPIKey        string // 書き込み系API認証キー（POST/PUT/DELETE）
 	AdminAPIKey        string // 管理系API認証キー（必須）
 }
 
@@ -39,6 +40,7 @@ func Load() (*Config, error) {
 		ServerPort:         getEnv("SERVER_PORT", "8081"),
 		GinMode:            getEnv("GIN_MODE", "debug"),
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
+		WriteAPIKey:        getEnv("WRITE_API_KEY", ""),
 		AdminAPIKey:        getEnv("ADMIN_API_KEY", ""),
 	}
 
