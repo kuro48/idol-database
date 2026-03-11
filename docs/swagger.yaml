@@ -103,6 +103,28 @@ definitions:
       meta:
         $ref: '#/definitions/event.PaginationMeta'
     type: object
+  handlers.BulkCreateIdolsRequest:
+    properties:
+      idols:
+        items:
+          properties:
+            agency_id:
+              type: string
+            birthdate:
+              type: string
+            name:
+              maxLength: 100
+              minLength: 1
+              type: string
+          required:
+          - name
+          type: object
+        maxItems: 500
+        minItems: 1
+        type: array
+    required:
+    - idols
+    type: object
   handlers.CreateIdolRequest:
     properties:
       agency_id:
@@ -116,6 +138,48 @@ definitions:
     required:
     - name
     type: object
+  handlers.CreateSubscriptionRequest:
+    properties:
+      events:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      url:
+        type: string
+    required:
+    - events
+    - url
+    type: object
+  handlers.SubscriptionResponse:
+    properties:
+      active:
+        type: boolean
+      created_at:
+        type: string
+      created_by:
+        type: string
+      events:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      secret:
+        description: 作成時のみ返す
+        type: string
+      url:
+        type: string
+    type: object
+  handlers.UpdateExternalIDsRequest:
+    properties:
+      external_ids:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - external_ids
+    type: object
   handlers.UpdateIdolRequest:
     properties:
       agency_id:
@@ -126,6 +190,39 @@ definitions:
         maxLength: 100
         minLength: 1
         type: string
+    type: object
+  idol.BulkError:
+    properties:
+      index:
+        type: integer
+      message:
+        type: string
+      name:
+        type: string
+    type: object
+  idol.BulkResult:
+    properties:
+      created:
+        items:
+          $ref: '#/definitions/idol.IdolDTO'
+        type: array
+      error_count:
+        type: integer
+      errors:
+        items:
+          $ref: '#/definitions/idol.BulkError'
+        type: array
+      success_count:
+        type: integer
+    type: object
+  idol.DuplicateCandidateDTO:
+    properties:
+      idol:
+        $ref: '#/definitions/idol.IdolDTO'
+      reason:
+        type: string
+      score:
+        type: integer
     type: object
   idol.IdolDTO:
     properties:
@@ -139,6 +236,11 @@ definitions:
         type: string
       created_at:
         type: string
+      external_ids:
+        additionalProperties:
+          type: string
+        description: 外部サービスIDマッピング
+        type: object
       id:
         type: string
       name:
@@ -315,6 +417,110 @@ info:
   title: Idol API
   version: "1.0"
 paths:
+  /admin/export/idols:
+    get:
+      description: 全アイドルデータをJSON/JSONL形式でエクスポートする（管理者専用、レート制限あり）
+      parameters:
+      - default: json
+        description: 出力形式 (json|jsonl)
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: アイドルエクスポート
+      tags:
+      - export
+  /admin/export/logs:
+    get:
+      description: エクスポートの実行履歴を返す（管理者専用）
+      parameters:
+      - description: 件数上限（最大100、デフォルト50）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: エクスポート実行履歴
+      tags:
+      - export
+  /admin/webhooks:
+    get:
+      description: Webhook購読一覧を返す（管理者専用）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.SubscriptionResponse'
+            type: array
+      summary: Webhook購読一覧
+      tags:
+      - webhooks
+    post:
+      consumes:
+      - application/json
+      description: 新しいWebhook購読を作成する（管理者専用）
+      parameters:
+      - description: 購読設定
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.SubscriptionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: Webhook購読作成
+      tags:
+      - webhooks
+  /admin/webhooks/{id}:
+    delete:
+      description: Webhook購読を削除する（管理者専用）
+      parameters:
+      - description: 購読ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: Webhook購読削除
+      tags:
+      - webhooks
   /events:
     get:
       consumes:
@@ -667,6 +873,129 @@ paths:
       summary: アイドル更新
       tags:
       - idols
+  /idols/{id}/duplicate-candidates:
+    get:
+      description: 指定したアイドルの重複候補を返す（管理者専用）
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/idol.DuplicateCandidateDTO'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 重複候補取得
+      tags:
+      - idols
+  /idols/{id}/external-ids:
+    get:
+      description: アイドルの外部サービスIDマッピングを取得する
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 外部IDマッピング取得
+      tags:
+      - idols
+    put:
+      consumes:
+      - application/json
+      description: アイドルの外部サービスIDマッピングを更新する（write認証必須）。空文字列を指定した場合は該当IDを削除。
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 外部IDマッピング
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateExternalIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 外部IDマッピング更新
+      tags:
+      - idols
+  /idols/{id}/restore:
+    put:
+      description: 削除されたアイドルを復元する（管理者専用）
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: アイドル復元
+      tags:
+      - idols
   /idols/{id}/social-links:
     put:
       consumes:
@@ -698,6 +1027,36 @@ paths:
           schema:
             $ref: '#/definitions/middleware.ErrorResponse'
       summary: SNS/外部リンク更新
+      tags:
+      - idols
+  /idols/bulk:
+    post:
+      consumes:
+      - application/json
+      description: 複数のアイドルを一括作成する（write認証必須、最大500件）
+      parameters:
+      - description: バルク作成リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BulkCreateIdolsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/idol.BulkResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: アイドル一括作成
       tags:
       - idols
   /tags:

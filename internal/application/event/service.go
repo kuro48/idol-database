@@ -217,6 +217,20 @@ func (s *ApplicationService) DeleteEvent(ctx context.Context, id string) error {
 	return nil
 }
 
+// RestoreEvent はソフトデリートされたイベントを復元する
+func (s *ApplicationService) RestoreEvent(ctx context.Context, id string) error {
+	eventID, err := event.NewEventID(id)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	if err := s.repository.Restore(ctx, eventID); err != nil {
+		return fmt.Errorf("イベントの復元エラー: %w", err)
+	}
+
+	return nil
+}
+
 // AddPerformer はパフォーマーを追加する
 func (s *ApplicationService) AddPerformer(ctx context.Context, input AddPerformerInput) error {
 	id, err := event.NewEventID(input.EventID)

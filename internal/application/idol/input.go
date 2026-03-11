@@ -27,3 +27,9 @@ type UpdateSocialLinksInput struct {
 	OfficialWebsite *string
 	FanClub         *string
 }
+
+// UpdateExternalIDsInput は外部IDマッピング更新の入力
+type UpdateExternalIDsInput struct {
+	ID          string
+	ExternalIDs map[string]string // キーは ExternalIDKind の文字列値
+}

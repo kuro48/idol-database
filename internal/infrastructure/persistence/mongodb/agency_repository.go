@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/agency"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -35,11 +36,20 @@ type agencyDocument struct {
 	LogoURL         *string    `bson:"logo_url,omitempty"`
 	CreatedAt       time.Time  `bson:"created_at"`
 	UpdatedAt       time.Time  `bson:"updated_at"`
+	CreatedBy       string     `bson:"created_by,omitempty"`
+	UpdatedBy       string     `bson:"updated_by,omitempty"`
+	Source          string     `bson:"source,omitempty"`
+	IsDeleted       bool       `bson:"is_deleted,omitempty"`
+	DeletedAt       *time.Time `bson:"deleted_at,omitempty"`
+	DeletedBy       string     `bson:"deleted_by,omitempty"`
 }
 
 // Save は事務所を保存する
 func (r *AgencyRepository) Save(ctx context.Context, a *agency.Agency) error {
 	doc := toAgencyDocument(a)
+	doc.CreatedBy = audit.ActorFrom(ctx)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
+	doc.Source = audit.SourceFrom(ctx)
 	_, err := r.collection.InsertOne(ctx, doc)
 	if err != nil {
 		return fmt.Errorf("事務所の保存エラー: %w", err)
@@ -50,7 +60,7 @@ func (r *AgencyRepository) Save(ctx context.Context, a *agency.Agency) error {
 // FindByID はIDで事務所を検索する
 func (r *AgencyRepository) FindByID(ctx context.Context, id agency.AgencyID) (*agency.Agency, error) {
 	var doc agencyDocument
-	err := r.collection.FindOne(ctx, bson.M{"_id": id.Value()}).Decode(&doc)
+	err := r.collection.FindOne(ctx, bson.M{"_id": id.Value(), "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, fmt.Errorf("事務所が見つかりません: %w", err)
@@ -62,7 +72,7 @@ func (r *AgencyRepository) FindByID(ctx context.Context, id agency.AgencyID) (*a
 
 // FindAll は全ての事務所を取得する
 func (r *AgencyRepository) FindAll(ctx context.Context) ([]*agency.Agency, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{})
+	cursor, err := r.collection.Find(ctx, bson.M{"is_deleted": bson.M{"$ne": true}})
 	if err != nil {
 		return nil, fmt.Errorf("事務所一覧の取得エラー: %w", err)
 	}
@@ -88,6 +98,7 @@ func (r *AgencyRepository) FindAll(ctx context.Context) ([]*agency.Agency, error
 // Update は事務所を更新する
 func (r *AgencyRepository) Update(ctx context.Context, a *agency.Agency) error {
 	doc := toAgencyDocument(a)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
 	result, err := r.collection.ReplaceOne(ctx, bson.M{"_id": a.ID().Value()}, doc)
 	if err != nil {
 		return fmt.Errorf("事務所の更新エラー: %w", err)
@@ -98,14 +109,49 @@ func (r *AgencyRepository) Update(ctx context.Context, a *agency.Agency) error {
 	return nil
 }
 
-// Delete は事務所を削除する
+// Delete は事務所をソフトデリートする
 func (r *AgencyRepository) Delete(ctx context.Context, id agency.AgencyID) error {
-	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": id.Value()})
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": id.Value(), "is_deleted": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": audit.ActorFrom(ctx),
+			"updated_at": now,
+		}},
+	)
 	if err != nil {
 		return fmt.Errorf("事務所の削除エラー: %w", err)
 	}
-	if result.DeletedCount == 0 {
+	if result.MatchedCount == 0 {
 		return fmt.Errorf("事務所が見つかりません")
+	}
+	return nil
+}
+
+// Restore はソフトデリートされた事務所を復元する
+func (r *AgencyRepository) Restore(ctx context.Context, id agency.AgencyID) error {
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": id.Value(), "is_deleted": true},
+		bson.M{
+			"$set": bson.M{
+				"is_deleted": false,
+				"updated_at": now,
+				"updated_by": audit.ActorFrom(ctx),
+			},
+			"$unset": bson.M{
+				"deleted_at": "",
+				"deleted_by": "",
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("事務所復元エラー: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("削除済み事務所が見つかりません")
 	}
 	return nil
 }

@@ -68,64 +68,55 @@ KPI収集:
 
 ## 🏗 アーキテクチャ
 
-### DDD（ドメイン駆動設計）構造
+### クリーンアーキテクチャ構造
+
+依存方向: `Entity ← UseCase ← Interface Adapter ← Framework/DB`
 
 ```
 internal/
 ├── config/              # 設定
-├── domain/              # ドメイン層
-│   ├── agency/
-│   ├── event/
-│   ├── group/
-│   ├── idol/
-│   ├── removal/
-│   └── tag/
-├── application/         # アプリケーション層
-│   ├── agency/
-│   ├── event/
-│   ├── group/
-│   ├── idol/
-│   ├── removal/
-│   └── tag/
-├── usecase/             # ユースケース層
-│   ├── agency/
-│   ├── event/
-│   ├── group/
-│   ├── idol/
-│   ├── removal/
-│   └── tag/
-├── infrastructure/      # インフラ層
-│   ├── database/
-│   │   └── mongodb.go         # DB接続
-│   └── persistence/
-│       └── mongodb/
-│           ├── agency_repository.go
-│           ├── event_repository.go
-│           ├── group_repository.go
-│           ├── idol_repository.go
-│           ├── removal_repository.go
-│           └── tag_repository.go
-└── interface/           # プレゼンテーション層
-    ├── handlers/
-    │   ├── agency_handler.go
-    │   ├── event_handler.go
-    │   ├── group_handler.go
-    │   ├── idol_handler.go
-    │   ├── removal_handler.go
-    │   ├── tag_handler.go
-    │   └── term_handler.go
-    └── middleware/
-        ├── error.go
-        ├── logger.go
-        ├── ratelimit.go
-        └── security.go
+├── domain/              # Entity層（外部依存ゼロ）
+│   ├── agency/ │ event/ │ group/ │ idol/ │ removal/ │ tag/
+├── application/         # 移行期の暫定層（domain のみに依存）
+│   ├── agency/ │ event/ │ group/ │ idol/ │ removal/ │ tag/
+├── usecase/             # UseCase層（Input Port: port_in.go）
+│   ├── {context}/
+│   │   ├── port_in.go   # Input Port インターフェース
+│   │   ├── service.go   # UseCase実装
+│   │   ├── command.go / query.go / dto.go
+├── infrastructure/      # Framework/DB層（domain のみに依存）
+│   ├── database/        # MongoDB接続
+│   └── persistence/mongodb/
+└── interface/           # Interface Adapter層
+    ├── handlers/        # HTTP ハンドラー（Input Port 経由でUseCase呼び出し）
+    └── middleware/      # エラーハンドリング・ロギング等
 ```
 
+#### 境界ルール（CI で自動チェック）
+| レイヤ | 依存可能 | 依存禁止 |
+|---|---|---|
+| domain | 標準ライブラリのみ | application/usecase/interface/infrastructure |
+| application | domain | usecase/interface |
+| infrastructure | domain | application/usecase/interface |
+| usecase | application, domain | interface/infrastructure |
+| interface | usecase | infrastructure（middleware除く） |
+
+詳細: [`docs/clean-architecture/adr-001-layer-port-conventions.md`](docs/clean-architecture/adr-001-layer-port-conventions.md)
+
+#### 新規機能追加フロー
+1. `domain/<context>/` にエンティティ・値オブジェクト・リポジトリインターフェースを追加
+2. `application/<context>/` にアプリケーションサービスを追加
+3. `usecase/<context>/port_in.go` に Input Port インターフェースを定義
+4. `usecase/<context>/service.go` に UseCase 実装を追加
+5. `infrastructure/persistence/mongodb/` にリポジトリ実装を追加
+6. `interface/handlers/` にハンドラーを追加（Input Port インターフェースを使用）
+7. `cmd/api/main.go` で依存注入を配線
+
 ### 技術スタック
-- **言語**: Go 1.24.4
+- **言語**: Go 1.23+
 - **Webフレームワーク**: Gin
 - **データベース**: MongoDB v2
-- **アーキテクチャ**: DDD（ドメイン駆動設計）
+- **アーキテクチャ**: クリーンアーキテクチャ（移行中: #11）
 
 ### Clean Architecture 移行ドキュメント（2026-02開始）
 - [依存マップ（Issue #12）](docs/clean-architecture/dependency-map.md)
@@ -175,6 +166,8 @@ go run cmd/api/main.go
 
 ## 📡 API エンドポイント
 
+Swagger UI: http://localhost:8081/swagger/index.html
+
 ### ヘルスチェック
 ```bash
 GET /health
@@ -182,11 +175,12 @@ GET /health
 
 ### アイドル管理
 ```bash
-POST   /api/v1/idols      # アイドル作成
-GET    /api/v1/idols      # アイドル一覧取得
-GET    /api/v1/idols/:id  # アイドル詳細取得
-PUT    /api/v1/idols/:id  # アイドル更新
-DELETE /api/v1/idols/:id  # アイドル削除
+POST   /api/v1/idols                     # アイドル作成
+GET    /api/v1/idols                     # アイドル一覧取得（検索・ページネーション）
+GET    /api/v1/idols/:id                 # アイドル詳細取得
+PUT    /api/v1/idols/:id                 # アイドル更新
+DELETE /api/v1/idols/:id                 # アイドル削除
+PUT    /api/v1/idols/:id/social-links    # SNSリンク更新
 ```
 
 ### グループ管理
@@ -198,13 +192,49 @@ PUT    /api/v1/groups/:id  # グループ更新
 DELETE /api/v1/groups/:id  # グループ削除
 ```
 
+### 事務所管理
+```bash
+POST   /api/v1/agencies      # 事務所作成
+GET    /api/v1/agencies      # 事務所一覧取得
+GET    /api/v1/agencies/:id  # 事務所詳細取得
+PUT    /api/v1/agencies/:id  # 事務所更新
+DELETE /api/v1/agencies/:id  # 事務所削除
+```
+
+### イベント管理
+```bash
+POST   /api/v1/events                              # イベント作成
+GET    /api/v1/events                              # イベント一覧取得（検索）
+GET    /api/v1/events/upcoming                     # 今後のイベント取得
+GET    /api/v1/events/:id                          # イベント詳細取得
+PUT    /api/v1/events/:id                          # イベント更新
+DELETE /api/v1/events/:id                          # イベント削除
+POST   /api/v1/events/:id/performers               # パフォーマー追加
+DELETE /api/v1/events/:id/performers/:performer_id # パフォーマー削除
+```
+
+### タグ管理
+```bash
+POST   /api/v1/tags      # タグ作成
+GET    /api/v1/tags      # タグ一覧取得（検索）
+GET    /api/v1/tags/:id  # タグ詳細取得
+PUT    /api/v1/tags/:id  # タグ更新
+DELETE /api/v1/tags/:id  # タグ削除
+```
+
 ### 削除申請
 ```bash
 POST   /api/v1/removal-requests           # 削除申請作成
-GET    /api/v1/removal-requests           # 削除申請一覧取得
-GET    /api/v1/removal-requests/pending   # 未処理の削除申請取得
+GET    /api/v1/removal-requests           # 全削除申請取得（管理者用）
+GET    /api/v1/removal-requests/pending   # 未処理の削除申請取得（管理者用）
 GET    /api/v1/removal-requests/:id       # 削除申請詳細取得
-PUT    /api/v1/removal-requests/:id       # 削除申請ステータス更新
+PUT    /api/v1/removal-requests/:id       # 削除申請ステータス更新（管理者用）
+```
+
+### 利用規約・プライバシーポリシー
+```bash
+GET /api/v1/terms/service  # 利用規約
+GET /api/v1/terms/privacy  # プライバシーポリシー
 ```
 
 ---
@@ -217,10 +247,8 @@ curl -X POST http://localhost:8081/api/v1/idols \
   -H "Content-Type: application/json" \
   -d '{
     "name": "山田花子",
-    "group": "Sample Group",
     "birthdate": "2000-05-15",
-    "nationality": "日本",
-    "image_url": "https://example.com/image.jpg"
+    "agency_id": "507f1f77bcf86cd799439011"
   }'
 ```
 
@@ -231,6 +259,17 @@ curl -X POST http://localhost:8081/api/v1/groups \
   -d '{
     "name": "Sample Group",
     "formation_date": "2015-04-01"
+  }'
+```
+
+### タグ作成
+```bash
+curl -X POST http://localhost:8081/api/v1/tags \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "アイドル",
+    "category": "genre",
+    "description": "アイドルジャンル"
   }'
 ```
 

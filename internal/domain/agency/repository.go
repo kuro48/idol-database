@@ -9,6 +9,8 @@ type Repository interface {
 	FindAll(ctx context.Context) ([]*Agency, error)
 	Update(ctx context.Context, agency *Agency) error
 	Delete(ctx context.Context, id AgencyID) error
+	// Restore はソフトデリートされた事務所を復元する
+	Restore(ctx context.Context, id AgencyID) error
 	ExistsByID(ctx context.Context, id AgencyID) (bool, error)
 	ExistsByName(ctx context.Context, name AgencyName) (bool, error)
 }

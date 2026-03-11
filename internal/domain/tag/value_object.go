@@ -1,11 +1,15 @@
 package tag
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"regexp"
 	"strings"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+// objectIDPattern は MongoDB ObjectID 互換の24文字16進数パターン
+var objectIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{24}$`)
 
 // TagID はタグの一意な識別子
 type TagID struct {
@@ -18,17 +22,18 @@ func NewTagID(value string) (TagID, error) {
 		return TagID{}, errors.New("タグIDは必須です")
 	}
 
-	// ObjectIDの形式チェック
-	if _, err := bson.ObjectIDFromHex(value); err != nil {
+	if !objectIDPattern.MatchString(value) {
 		return TagID{}, errors.New("無効なタグIDフォーマットです")
 	}
 
 	return TagID{value: value}, nil
 }
 
-// GenerateTagID は新しいObjectIDベースのTagIDを生成する
+// GenerateTagID は新しいIDを生成する（12バイトランダム = 24文字16進数）
 func GenerateTagID() TagID {
-	return TagID{value: bson.NewObjectID().Hex()}
+	var b [12]byte
+	_, _ = rand.Read(b[:])
+	return TagID{value: hex.EncodeToString(b[:])}
 }
 
 // String はTagIDの文字列表現を返す

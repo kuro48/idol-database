@@ -10,11 +10,11 @@ import (
 
 // EventHandler はイベントハンドラー
 type EventHandler struct {
-	usecase *event.Usecase
+	usecase event.EventUseCase
 }
 
 // NewEventHandler はイベントハンドラーを作成する
-func NewEventHandler(usecase *event.Usecase) *EventHandler {
+func NewEventHandler(usecase event.EventUseCase) *EventHandler {
 	return &EventHandler{
 		usecase: usecase,
 	}
@@ -38,7 +38,7 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.usecase.CreateEvent(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateEvent(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "イベント",
@@ -145,7 +145,7 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.usecase.UpdateEvent(c.Request.Context(), cmd)
+	err := h.usecase.UpdateEvent(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "イベント",
@@ -200,7 +200,7 @@ func (h *EventHandler) AddPerformer(c *gin.Context) {
 		PerformerID: req.PerformerID,
 	}
 
-	err := h.usecase.AddPerformer(c.Request.Context(), cmd)
+	err := h.usecase.AddPerformer(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "イベント",

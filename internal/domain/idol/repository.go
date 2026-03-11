@@ -19,6 +19,9 @@ type Repository interface {
 	// Delete はアイドルを削除する
 	Delete(ctx context.Context, id IdolID) error
 
+	// Restore はソフトデリートされたアイドルを復元する
+	Restore(ctx context.Context, id IdolID) error
+
 	// ExistsByName は同じ名前のアイドルが存在するかチェック
 	ExistsByName(ctx context.Context, name IdolName) (bool, error)
 
@@ -28,4 +31,7 @@ type Repository interface {
 	Search(ctx context.Context, criteria SearchCriteria) ([]*Idol, error)
 
 	Count(ctx context.Context, criteria SearchCriteria) (int64, error)
+
+	// FindByExternalID は外部IDでアイドルを検索する（一意制約チェック用）
+	FindByExternalID(ctx context.Context, kind ExternalIDKind, value string) (*Idol, error)
 }

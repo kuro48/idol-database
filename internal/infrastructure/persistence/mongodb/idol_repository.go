@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/idol"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -31,9 +32,16 @@ type idolDocument struct {
 	Birthdate   *time.Time           `bson:"birthdate,omitempty"`
 	AgencyID    *string              `bson:"agency_id,omitempty"`
 	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
+	ExternalIDs map[string]string    `bson:"external_ids,omitempty"`
 	TagIDs      []string             `bson:"tag_ids,omitempty"`
 	CreatedAt   time.Time            `bson:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"`
+	CreatedBy   string               `bson:"created_by,omitempty"`
+	UpdatedBy   string               `bson:"updated_by,omitempty"`
+	Source      string               `bson:"source,omitempty"`
+	IsDeleted   bool                 `bson:"is_deleted,omitempty"`
+	DeletedAt   *time.Time           `bson:"deleted_at,omitempty"`
+	DeletedBy   string               `bson:"deleted_by,omitempty"`
 }
 
 // socialLinksDocument はSNS/外部リンクのドキュメント構造
@@ -63,12 +71,23 @@ func toIdolDocument(i *idol.Idol) *idolDocument {
 		birthdate = &bd
 	}
 
+	// ExternalIDs の変換
+	var externalIDsDoc map[string]string
+	if extIDs := i.ExternalIDs(); !extIDs.IsEmpty() {
+		rawIDs := extIDs.All()
+		externalIDsDoc = make(map[string]string, len(rawIDs))
+		for k, v := range rawIDs {
+			externalIDsDoc[string(k)] = v
+		}
+	}
+
 	return &idolDocument{
 		ID:          objectID,
 		Name:        i.Name().Value(),
 		Birthdate:   birthdate,
 		AgencyID:    i.AgencyID(),
 		SocialLinks: socialLinksDoc,
+		ExternalIDs: externalIDsDoc,
 		TagIDs:      i.TagIDs(),
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
@@ -116,12 +135,22 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		socialLinks = toSocialLinksDomain(doc.SocialLinks)
 	}
 
+	// ExternalIDs の再構築
+	var externalIDs *idol.ExternalIDs
+	if len(doc.ExternalIDs) > 0 {
+		typedIDs := make(map[idol.ExternalIDKind]string, len(doc.ExternalIDs))
+		for k, v := range doc.ExternalIDs {
+			typedIDs[idol.ExternalIDKind(k)] = v
+		}
+		externalIDs = idol.ReconstructExternalIDs(typedIDs)
+	}
+
 	tagIDs := doc.TagIDs
 	if tagIDs == nil {
 		tagIDs = []string{}
 	}
 
-	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
+	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, externalIDs, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
@@ -162,6 +191,9 @@ func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
 		doc.ID = bson.NewObjectID()
 		doc.CreatedAt = time.Now()
 		doc.UpdatedAt = time.Now()
+		doc.CreatedBy = audit.ActorFrom(ctx)
+		doc.UpdatedBy = audit.ActorFrom(ctx)
+		doc.Source = audit.SourceFrom(ctx)
 
 		newID, err := idol.NewIdolID(doc.ID.Hex())
 		if err != nil {
@@ -178,7 +210,7 @@ func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
 	return nil
 }
 
-// FindByID はIDでアイドルを検索する
+// FindByID はIDでアイドルを検索する（削除済みを除く）
 func (r *IdolRepository) FindByID(ctx context.Context, id idol.IdolID) (*idol.Idol, error) {
 	objectID, err := bson.ObjectIDFromHex(id.Value())
 	if err != nil {
@@ -186,7 +218,7 @@ func (r *IdolRepository) FindByID(ctx context.Context, id idol.IdolID) (*idol.Id
 	}
 
 	var doc idolDocument
-	err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&doc)
+	err = r.collection.FindOne(ctx, bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("アイドルが見つかりません")
@@ -197,9 +229,9 @@ func (r *IdolRepository) FindByID(ctx context.Context, id idol.IdolID) (*idol.Id
 	return toDomain(&doc)
 }
 
-// FindAll は全てのアイドルを取得する
+// FindAll は全てのアイドルを取得する（削除済みを除く）
 func (r *IdolRepository) FindAll(ctx context.Context) ([]*idol.Idol, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{})
+	cursor, err := r.collection.Find(ctx, bson.M{"is_deleted": bson.M{"$ne": true}})
 	if err != nil {
 		return nil, fmt.Errorf("アイドル一覧取得エラー: %w", err)
 	}
@@ -232,13 +264,18 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 	doc := toIdolDocument(i)
 	doc.UpdatedAt = time.Now()
 
+	setFields := bson.M{
+		"name":       doc.Name,
+		"birthdate":  doc.Birthdate,
+		"agency_id":  doc.AgencyID,
+		"updated_at": doc.UpdatedAt,
+		"updated_by": audit.ActorFrom(ctx),
+	}
+	if doc.ExternalIDs != nil {
+		setFields["external_ids"] = doc.ExternalIDs
+	}
 	updateDoc := bson.M{
-		"$set": bson.M{
-			"name":       doc.Name,
-			"birthdate":  doc.Birthdate,
-			"agency_id":  doc.AgencyID,
-			"updated_at": doc.UpdatedAt,
-		},
+		"$set": setFields,
 	}
 
 	result, err := r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, updateDoc)
@@ -253,20 +290,61 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 	return nil
 }
 
-// Delete はアイドルを削除する
+// Delete はアイドルをソフトデリートする
 func (r *IdolRepository) Delete(ctx context.Context, id idol.IdolID) error {
 	objectID, err := bson.ObjectIDFromHex(id.Value())
 	if err != nil {
 		return fmt.Errorf("無効なID形式: %w", err)
 	}
 
-	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": objectID})
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": audit.ActorFrom(ctx),
+			"updated_at": now,
+		}},
+	)
 	if err != nil {
 		return fmt.Errorf("アイドル削除エラー: %w", err)
 	}
 
-	if result.DeletedCount == 0 {
+	if result.MatchedCount == 0 {
 		return errors.New("アイドルが見つかりません")
+	}
+
+	return nil
+}
+
+// Restore はソフトデリートされたアイドルを復元する
+func (r *IdolRepository) Restore(ctx context.Context, id idol.IdolID) error {
+	objectID, err := bson.ObjectIDFromHex(id.Value())
+	if err != nil {
+		return fmt.Errorf("無効なID形式: %w", err)
+	}
+
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": true},
+		bson.M{"$set": bson.M{
+			"is_deleted": false,
+			"deleted_at": nil,
+			"deleted_by": "",
+			"updated_at": now,
+			"updated_by": audit.ActorFrom(ctx),
+		}, "$unset": bson.M{
+			"deleted_at": "",
+			"deleted_by": "",
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("アイドル復元エラー: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("削除済みアイドルが見つかりません")
 	}
 
 	return nil
@@ -347,7 +425,7 @@ func (r *IdolRepository) Search(ctx context.Context, criteria idol.SearchCriteri
 }
 
 func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
-	filter := bson.M{}
+	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
 	// 名前検索（部分一致）
 	if criteria.Name != nil {
@@ -398,6 +476,20 @@ func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
 func (r *IdolRepository) Count(ctx context.Context, criteria idol.SearchCriteria) (int64, error) {
 	filter := buildMongoFilter(criteria)
 	return r.collection.CountDocuments(ctx, filter)
+}
+
+// FindByExternalID は外部IDでアイドルを検索する
+func (r *IdolRepository) FindByExternalID(ctx context.Context, kind idol.ExternalIDKind, value string) (*idol.Idol, error) {
+	field := "external_ids." + string(kind)
+	var doc idolDocument
+	err := r.collection.FindOne(ctx, bson.M{field: value, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // 見つからない場合はnil
+		}
+		return nil, fmt.Errorf("外部ID検索エラー: %w", err)
+	}
+	return toDomain(&doc)
 }
 
 // EnsureIndexes は検索パフォーマンス向上のためのインデックスを作成
@@ -474,6 +566,20 @@ func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
                 {Key: "created_at", Value: -1},
             },
         },
+    }
+
+    // 外部ID種別ごとのスパース一意インデックス
+    externalIDKinds := []string{
+        "twitter", "instagram", "tiktok", "youtube_channel",
+        "spotify_artist", "apple_music_artist", "ameba", "note",
+        "wikipedia_ja", "wikipedia_en",
+    }
+    for _, kind := range externalIDKinds {
+        field := "external_ids." + kind
+        indexes = append(indexes, mongo.IndexModel{
+            Keys:    bson.D{{Key: field, Value: 1}},
+            Options: options.Index().SetSparse(true).SetUnique(true).SetName("unique_ext_" + kind),
+        })
     }
 
     _, err := r.collection.Indexes().CreateMany(ctx, indexes)

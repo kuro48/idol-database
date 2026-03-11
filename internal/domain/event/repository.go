@@ -41,6 +41,9 @@ type Repository interface {
 	// Delete はイベントを削除する
 	Delete(ctx context.Context, id EventID) error
 
+	// Restore はソフトデリートされたイベントを復元する
+	Restore(ctx context.Context, id EventID) error
+
 	// FindUpcoming は今後開催されるイベントを取得する
 	FindUpcoming(ctx context.Context, limit int) ([]*Event, error)
 

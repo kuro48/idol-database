@@ -150,3 +150,17 @@ func (s *ApplicationService) DeleteGroup(ctx context.Context, id string) error {
 
 	return nil
 }
+
+// RestoreGroup はソフトデリートされたグループを復元する
+func (s *ApplicationService) RestoreGroup(ctx context.Context, id string) error {
+	groupID, err := group.NewGroupID(id)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	if err := s.repository.Restore(ctx, groupID); err != nil {
+		return fmt.Errorf("グループの復元エラー: %w", err)
+	}
+
+	return nil
+}

@@ -10,11 +10,11 @@ import (
 
 // RemovalHandler は削除申請のHTTPハンドラー
 type RemovalHandler struct {
-	removalService *removal.Usecase
+	removalService removal.RemovalUseCase
 }
 
 // NewRemovalHandler は削除申請ハンドラーを作成する
-func NewRemovalHandler(removalService *removal.Usecase) *RemovalHandler {
+func NewRemovalHandler(removalService removal.RemovalUseCase) *RemovalHandler {
 	return &RemovalHandler{
 		removalService: removalService,
 	}
