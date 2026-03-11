@@ -10,8 +10,8 @@ services:
     networks:
       - app_network
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
@@ -25,14 +25,14 @@ services:
     container_name: idol-api
     restart: always
     ports:
-      - '27018:27018'
+      - '${SERVER_PORT:-8081}:${SERVER_PORT:-8081}'
     networks:
       - app_network
+    env_file:
+      - .env
     environment:
-      MONGODB_URI: mongodb://admin:password@mongodb:27017
-      MONGODB_DATABASE: idol_database
-      SERVER_PORT: 27018
-      GIN_MODE: debug
+      SERVER_PORT: ${SERVER_PORT:-8081}
+      GIN_MODE: ${GIN_MODE:-release}
     depends_on:
       mongodb:
         condition: service_healthy

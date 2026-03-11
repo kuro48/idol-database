@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	MongoDBURI      string
-	MongoDBDatabase string
-	ServerPort      string
-	GinMode         string
+	MongoDBURI          string
+	MongoDBDatabase     string
+	ServerPort          string
+	GinMode             string
+	CORSAllowedOrigins  string // カンマ区切り。空の場合はデフォルト値を使用
 }
 
 // ValidationError は設定バリデーションエラー
@@ -32,10 +33,11 @@ func Load() (*Config, error) {
 	_ = godotenv.Load(".env")
 
 	cfg := &Config{
-		MongoDBURI:      getEnv("MONGODB_URI", "mongodb://localhost:27017"),
-		MongoDBDatabase: getEnv("MONGODB_DATABASE", "idol_database"),
-		ServerPort:      getEnv("SERVER_PORT", "8081"),
-		GinMode:         getEnv("GIN_MODE", "debug"),
+		MongoDBURI:         getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+		MongoDBDatabase:    getEnv("MONGODB_DATABASE", "idol_database"),
+		ServerPort:         getEnv("SERVER_PORT", "8081"),
+		GinMode:            getEnv("GIN_MODE", "debug"),
+		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
 	}
 
 	// バリデーション実行
