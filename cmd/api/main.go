@@ -203,7 +203,8 @@ func main() {
 		}
 		idolsAdmin := v1.Group("/idols", adminAuth)
 		{
-			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol) // アイドル復元
+			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                          // アイドル復元
+			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates)  // 重複候補取得
 		}
 
 		// グループ: 読み取りは公開、書き込みは write スコープ必須
