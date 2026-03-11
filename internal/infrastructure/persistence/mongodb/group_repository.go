@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/group"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -17,7 +18,7 @@ type GroupRepository struct {
 
 // FindAll implements group.Repository.
 func (r *GroupRepository) FindAll(ctx context.Context) ([]*group.Group, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{})
+	cursor, err := r.collection.Find(ctx, bson.M{"is_deleted": bson.M{"$ne": true}})
 	if err != nil {
 		return nil, fmt.Errorf("グループ一覧取得エラー: %w", err)
 	}
@@ -48,6 +49,7 @@ func (r *GroupRepository) FindAll(ctx context.Context) ([]*group.Group, error) {
 func (r *GroupRepository) Update(ctx context.Context, g *group.Group) error {
 	doc := toGroupDocument(g)
 	doc.UpdatedAt = time.Now()
+	doc.UpdatedBy = audit.ActorFrom(ctx)
 
 	objectID, err := bson.ObjectIDFromHex(g.ID().Value())
 	if err != nil {
@@ -83,6 +85,12 @@ type groupDocument struct {
 	DisbandDate   *time.Time    `bson:"disband_date,omitempty"`
 	CreatedAt     time.Time     `bson:"created_at"`
 	UpdatedAt     time.Time     `bson:"updated_at"`
+	CreatedBy     string        `bson:"created_by,omitempty"`
+	UpdatedBy     string        `bson:"updated_by,omitempty"`
+	Source        string        `bson:"source,omitempty"`
+	IsDeleted     bool          `bson:"is_deleted,omitempty"`
+	DeletedAt     *time.Time    `bson:"deleted_at,omitempty"`
+	DeletedBy     string        `bson:"deleted_by,omitempty"`
 }
 
 func toGroupDocument(g *group.Group) *groupDocument {
@@ -154,6 +162,9 @@ func (r *GroupRepository) Save(ctx context.Context, g *group.Group) error {
 		doc.ID = bson.NewObjectID()
 		doc.CreatedAt = time.Now()
 		doc.UpdatedAt = time.Now()
+		doc.CreatedBy = audit.ActorFrom(ctx)
+		doc.UpdatedBy = audit.ActorFrom(ctx)
+		doc.Source = audit.SourceFrom(ctx)
 
 		// エンティティにIDを設定
 		id, err := group.NewGroupID(doc.ID.Hex())
@@ -179,7 +190,7 @@ func (r *GroupRepository) FindByID(ctx context.Context, id group.GroupID) (*grou
 	}
 
 	var doc groupDocument
-	err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&doc)
+	err = r.collection.FindOne(ctx, bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("グループが見つかりません")
@@ -190,22 +201,62 @@ func (r *GroupRepository) FindByID(ctx context.Context, id group.GroupID) (*grou
 	return toGroupDomain(&doc)
 }
 
-// Delete はグループを削除する
+// Delete はグループをソフトデリートする
 func (r *GroupRepository) Delete(ctx context.Context, id group.GroupID) error {
 	objectID, err := bson.ObjectIDFromHex(id.Value())
 	if err != nil {
 		return fmt.Errorf("無効なID形式: %w", err)
 	}
 
-	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": objectID})
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": audit.ActorFrom(ctx),
+			"updated_at": now,
+		}},
+	)
 	if err != nil {
 		return fmt.Errorf("グループ削除エラー: %w", err)
 	}
 
-	if result.DeletedCount == 0 {
+	if result.MatchedCount == 0 {
 		return errors.New("グループが見つかりません")
 	}
 
+	return nil
+}
+
+// Restore はソフトデリートされたグループを復元する
+func (r *GroupRepository) Restore(ctx context.Context, id group.GroupID) error {
+	objectID, err := bson.ObjectIDFromHex(id.Value())
+	if err != nil {
+		return fmt.Errorf("無効なID形式: %w", err)
+	}
+
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": true},
+		bson.M{
+			"$set": bson.M{
+				"is_deleted": false,
+				"updated_at": now,
+				"updated_by": audit.ActorFrom(ctx),
+			},
+			"$unset": bson.M{
+				"deleted_at": "",
+				"deleted_by": "",
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("グループ復元エラー: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("削除済みグループが見つかりません")
+	}
 	return nil
 }
 

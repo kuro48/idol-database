@@ -31,3 +31,11 @@ type UpdateSocialLinksCommand struct {
 	OfficialWebsite *string `json:"official_website"`
 	FanClub         *string `json:"fan_club"`
 }
+
+// UpdateExternalIDsCommand は外部IDマッピング更新コマンド
+// ExternalIDs のキーは ExternalIDKind の文字列値（例: "twitter", "youtube_channel"）
+// 空文字列を指定した場合はそのIDを削除する
+type UpdateExternalIDsCommand struct {
+	ID          string
+	ExternalIDs map[string]string
+}

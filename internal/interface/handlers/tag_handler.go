@@ -11,11 +11,11 @@ import (
 
 // TagHandler はタグのハンドラー
 type TagHandler struct {
-	usecase *tag.Usecase
+	usecase tag.TagUseCase
 }
 
 // NewTagHandler はタグハンドラーを作成する
-func NewTagHandler(usecase *tag.Usecase) *TagHandler {
+func NewTagHandler(usecase tag.TagUseCase) *TagHandler {
 	return &TagHandler{
 		usecase: usecase,
 	}
@@ -39,7 +39,7 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 		return
 	}
 
-	dto, err := h.usecase.CreateTag(c.Request.Context(), cmd)
+	dto, err := h.usecase.CreateTag(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "タグ",
@@ -152,7 +152,7 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 
 	cmd.ID = id
 
-	err := h.usecase.UpdateTag(c.Request.Context(), cmd)
+	err := h.usecase.UpdateTag(middleware.AuditContextFor(c), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "タグ",

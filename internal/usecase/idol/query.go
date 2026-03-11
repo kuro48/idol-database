@@ -10,15 +10,16 @@ type GetIdolQuery struct {
 
 // IdolDTO はアイドルのデータ転送オブジェクト
 type IdolDTO struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Birthdate   string      `json:"birthdate,omitempty"`
-	Age         *int        `json:"age,omitempty"`
-	AgencyID    *string     `json:"agency_id,omitempty"`
-	Agency      interface{} `json:"agency,omitempty"` // include=agency時に展開
-	SocialLinks interface{} `json:"social_links,omitempty"` // SNS/外部リンク
-	CreatedAt   string      `json:"created_at"`
-	UpdatedAt   string      `json:"updated_at"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Birthdate   string            `json:"birthdate,omitempty"`
+	Age         *int              `json:"age,omitempty"`
+	AgencyID    *string           `json:"agency_id,omitempty"`
+	Agency      interface{}       `json:"agency,omitempty"` // include=agency時に展開
+	SocialLinks interface{}       `json:"social_links,omitempty"` // SNS/外部リンク
+	ExternalIDs map[string]string `json:"external_ids,omitempty"` // 外部サービスIDマッピング
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
 }
 
 // ListIdolsQuery はアイドル一覧取得クエリ

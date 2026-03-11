@@ -155,6 +155,20 @@ func (s *ApplicationService) DeleteIdol(ctx context.Context, id string) error {
 	return nil
 }
 
+// RestoreIdol はソフトデリートされたアイドルを復元する
+func (s *ApplicationService) RestoreIdol(ctx context.Context, id string) error {
+	idolID, err := idol.NewIdolID(id)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	if err := s.repository.Restore(ctx, idolID); err != nil {
+		return fmt.Errorf("アイドルの復元エラー: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateSocialLinks はSNS/外部リンクを更新する
 func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, input UpdateSocialLinksInput) error {
 	id, err := idol.NewIdolID(input.ID)
@@ -254,4 +268,56 @@ func (s *ApplicationService) SearchIdols(ctx context.Context, criteria idol.Sear
 	}
 
 	return idols, total, nil
+}
+
+// FindDuplicateCandidates は指定したアイドルIDの重複候補を返す
+func (s *ApplicationService) FindDuplicateCandidates(ctx context.Context, id string) ([]*idol.DuplicateCandidate, error) {
+	target, err := s.GetIdol(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.domainService.FindDuplicateCandidates(ctx, target)
+}
+
+// UpdateExternalIDs は外部IDマッピングを更新する
+func (s *ApplicationService) UpdateExternalIDs(ctx context.Context, input UpdateExternalIDsInput) error {
+	idolID, err := idol.NewIdolID(input.ID)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	existingIdol, err := s.repository.FindByID(ctx, idolID)
+	if err != nil {
+		return fmt.Errorf("アイドルの取得エラー: %w", err)
+	}
+
+	// 既存の外部IDをベースに更新
+	extIDs := existingIdol.ExternalIDs()
+
+	for k, v := range input.ExternalIDs {
+		kind := idol.ExternalIDKind(k)
+
+		// 一意制約チェック: 同じ種別・値を持つ別のアイドルが存在しないか確認
+		if v != "" {
+			existing, err := s.repository.FindByExternalID(ctx, kind, v)
+			if err != nil {
+				return fmt.Errorf("外部ID重複チェックエラー: %w", err)
+			}
+			if existing != nil && existing.ID().Value() != input.ID {
+				return fmt.Errorf("外部ID '%s' の値 '%s' は既に別のアイドルに登録されています", k, v)
+			}
+		}
+
+		if err := extIDs.Set(kind, v); err != nil {
+			return fmt.Errorf("外部IDの設定エラー (%s): %w", k, err)
+		}
+	}
+
+	existingIdol.UpdateExternalIDs(extIDs)
+
+	if err := s.repository.Update(ctx, existingIdol); err != nil {
+		return fmt.Errorf("アイドルの更新エラー: %w", err)
+	}
+
+	return nil
 }

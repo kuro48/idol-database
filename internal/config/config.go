@@ -9,10 +9,13 @@ import (
 )
 
 type Config struct {
-	MongoDBURI      string
-	MongoDBDatabase string
-	ServerPort      string
-	GinMode         string
+	MongoDBURI         string
+	MongoDBDatabase    string
+	ServerPort         string
+	GinMode            string
+	CORSAllowedOrigins string // カンマ区切り。空の場合はデフォルト値を使用
+	WriteAPIKey        string // 書き込み系API認証キー（POST/PUT/DELETE）
+	AdminAPIKey        string // 管理系API認証キー（必須）
 }
 
 // ValidationError は設定バリデーションエラー
@@ -32,10 +35,13 @@ func Load() (*Config, error) {
 	_ = godotenv.Load(".env")
 
 	cfg := &Config{
-		MongoDBURI:      getEnv("MONGODB_URI", ""),
-		MongoDBDatabase: getEnv("MONGODB_DATABASE", ""),
-		ServerPort:      getEnv("SERVER_PORT", "8081"),
-		GinMode:         getEnv("GIN_MODE", "debug"),
+		MongoDBURI:         getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+		MongoDBDatabase:    getEnv("MONGODB_DATABASE", "idol_database"),
+		ServerPort:         getEnv("SERVER_PORT", "8081"),
+		GinMode:            getEnv("GIN_MODE", "debug"),
+		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
+		WriteAPIKey:        getEnv("WRITE_API_KEY", ""),
+		AdminAPIKey:        getEnv("ADMIN_API_KEY", ""),
 	}
 
 	// バリデーション実行

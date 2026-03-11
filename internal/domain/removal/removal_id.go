@@ -2,9 +2,11 @@ package removal
 
 import (
 	"errors"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"regexp"
 )
+
+// objectIDPattern は MongoDB ObjectID 互換の24文字16進数パターン
+var objectIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{24}$`)
 
 // RemovalID は削除申請の一意識別子
 type RemovalID struct {
@@ -17,8 +19,7 @@ func NewRemovalID(value string) (RemovalID, error) {
 		return RemovalID{}, errors.New("削除申請IDは空にできません")
 	}
 
-	// ObjectIDの形式チェック
-	if _, err := bson.ObjectIDFromHex(value); err != nil {
+	if !objectIDPattern.MatchString(value) {
 		return RemovalID{}, errors.New("無効な削除申請ID形式です")
 	}
 

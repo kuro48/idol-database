@@ -90,6 +90,11 @@ func (u *Usecase) DeleteIdol(ctx context.Context, cmd DeleteIdolCommand) error {
 	return u.appService.DeleteIdol(ctx, cmd.ID)
 }
 
+// RestoreIdol はソフトデリートされたアイドルを復元する
+func (u *Usecase) RestoreIdol(ctx context.Context, id string) error {
+	return u.appService.RestoreIdol(ctx, id)
+}
+
 // UpdateSocialLinks はSNS/外部リンクを更新する
 func (u *Usecase) UpdateSocialLinks(ctx context.Context, cmd UpdateSocialLinksCommand) error {
 	return u.appService.UpdateSocialLinks(ctx, appIdol.UpdateSocialLinksInput{
@@ -306,6 +311,16 @@ func (u *Usecase) toDTO(i *domain.Idol) *IdolDTO {
 		}
 	}
 
+	// ExternalIDs の変換
+	var externalIDsMap map[string]string
+	if extIDs := i.ExternalIDs(); !extIDs.IsEmpty() {
+		rawIDs := extIDs.All()
+		externalIDsMap = make(map[string]string, len(rawIDs))
+		for k, v := range rawIDs {
+			externalIDsMap[string(k)] = v
+		}
+	}
+
 	return &IdolDTO{
 		ID:          i.ID().Value(),
 		Name:        i.Name().Value(),
@@ -313,7 +328,101 @@ func (u *Usecase) toDTO(i *domain.Idol) *IdolDTO {
 		Age:         age,
 		AgencyID:    i.AgencyID(),
 		SocialLinks: socialLinksMap,
+		ExternalIDs: externalIDsMap,
 		CreatedAt:   i.CreatedAt().Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   i.UpdatedAt().Format("2006-01-02T15:04:05Z07:00"),
 	}
+}
+
+// DuplicateCandidateDTO は重複候補のDTO
+type DuplicateCandidateDTO struct {
+	Idol   *IdolDTO `json:"idol"`
+	Reason string   `json:"reason"`
+	Score  int      `json:"score"`
+}
+
+// FindDuplicateCandidates は指定したアイドルIDの重複候補を返す
+func (u *Usecase) FindDuplicateCandidates(ctx context.Context, id string) ([]*DuplicateCandidateDTO, error) {
+	candidates, err := u.appService.FindDuplicateCandidates(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]*DuplicateCandidateDTO, 0, len(candidates))
+	for _, c := range candidates {
+		dtos = append(dtos, &DuplicateCandidateDTO{
+			Idol:   u.toDTO(c.Idol),
+			Reason: c.Reason,
+			Score:  c.Score,
+		})
+	}
+
+	return dtos, nil
+}
+
+// GetExternalIDs は外部IDマッピングを取得する
+func (u *Usecase) GetExternalIDs(ctx context.Context, id string) (map[string]string, error) {
+	entity, err := u.appService.GetIdol(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	extIDs := entity.ExternalIDs()
+	if extIDs.IsEmpty() {
+		return map[string]string{}, nil
+	}
+	rawIDs := extIDs.All()
+	result := make(map[string]string, len(rawIDs))
+	for k, v := range rawIDs {
+		result[string(k)] = v
+	}
+	return result, nil
+}
+
+// UpdateExternalIDs は外部IDマッピングを更新する
+func (u *Usecase) UpdateExternalIDs(ctx context.Context, cmd UpdateExternalIDsCommand) error {
+	return u.appService.UpdateExternalIDs(ctx, appIdol.UpdateExternalIDsInput{
+		ID:          cmd.ID,
+		ExternalIDs: cmd.ExternalIDs,
+	})
+}
+
+// BulkResult はバルク処理の結果
+type BulkResult struct {
+	SuccessCount int           `json:"success_count"`
+	ErrorCount   int           `json:"error_count"`
+	Errors       []BulkError   `json:"errors,omitempty"`
+	Created      []*IdolDTO    `json:"created,omitempty"`
+}
+
+// BulkError はバルク処理の個別エラー
+type BulkError struct {
+	Index   int    `json:"index"`
+	Name    string `json:"name,omitempty"`
+	Message string `json:"message"`
+}
+
+// BulkCreateIdols は複数のアイドルを一括作成する
+// エラーが発生しても他のアイドルの処理を続ける（partial success）
+func (u *Usecase) BulkCreateIdols(ctx context.Context, cmds []CreateIdolCommand) (*BulkResult, error) {
+	result := &BulkResult{
+		Errors:  make([]BulkError, 0),
+		Created: make([]*IdolDTO, 0),
+	}
+
+	for i, cmd := range cmds {
+		dto, err := u.CreateIdol(ctx, cmd)
+		if err != nil {
+			result.ErrorCount++
+			result.Errors = append(result.Errors, BulkError{
+				Index:   i,
+				Name:    cmd.Name,
+				Message: err.Error(),
+			})
+			continue
+		}
+		result.SuccessCount++
+		result.Created = append(result.Created, dto)
+	}
+
+	return result, nil
 }

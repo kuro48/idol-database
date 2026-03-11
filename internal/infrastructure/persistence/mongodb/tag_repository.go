@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/tag"
+	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -31,6 +32,12 @@ type tagDocument struct {
 	Category    string        `bson:"category"`
 	Description string        `bson:"description"`
 	CreatedAt   time.Time     `bson:"created_at"`
+	CreatedBy   string        `bson:"created_by,omitempty"`
+	UpdatedBy   string        `bson:"updated_by,omitempty"`
+	Source      string        `bson:"source,omitempty"`
+	IsDeleted   bool          `bson:"is_deleted,omitempty"`
+	DeletedAt   *time.Time    `bson:"deleted_at,omitempty"`
+	DeletedBy   string        `bson:"deleted_by,omitempty"`
 }
 
 // toTagDocument はドメインモデルをMongoDBドキュメントに変換する
@@ -72,6 +79,10 @@ func (r *TagRepository) Save(ctx context.Context, t *tag.Tag) error {
 		return errors.New("タグIDが設定されていません")
 	}
 
+	doc.CreatedBy = audit.ActorFrom(ctx)
+	doc.UpdatedBy = audit.ActorFrom(ctx)
+	doc.Source = audit.SourceFrom(ctx)
+
 	_, err = r.collection.InsertOne(ctx, doc)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
@@ -96,6 +107,7 @@ func (r *TagRepository) Update(ctx context.Context, t *tag.Tag) error {
 			"name":        doc.Name,
 			"category":    doc.Category,
 			"description": doc.Description,
+			"updated_by":  audit.ActorFrom(ctx),
 		},
 	}
 
@@ -111,23 +123,62 @@ func (r *TagRepository) Update(ctx context.Context, t *tag.Tag) error {
 	return nil
 }
 
-// Delete はタグを削除する
+// Delete はタグをソフトデリートする
 func (r *TagRepository) Delete(ctx context.Context, id tag.TagID) error {
 	objectID, err := bson.ObjectIDFromHex(id.String())
 	if err != nil {
 		return fmt.Errorf("無効なタグID: %w", err)
 	}
 
-	filter := bson.M{"_id": objectID}
-	result, err := r.collection.DeleteOne(ctx, filter)
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": audit.ActorFrom(ctx),
+			"updated_at": now,
+		}},
+	)
 	if err != nil {
 		return fmt.Errorf("タグの削除エラー: %w", err)
 	}
 
-	if result.DeletedCount == 0 {
+	if result.MatchedCount == 0 {
 		return errors.New("タグが見つかりません")
 	}
 
+	return nil
+}
+
+// Restore はソフトデリートされたタグを復元する
+func (r *TagRepository) Restore(ctx context.Context, id tag.TagID) error {
+	objectID, err := bson.ObjectIDFromHex(id.String())
+	if err != nil {
+		return fmt.Errorf("無効なタグID: %w", err)
+	}
+
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": true},
+		bson.M{
+			"$set": bson.M{
+				"is_deleted": false,
+				"updated_at": now,
+				"updated_by": audit.ActorFrom(ctx),
+			},
+			"$unset": bson.M{
+				"deleted_at": "",
+				"deleted_by": "",
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("タグ復元エラー: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("削除済みタグが見つかりません")
+	}
 	return nil
 }
 
@@ -139,7 +190,7 @@ func (r *TagRepository) FindByID(ctx context.Context, id tag.TagID) (*tag.Tag, e
 	}
 
 	var doc tagDocument
-	err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&doc)
+	err = r.collection.FindOne(ctx, bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("タグが見つかりません")
@@ -153,7 +204,7 @@ func (r *TagRepository) FindByID(ctx context.Context, id tag.TagID) (*tag.Tag, e
 // FindByName は名前でタグを検索する（完全一致）
 func (r *TagRepository) FindByName(ctx context.Context, name string) (*tag.Tag, error) {
 	var doc tagDocument
-	err := r.collection.FindOne(ctx, bson.M{"name": name}).Decode(&doc)
+	err := r.collection.FindOne(ctx, bson.M{"name": name, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("タグが見つかりません")
@@ -166,7 +217,7 @@ func (r *TagRepository) FindByName(ctx context.Context, name string) (*tag.Tag, 
 
 // FindByCategory はカテゴリでタグを検索する
 func (r *TagRepository) FindByCategory(ctx context.Context, category tag.TagCategory) ([]*tag.Tag, error) {
-	filter := bson.M{"category": category.String()}
+	filter := bson.M{"category": category.String(), "is_deleted": bson.M{"$ne": true}}
 	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("タグの検索エラー: %w", err)
@@ -196,7 +247,7 @@ func (r *TagRepository) FindByCategory(ctx context.Context, category tag.TagCate
 
 // Search は検索条件に基づいてタグを検索する
 func (r *TagRepository) Search(ctx context.Context, criteria tag.SearchCriteria) ([]*tag.Tag, int64, error) {
-	filter := bson.M{}
+	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
 	// 名前による部分一致検索
 	if criteria.Name != nil && *criteria.Name != "" {
