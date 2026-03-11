@@ -10,11 +10,11 @@ import (
 
 // EventHandler はイベントハンドラー
 type EventHandler struct {
-	usecase *event.Usecase
+	usecase event.EventUseCase
 }
 
 // NewEventHandler はイベントハンドラーを作成する
-func NewEventHandler(usecase *event.Usecase) *EventHandler {
+func NewEventHandler(usecase event.EventUseCase) *EventHandler {
 	return &EventHandler{
 		usecase: usecase,
 	}

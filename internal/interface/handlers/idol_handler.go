@@ -8,13 +8,13 @@ import (
 	"github.com/kuro48/idol-api/internal/usecase/idol"
 )
 
-// IdolHandler はDDD構造を使用したアイドルハンドラー
+// IdolHandler はアイドルハンドラー
 type IdolHandler struct {
-	usecase *idol.Usecase
+	usecase idol.IdolUseCase
 }
 
-// NewIdolHandler はDDDハンドラーを作成する
-func NewIdolHandler(usecase *idol.Usecase) *IdolHandler {
+// NewIdolHandler はアイドルハンドラーを作成する
+func NewIdolHandler(usecase idol.IdolUseCase) *IdolHandler {
 	return &IdolHandler{
 		usecase: usecase,
 	}

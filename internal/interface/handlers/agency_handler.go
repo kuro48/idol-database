@@ -10,11 +10,11 @@ import (
 
 // AgencyHandler は事務所ハンドラー
 type AgencyHandler struct {
-	usecase *agency.Usecase
+	usecase agency.AgencyUseCase
 }
 
 // NewAgencyHandler は事務所ハンドラーを作成する
-func NewAgencyHandler(usecase *agency.Usecase) *AgencyHandler {
+func NewAgencyHandler(usecase agency.AgencyUseCase) *AgencyHandler {
 	return &AgencyHandler{
 		usecase: usecase,
 	}
