@@ -47,7 +47,10 @@ func (r *GroupRepository) FindAll(ctx context.Context) ([]*group.Group, error) {
 
 // Update implements group.Repository.
 func (r *GroupRepository) Update(ctx context.Context, g *group.Group) error {
-	doc := toGroupDocument(g)
+	doc, err := toGroupDocument(g)
+	if err != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err)
+	}
 	doc.UpdatedAt = time.Now()
 	doc.UpdatedBy = audit.ActorFrom(ctx)
 
@@ -93,8 +96,11 @@ type groupDocument struct {
 	DeletedBy     string        `bson:"deleted_by,omitempty"`
 }
 
-func toGroupDocument(g *group.Group) *groupDocument {
-	objectID, _ := bson.ObjectIDFromHex(g.ID().Value())
+func toGroupDocument(g *group.Group) (*groupDocument, error) {
+	objectID, err := bson.ObjectIDFromHex(g.ID().Value())
+	if err != nil && g.ID().Value() != "" {
+		return nil, fmt.Errorf("無効なグループID %q: %w", g.ID().Value(), err)
+	}
 
 	var formationDate *time.Time
 	if g.FormationDate() != nil {
@@ -115,7 +121,7 @@ func toGroupDocument(g *group.Group) *groupDocument {
 		DisbandDate:   disbandDate,
 		CreatedAt:     g.CreatedAt(),
 		UpdatedAt:     g.UpdatedAt(),
-	}
+	}, nil
 }
 
 func toGroupDomain(doc *groupDocument) (*group.Group, error) {
@@ -155,7 +161,10 @@ func toGroupDomain(doc *groupDocument) (*group.Group, error) {
 }
 
 func (r *GroupRepository) Save(ctx context.Context, g *group.Group) error {
-	doc := toGroupDocument(g)
+	doc, err := toGroupDocument(g)
+	if err != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err)
+	}
 
 	// 新規作成の場合はIDを生成
 	if doc.ID.IsZero() {
@@ -174,9 +183,8 @@ func (r *GroupRepository) Save(ctx context.Context, g *group.Group) error {
 		g.SetID(id)
 	}
 
-	_, err := r.collection.InsertOne(ctx, doc)
-	if err != nil {
-		return fmt.Errorf("グループの保存エラー: %w", err)
+	if _, insertErr := r.collection.InsertOne(ctx, doc); insertErr != nil {
+		return fmt.Errorf("グループの保存エラー: %w", insertErr)
 	}
 
 	return nil
