@@ -667,6 +667,35 @@ paths:
       summary: アイドル更新
       tags:
       - idols
+  /idols/{id}/restore:
+    put:
+      description: 削除されたアイドルを復元する（管理者専用）
+      parameters:
+      - description: アイドルID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: アイドル復元
+      tags:
+      - idols
   /idols/{id}/social-links:
     put:
       consumes:
