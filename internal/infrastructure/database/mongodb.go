@@ -56,3 +56,10 @@ func (m *MongoDB) Close() error {
     defer cancel()
     return m.Client.Disconnect(ctx)
 }
+
+// Ping はMongoDBへの疎通確認を行う
+func (m *MongoDB) Ping(ctx context.Context) error {
+    pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
+    return m.Client.Ping(pingCtx, readpref.Primary())
+}
