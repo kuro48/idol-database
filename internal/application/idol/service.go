@@ -278,3 +278,46 @@ func (s *ApplicationService) FindDuplicateCandidates(ctx context.Context, id str
 	}
 	return s.domainService.FindDuplicateCandidates(ctx, target)
 }
+
+// UpdateExternalIDs は外部IDマッピングを更新する
+func (s *ApplicationService) UpdateExternalIDs(ctx context.Context, input UpdateExternalIDsInput) error {
+	idolID, err := idol.NewIdolID(input.ID)
+	if err != nil {
+		return fmt.Errorf("IDの生成エラー: %w", err)
+	}
+
+	existingIdol, err := s.repository.FindByID(ctx, idolID)
+	if err != nil {
+		return fmt.Errorf("アイドルの取得エラー: %w", err)
+	}
+
+	// 既存の外部IDをベースに更新
+	extIDs := existingIdol.ExternalIDs()
+
+	for k, v := range input.ExternalIDs {
+		kind := idol.ExternalIDKind(k)
+
+		// 一意制約チェック: 同じ種別・値を持つ別のアイドルが存在しないか確認
+		if v != "" {
+			existing, err := s.repository.FindByExternalID(ctx, kind, v)
+			if err != nil {
+				return fmt.Errorf("外部ID重複チェックエラー: %w", err)
+			}
+			if existing != nil && existing.ID().Value() != input.ID {
+				return fmt.Errorf("外部ID '%s' の値 '%s' は既に別のアイドルに登録されています", k, v)
+			}
+		}
+
+		if err := extIDs.Set(kind, v); err != nil {
+			return fmt.Errorf("外部IDの設定エラー (%s): %w", k, err)
+		}
+	}
+
+	existingIdol.UpdateExternalIDs(extIDs)
+
+	if err := s.repository.Update(ctx, existingIdol); err != nil {
+		return fmt.Errorf("アイドルの更新エラー: %w", err)
+	}
+
+	return nil
+}

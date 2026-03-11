@@ -26,6 +26,7 @@ import (
 	"github.com/gin-gonic/gin"
 	appAgency "github.com/kuro48/idol-api/internal/application/agency"
 	appEvent "github.com/kuro48/idol-api/internal/application/event"
+	appExport "github.com/kuro48/idol-api/internal/application/export"
 	appGroup "github.com/kuro48/idol-api/internal/application/group"
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
@@ -76,6 +77,7 @@ func main() {
 	tagRepo := mongodb.NewTagRepository(db.Database)
 	webhookSubRepo := mongodb.NewWebhookSubscriptionRepository(db.Database)
 	webhookDelRepo := mongodb.NewWebhookDeliveryRepository(db.Database)
+	exportLogRepo := mongodb.NewExportLogRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -113,6 +115,7 @@ func main() {
 	eventAppService := appEvent.NewApplicationService(eventRepo)
 	tagAppService := appTag.NewApplicationService(tagRepo)
 	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
+	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
 
 	// ユースケース層
 	idolUsecase := usecaseIdol.NewUsecase(idolAppService, agencyAppService)
@@ -131,6 +134,7 @@ func main() {
 	tagHandler := handlers.NewTagHandler(tagUsecase)
 	termHandler := handlers.NewTermHandler("./static")
 	webhookHandler := handlers.NewWebhookHandler(webhookAppService)
+	exportHandler := handlers.NewExportHandler(exportAppService)
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
 	router := gin.New()
@@ -183,15 +187,18 @@ func main() {
 		// アイドル: 読み取りは公開、書き込みは write スコープ必須
 		idols := v1.Group("/idols")
 		{
-			idols.GET("", idolHandler.ListIdols)        // 一覧取得（公開）
-			idols.GET("/:id", idolHandler.GetIdol)      // 詳細取得（公開）
+			idols.GET("", idolHandler.ListIdols)                                   // 一覧取得（公開）
+			idols.GET("/:id", idolHandler.GetIdol)                                // 詳細取得（公開）
+			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs)            // 外部IDマッピング取得（公開）
 		}
 		idolsWrite := v1.Group("/idols", writeAuth)
 		{
-			idolsWrite.POST("", idolHandler.CreateIdol)                        // 新規作成
-			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                     // 更新
-			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                  // 削除
-			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
+			idolsWrite.POST("", idolHandler.CreateIdol)                            // 新規作成
+			idolsWrite.POST("/bulk", idolHandler.BulkCreateIdols)                  // バルク作成
+			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                         // 更新
+			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                      // 削除
+			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks)     // SNSリンク更新
+			idolsWrite.PUT("/:id/external-ids", idolHandler.UpdateExternalIDs)     // 外部IDマッピング更新
 		}
 
 		// 削除申請: 申請・参照は公開、管理は admin スコープ必須
@@ -215,9 +222,16 @@ func main() {
 		// Webhook管理（admin スコープ必須）
 		adminWebhooks := v1.Group("/admin/webhooks", adminAuth)
 		{
-			adminWebhooks.POST("", webhookHandler.CreateSubscription)    // 購読作成
-			adminWebhooks.GET("", webhookHandler.ListSubscriptions)      // 購読一覧
+			adminWebhooks.POST("", webhookHandler.CreateSubscription)       // 購読作成
+			adminWebhooks.GET("", webhookHandler.ListSubscriptions)         // 購読一覧
 			adminWebhooks.DELETE("/:id", webhookHandler.DeleteSubscription) // 購読削除
+		}
+
+		// エクスポート（admin スコープ必須）
+		adminExport := v1.Group("/admin/export", adminAuth)
+		{
+			adminExport.GET("/idols", exportHandler.ExportIdols)   // アイドルエクスポート
+			adminExport.GET("/logs", exportHandler.ListExportLogs) // 実行履歴
 		}
 
 		// グループ: 読み取りは公開、書き込みは write スコープ必須

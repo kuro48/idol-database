@@ -12,6 +12,7 @@ type Idol struct {
 	birthdate   *Birthdate
 	agencyID    *string      // 所属事務所ID（オプショナル）
 	socialLinks *SocialLinks // SNS/外部リンク（オプショナル）
+	externalIDs *ExternalIDs // 外部サービスIDマッピング（オプショナル）
 	tagIDs      []string     // タグID一覧
 	createdAt   time.Time
 	updatedAt   time.Time
@@ -39,6 +40,7 @@ func Reconstruct(
 	birthdate *Birthdate,
 	agencyID *string,
 	socialLinks *SocialLinks,
+	externalIDs *ExternalIDs,
 	tagIDs []string,
 	createdAt time.Time,
 	updatedAt time.Time,
@@ -49,6 +51,7 @@ func Reconstruct(
 		birthdate:   birthdate,
 		agencyID:    agencyID,
 		socialLinks: socialLinks,
+		externalIDs: externalIDs,
 		tagIDs:      tagIDs,
 		createdAt:   createdAt,
 		updatedAt:   updatedAt,
@@ -75,6 +78,13 @@ func (i *Idol) AgencyID() *string {
 
 func (i *Idol) SocialLinks() *SocialLinks {
 	return i.socialLinks
+}
+
+func (i *Idol) ExternalIDs() *ExternalIDs {
+	if i.externalIDs == nil {
+		return NewExternalIDs()
+	}
+	return i.externalIDs
 }
 
 func (i *Idol) TagIDs() []string {
@@ -116,6 +126,12 @@ func (i *Idol) UpdateAgency(agencyID *string) {
 // UpdateSocialLinks はSNS/外部リンクを更新する
 func (i *Idol) UpdateSocialLinks(links *SocialLinks) {
 	i.socialLinks = links
+	i.updatedAt = time.Now()
+}
+
+// UpdateExternalIDs は外部IDマッピングを更新する
+func (i *Idol) UpdateExternalIDs(ids *ExternalIDs) {
+	i.externalIDs = ids
 	i.updatedAt = time.Now()
 }
 
