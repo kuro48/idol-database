@@ -7,8 +7,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	t.Run("with environment variables", func(t *testing.T) {
-		// 環境変数を設定
+	t.Run("with all environment variables", func(t *testing.T) {
 		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
 		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "9000")
@@ -24,10 +23,39 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, "release", cfg.GinMode)
 	})
 
-	t.Run("with default values", func(t *testing.T) {
-		// 環境変数をクリア
+	t.Run("missing MONGODB_URI returns error", func(t *testing.T) {
 		t.Setenv("MONGODB_URI", "")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "8081")
+		t.Setenv("GIN_MODE", "debug")
+
+		cfg, err := Load()
+
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+		var valErr *ValidationError
+		assert.ErrorAs(t, err, &valErr)
+		assert.Equal(t, "MONGODB_URI", valErr.Field)
+	})
+
+	t.Run("missing MONGODB_DATABASE returns error", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
 		t.Setenv("MONGODB_DATABASE", "")
+		t.Setenv("SERVER_PORT", "8081")
+		t.Setenv("GIN_MODE", "debug")
+
+		cfg, err := Load()
+
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+		var valErr *ValidationError
+		assert.ErrorAs(t, err, &valErr)
+		assert.Equal(t, "MONGODB_DATABASE", valErr.Field)
+	})
+
+	t.Run("default SERVER_PORT and GIN_MODE are applied", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "")
 		t.Setenv("GIN_MODE", "")
 
@@ -35,25 +63,32 @@ func TestLoad(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg)
-		assert.Equal(t, "mongodb://localhost:27017", cfg.MongoDBURI)
-		assert.Equal(t, "idol_database", cfg.MongoDBDatabase)
 		assert.Equal(t, "8081", cfg.ServerPort)
 		assert.Equal(t, "debug", cfg.GinMode)
 	})
 
-	t.Run("partial environment variables", func(t *testing.T) {
-		// 一部の環境変数のみ設定
-		t.Setenv("MONGODB_URI", "mongodb://custom:custom@localhost:27017")
-		t.Setenv("SERVER_PORT", "3000")
+	t.Run("invalid SERVER_PORT returns error", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "invalid")
+		t.Setenv("GIN_MODE", "debug")
 
 		cfg, err := Load()
 
-		assert.NoError(t, err)
-		assert.NotNil(t, cfg)
-		assert.Equal(t, "mongodb://custom:custom@localhost:27017", cfg.MongoDBURI)
-		assert.Equal(t, "idol_database", cfg.MongoDBDatabase) // デフォルト値
-		assert.Equal(t, "3000", cfg.ServerPort)
-		assert.Equal(t, "debug", cfg.GinMode) // デフォルト値
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("invalid GIN_MODE returns error", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "8081")
+		t.Setenv("GIN_MODE", "invalid")
+
+		cfg, err := Load()
+
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
 	})
 }
 
@@ -68,7 +103,7 @@ func TestGetEnv(t *testing.T) {
 		assert.Equal(t, value, result)
 	})
 
-	t.Run("non-existing environment variable", func(t *testing.T) {
+	t.Run("non-existing environment variable returns default", func(t *testing.T) {
 		key := "NON_EXISTING_VAR"
 		defaultValue := "default_value"
 		t.Setenv(key, "")
@@ -78,7 +113,7 @@ func TestGetEnv(t *testing.T) {
 		assert.Equal(t, defaultValue, result)
 	})
 
-	t.Run("empty environment variable", func(t *testing.T) {
+	t.Run("empty environment variable returns default", func(t *testing.T) {
 		key := "EMPTY_VAR"
 		defaultValue := "default_value"
 		t.Setenv(key, "")
