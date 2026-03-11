@@ -104,8 +104,6 @@ func (h *IdolHandler) GetIdol(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        name query string false "名前（部分一致）"
-// @Param        nationality query string false "国籍（完全一致）"
-// @Param        group_id query string false "グループID"
 // @Param        agency_id query string false "事務所ID"
 // @Param        age_min query int false "最小年齢"
 // @Param        age_max query int false "最大年齢"
