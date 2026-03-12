@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
@@ -170,6 +171,13 @@ func classifyError(err error, ctx ErrorContext) (int, ErrorResponse) {
 }
 
 func isNotFoundError(err error) bool {
+	// まずDomainErrorの型チェック
+	var domainErr *domainerrors.DomainError
+	if errors.As(err, &domainErr) {
+		return domainErr.Code.IsNotFound()
+	}
+
+	// 後方互換: 既存のチェック
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return true
 	}
@@ -178,6 +186,13 @@ func isNotFoundError(err error) bool {
 }
 
 func isConflictError(err error) bool {
+	// まずDomainErrorの型チェック
+	var domainErr *domainerrors.DomainError
+	if errors.As(err, &domainErr) {
+		return domainErr.Code.IsConflict()
+	}
+
+	// 後方互換: 既存のチェック
 	if mongo.IsDuplicateKeyError(err) {
 		return true
 	}
@@ -186,6 +201,13 @@ func isConflictError(err error) bool {
 }
 
 func isBadRequestError(err error) bool {
+	// まずDomainErrorの型チェック
+	var domainErr *domainerrors.DomainError
+	if errors.As(err, &domainErr) {
+		return domainErr.Code.IsBadRequest()
+	}
+
+	// 後方互換: 文字列マッチング（段階的移行のため維持）
 	msg := err.Error()
 	switch {
 	case strings.Contains(msg, "IDの生成エラー"):
