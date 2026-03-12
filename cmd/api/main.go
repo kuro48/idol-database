@@ -268,6 +268,9 @@ func main() {
 			adminWebhooks.DELETE("/:id", webhookHandler.DeleteSubscription) // 購読削除
 		}
 
+		// Webhook受信エンドポイント（公開: 外部からの受信）
+		v1.POST("/webhooks/receive/:subscription_id", webhookHandler.ReceiveWebhook)
+
 		// エクスポート（admin スコープ必須）
 		adminExport := v1.Group("/admin/export", adminAuth)
 		{
