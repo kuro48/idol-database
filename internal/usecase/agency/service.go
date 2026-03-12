@@ -3,23 +3,22 @@ package agency
 import (
 	"context"
 
-	app "github.com/kuro48/idol-api/internal/application/agency"
 	domain "github.com/kuro48/idol-api/internal/domain/agency"
 )
 
 // Usecase は事務所のユースケース
 type Usecase struct {
-	appService *app.ApplicationService
+	appService AgencyAppPort
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(appService *app.ApplicationService) *Usecase {
+func NewUsecase(appService AgencyAppPort) *Usecase {
 	return &Usecase{appService: appService}
 }
 
 // CreateAgency は事務所を作成する
 func (u *Usecase) CreateAgency(ctx context.Context, cmd CreateAgencyCommand) (*AgencyDTO, error) {
-	entity, err := u.appService.CreateAgency(ctx, app.CreateInput{
+	entity, err := u.appService.CreateAgency(ctx, AgencyCreateInput{
 		Name:            cmd.Name,
 		NameEn:          cmd.NameEn,
 		FoundedDate:     cmd.FoundedDate,
@@ -65,7 +64,7 @@ func (u *Usecase) ListAgencies(ctx context.Context, query ListAgenciesQuery) ([]
 
 // UpdateAgency は事務所を更新する
 func (u *Usecase) UpdateAgency(ctx context.Context, cmd UpdateAgencyCommand) error {
-	return u.appService.UpdateAgency(ctx, app.UpdateInput{
+	return u.appService.UpdateAgency(ctx, AgencyUpdateInput{
 		ID:              cmd.ID,
 		Name:            cmd.Name,
 		NameEn:          cmd.NameEn,
