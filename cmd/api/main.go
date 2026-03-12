@@ -33,6 +33,7 @@ import (
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
+	"github.com/kuro48/idol-api/internal/infrastructure/adapters"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
@@ -117,9 +118,16 @@ func main() {
 	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
 	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
 
+	// アダプター層: application サービスを usecase output port に適合させる
+	idolAppPort := adapters.NewIdolAppAdapter(idolAppService)
+	agencyAppPort := adapters.NewAgencyAppAdapter(agencyAppService)
+	removalAppPort := adapters.NewRemovalAppAdapter(removalAppService)
+	removalIdolPort := adapters.NewRemovalIdolAdapter(idolAppService)
+	removalGroupPort := adapters.NewRemovalGroupAdapter(groupAppService)
+
 	// ユースケース層
-	idolUsecase := usecaseIdol.NewUsecase(idolAppService, agencyAppService)
-	removalUsecase := usecaseRemoval.NewUsecase(removalAppService, idolAppService, groupAppService)
+	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPort)
+	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort)
 	groupUsecase := usecaseGroup.NewUsecase(groupAppService)
 	agencyUsecase := usecaseAgency.NewUsecase(agencyAppService)
 	eventUsecase := usecaseEvent.NewUsecase(eventAppService)
