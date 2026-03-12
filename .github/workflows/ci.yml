@@ -58,17 +58,33 @@ jobs:
           fi
           echo "application boundary: OK"
 
-      - name: Check infrastructure layer has no usecase/interface/application imports
+      - name: Check infrastructure layer (persistence/database) has no usecase/interface imports
         run: |
+          # adapters/ は usecase の port interface を実装するため usecase import を許可
+          # それ以外の infrastructure サブパッケージは usecase/interface を import してはならない
           violations=$(grep -rn \
-            'github.com/kuro48/idol-api/internal/\(usecase\|interface\|application\)' \
-            internal/infrastructure/ --include='*.go' || true)
+            'github.com/kuro48/idol-api/internal/\(usecase\|interface\)' \
+            internal/infrastructure/ --include='*.go' \
+            --exclude-dir=adapters || true)
           if [ -n "$violations" ]; then
-            echo "BOUNDARY VIOLATION: infrastructure layer imports upper layers"
+            echo "BOUNDARY VIOLATION: infrastructure layer (non-adapters) imports usecase or interface layers"
             echo "$violations"
             exit 1
           fi
-          echo "infrastructure boundary: OK"
+          echo "infrastructure (non-adapters) boundary: OK"
+
+      - name: Check usecase layer has no direct application imports
+        run: |
+          violations=$(grep -rn \
+            'github.com/kuro48/idol-api/internal/application/' \
+            internal/usecase/ --include='*.go' || true)
+          if [ -n "$violations" ]; then
+            echo "BOUNDARY VIOLATION: usecase layer must not import application layer directly"
+            echo "Use output port interfaces (port_out.go) instead"
+            echo "$violations"
+            exit 1
+          fi
+          echo "usecase → application boundary: OK"
 
   openapi-contract:
     name: OpenAPI Contract Check
