@@ -10,6 +10,7 @@ import (
 
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	domaintag "github.com/kuro48/idol-api/internal/domain/tag"
+	"github.com/kuro48/idol-api/internal/infrastructure/adapters"
 	ucTag "github.com/kuro48/idol-api/internal/usecase/tag"
 )
 
@@ -93,7 +94,7 @@ func (r *inMemoryTagRepo) Restore(_ context.Context, id domaintag.TagID) error {
 func newTagUsecase() ucTag.TagUseCase {
 	repo := newInMemoryTagRepo()
 	appSvc := appTag.NewApplicationService(repo)
-	return ucTag.NewUsecase(appSvc)
+	return ucTag.NewUsecase(adapters.NewTagAppAdapter(appSvc))
 }
 
 func TestCreateTag(t *testing.T) {
