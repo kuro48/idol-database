@@ -9,19 +9,17 @@ import (
 	"strings"
 	"time"
 
-	appAgency "github.com/kuro48/idol-api/internal/application/agency"
-	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	domain "github.com/kuro48/idol-api/internal/domain/idol"
 )
 
 // Usecase はアイドルのユースケース
 type Usecase struct {
-	appService *appIdol.ApplicationService
-	agencyApp  *appAgency.ApplicationService
+	appService IdolAppPort
+	agencyApp  AgencyAppPort
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(appService *appIdol.ApplicationService, agencyApp *appAgency.ApplicationService) *Usecase {
+func NewUsecase(appService IdolAppPort, agencyApp AgencyAppPort) *Usecase {
 	return &Usecase{appService: appService, agencyApp: agencyApp}
 }
 
@@ -34,7 +32,7 @@ func (u *Usecase) CreateIdol(ctx context.Context, cmd CreateIdolCommand) (*IdolD
 		}
 	}
 
-	entity, err := u.appService.CreateIdol(ctx, appIdol.CreateInput{
+	entity, err := u.appService.CreateIdol(ctx, IdolCreateInput{
 		Name:      cmd.Name,
 		Birthdate: cmd.Birthdate,
 		AgencyID:  cmd.AgencyID,
@@ -91,7 +89,7 @@ func (u *Usecase) UpdateIdol(ctx context.Context, cmd UpdateIdolCommand) error {
 		}
 	}
 
-	return u.appService.UpdateIdol(ctx, appIdol.UpdateInput{
+	return u.appService.UpdateIdol(ctx, IdolUpdateInput{
 		ID:        cmd.ID,
 		Name:      cmd.Name,
 		Birthdate: cmd.Birthdate,
@@ -111,7 +109,7 @@ func (u *Usecase) RestoreIdol(ctx context.Context, id string) error {
 
 // UpdateSocialLinks はSNS/外部リンクを更新する
 func (u *Usecase) UpdateSocialLinks(ctx context.Context, cmd UpdateSocialLinksCommand) error {
-	return u.appService.UpdateSocialLinks(ctx, appIdol.UpdateSocialLinksInput{
+	return u.appService.UpdateSocialLinks(ctx, IdolUpdateSocialLinksInput{
 		ID:              cmd.ID,
 		Twitter:         cmd.Twitter,
 		Instagram:       cmd.Instagram,
@@ -386,7 +384,7 @@ func (u *Usecase) GetExternalIDs(ctx context.Context, id string) (map[string]str
 
 // UpdateExternalIDs は外部IDマッピングを更新する
 func (u *Usecase) UpdateExternalIDs(ctx context.Context, cmd UpdateExternalIDsCommand) error {
-	return u.appService.UpdateExternalIDs(ctx, appIdol.UpdateExternalIDsInput{
+	return u.appService.UpdateExternalIDs(ctx, IdolUpdateExternalIDsInput{
 		ID:          cmd.ID,
 		ExternalIDs: cmd.ExternalIDs,
 	})
