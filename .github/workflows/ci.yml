@@ -61,6 +61,7 @@ jobs:
       - name: Check infrastructure layer (persistence/database) has no usecase/interface imports
         run: |
           # adapters/ は usecase の port interface を実装するため usecase import を許可
+          # それ以外の infrastructure サブパッケージは usecase/interface を import してはならない
           violations=$(grep -rn \
             'github.com/kuro48/idol-api/internal/\(usecase\|interface\)' \
             internal/infrastructure/ --include='*.go' \
@@ -74,14 +75,13 @@ jobs:
 
       - name: Check usecase layer has no direct application imports
         run: |
-          # テストファイルは除外（テスト用に application サービスを直接生成するため）
           violations=$(grep -rn \
             'github.com/kuro48/idol-api/internal/application/' \
             internal/usecase/ --include='*.go' \
             --exclude='*_test.go' || true)
           if [ -n "$violations" ]; then
             echo "BOUNDARY VIOLATION: usecase layer must not import application layer directly"
-            echo "Use output port interfaces (port_out.go) and adapters instead"
+            echo "Use output port interfaces (port_out.go) instead"
             echo "$violations"
             exit 1
           fi
