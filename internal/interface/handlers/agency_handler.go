@@ -70,7 +70,7 @@ func (h *AgencyHandler) ListAgencies(c *gin.Context) {
 		return
 	}
 
-	dtos, err := h.usecase.ListAgencies(c.Request.Context(), query)
+	result, err := h.usecase.ListAgencies(c.Request.Context(), query)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Message: "事務所一覧の取得に失敗しました",
@@ -78,7 +78,7 @@ func (h *AgencyHandler) ListAgencies(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos)
+	c.JSON(http.StatusOK, result)
 }
 
 // UpdateAgency は事務所を更新する

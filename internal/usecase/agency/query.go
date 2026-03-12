@@ -58,3 +58,17 @@ type AgencyDTO struct {
 	CreatedAt       string  `json:"created_at"`
 	UpdatedAt       string  `json:"updated_at"`
 }
+
+// AgencySearchResult は事務所検索結果（ページネーション付き）
+type AgencySearchResult struct {
+	Data []*AgencyDTO   `json:"data"`
+	Meta PaginationMeta `json:"meta"`
+}
+
+// PaginationMeta はページネーションメタ情報
+type PaginationMeta struct {
+	Total      int64 `json:"total"`
+	Page       int   `json:"page"`
+	PerPage    int   `json:"per_page"`
+	TotalPages int   `json:"total_pages"`
+}

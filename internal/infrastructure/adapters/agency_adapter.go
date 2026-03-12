@@ -39,6 +39,10 @@ func (a *AgencyAppAdapterForUsecase) ListAgencies(ctx context.Context) ([]*agenc
 	return a.svc.ListAgencies(ctx)
 }
 
+func (a *AgencyAppAdapterForUsecase) ListAgenciesWithPagination(ctx context.Context, opts agencyDomain.SearchOptions) (*agencyDomain.SearchResult, error) {
+	return a.svc.ListAgenciesWithPagination(ctx, opts)
+}
+
 func (a *AgencyAppAdapterForUsecase) UpdateAgency(ctx context.Context, input ucAgency.AgencyUpdateInput) error {
 	return a.svc.UpdateAgency(ctx, appAgency.UpdateInput{
 		ID:              input.ID,

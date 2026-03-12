@@ -74,9 +74,13 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 }
 
 func (h *GroupHandler) ListGroup(c *gin.Context) {
-	query := group.ListGroupQuery{}
+	var query group.ListGroupQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("無効なクエリパラメータです"))
+		return
+	}
 
-	dtos, err := h.usecase.ListGroup(c.Request.Context(), query)
+	result, err := h.usecase.ListGroup(c.Request.Context(), query)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Message: "グループ一覧の取得に失敗しました",
@@ -84,7 +88,7 @@ func (h *GroupHandler) ListGroup(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos)
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *GroupHandler) UpdateGroup(c *gin.Context) {

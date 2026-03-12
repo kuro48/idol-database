@@ -2,6 +2,7 @@ package group
 
 import (
 	"context"
+	"fmt"
 
 	domain "github.com/kuro48/idol-api/internal/domain/group"
 )
@@ -42,20 +43,41 @@ func (u *Usecase) GetGroup(ctx context.Context, query GetGroupQuery) (*GroupDTO,
 	return &dto, nil
 }
 
-// ListGroup はグループ一覧を取得する
-func (u *Usecase) ListGroup(ctx context.Context, query ListGroupQuery) ([]*GroupDTO, error) {
-	groups, err := u.appService.ListGroup(ctx)
+// ListGroup はグループ一覧を取得する（ページネーション付き）
+func (u *Usecase) ListGroup(ctx context.Context, query ListGroupQuery) (*GroupSearchResult, error) {
+	query.Normalize()
+
+	result, err := u.appService.ListGroupWithPagination(ctx, domain.SearchOptions{
+		Name:  query.Name,
+		Sort:  *query.Sort,
+		Order: *query.Order,
+		Page:  *query.Page,
+		Limit: *query.Limit,
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("グループ一覧の取得エラー: %w", err)
 	}
 
-	dtos := make([]*GroupDTO, 0, len(groups))
-	for _, g := range groups {
+	dtos := make([]*GroupDTO, 0, len(result.Groups))
+	for _, g := range result.Groups {
 		dto := toDTO(g)
 		dtos = append(dtos, &dto)
 	}
 
-	return dtos, nil
+	totalPages := int(result.Total) / *query.Limit
+	if int(result.Total)%*query.Limit != 0 {
+		totalPages++
+	}
+
+	return &GroupSearchResult{
+		Data: dtos,
+		Meta: &PaginationMeta{
+			Total:      result.Total,
+			Page:       *query.Page,
+			PerPage:    *query.Limit,
+			TotalPages: totalPages,
+		},
+	}, nil
 }
 
 // UpdateGroup はグループを更新する

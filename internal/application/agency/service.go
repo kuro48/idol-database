@@ -92,6 +92,15 @@ func (s *ApplicationService) ListAgencies(ctx context.Context) ([]*agency.Agency
 	return agencies, nil
 }
 
+// ListAgenciesWithPagination はページネーション付きで事務所一覧を取得する
+func (s *ApplicationService) ListAgenciesWithPagination(ctx context.Context, opts agency.SearchOptions) (*agency.SearchResult, error) {
+	result, err := s.repository.FindWithPagination(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("事務所一覧の取得エラー: %w", err)
+	}
+	return result, nil
+}
+
 // UpdateAgency は事務所を更新する
 func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput) error {
 	id, err := agency.NewAgencyID(input.ID)
