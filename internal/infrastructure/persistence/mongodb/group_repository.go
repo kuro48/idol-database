@@ -10,6 +10,7 @@ import (
 	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type GroupRepository struct {
@@ -43,6 +44,62 @@ func (r *GroupRepository) FindAll(ctx context.Context) ([]*group.Group, error) {
 	}
 
 	return groups, nil
+}
+
+// FindWithPagination はページネーション付きでグループを検索する
+func (r *GroupRepository) FindWithPagination(ctx context.Context, opts group.SearchOptions) (*group.SearchResult, error) {
+	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
+
+	if opts.Name != nil {
+		filter["name"] = bson.M{"$regex": *opts.Name, "$options": "i"}
+	}
+
+	total, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("件数取得エラー: %w", err)
+	}
+
+	sortOrder := 1
+	if opts.Order == "desc" {
+		sortOrder = -1
+	}
+	sortField := opts.Sort
+	if sortField == "" {
+		sortField = "created_at"
+	}
+
+	skip := int64((opts.Page - 1) * opts.Limit)
+	limit := int64(opts.Limit)
+
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: sortField, Value: sortOrder}}).
+		SetSkip(skip).
+		SetLimit(limit)
+
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("グループ一覧の取得エラー: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var groups []*group.Group
+	for cursor.Next(ctx) {
+		var doc groupDocument
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, fmt.Errorf("グループデコードエラー: %w", err)
+		}
+		g, err := toGroupDomain(&doc)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, g)
+	}
+
+	if groups == nil {
+		groups = []*group.Group{}
+	}
+
+	return &group.SearchResult{Groups: groups, Total: total}, nil
 }
 
 // Update implements group.Repository.

@@ -2,6 +2,21 @@ package group
 
 import "context"
 
+// SearchOptions は検索オプション
+type SearchOptions struct {
+	Name  *string
+	Sort  string
+	Order string
+	Page  int
+	Limit int
+}
+
+// SearchResult は検索結果
+type SearchResult struct {
+	Groups []*Group
+	Total  int64
+}
+
 type Repository interface {
 	// Save は新しいグループを保存する
 	Save(ctx context.Context, group *Group) error
@@ -11,6 +26,9 @@ type Repository interface {
 
 	// FindAll は全てのグループを取得する
 	FindAll(ctx context.Context) ([]*Group, error)
+
+	// FindWithPagination はページネーション付きでグループを検索する
+	FindWithPagination(ctx context.Context, opts SearchOptions) (*SearchResult, error)
 
 	// Update は既存のグループを更新する
 	Update(ctx context.Context, group *Group) error

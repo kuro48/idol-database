@@ -11,6 +11,7 @@ type GroupAppPort interface {
 	CreateGroup(ctx context.Context, input GroupCreateInput) (*domain.Group, error)
 	GetGroup(ctx context.Context, id string) (*domain.Group, error)
 	ListGroup(ctx context.Context) ([]*domain.Group, error)
+	ListGroupWithPagination(ctx context.Context, opts domain.SearchOptions) (*domain.SearchResult, error)
 	UpdateGroup(ctx context.Context, input GroupUpdateInput) error
 	DeleteGroup(ctx context.Context, id string) error
 }

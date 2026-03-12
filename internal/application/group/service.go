@@ -82,6 +82,15 @@ func (s *ApplicationService) ListGroup(ctx context.Context) ([]*group.Group, err
 	return groups, nil
 }
 
+// ListGroupWithPagination はページネーション付きでグループ一覧を取得する
+func (s *ApplicationService) ListGroupWithPagination(ctx context.Context, opts group.SearchOptions) (*group.SearchResult, error) {
+	result, err := s.repository.FindWithPagination(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("グループ一覧の取得エラー: %w", err)
+	}
+	return result, nil
+}
+
 func (s *ApplicationService) UpdateGroup(ctx context.Context, input UpdateInput) error {
 	id, err := group.NewGroupID(input.ID)
 	if err != nil {
