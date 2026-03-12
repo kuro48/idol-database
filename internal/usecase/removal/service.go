@@ -4,21 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	appGroup "github.com/kuro48/idol-api/internal/application/group"
-	appIdol "github.com/kuro48/idol-api/internal/application/idol"
-	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
 	domain "github.com/kuro48/idol-api/internal/domain/removal"
 )
 
 // Usecase は削除申請のユースケース
 type Usecase struct {
-	removalApp *appRemoval.ApplicationService
-	idolApp    *appIdol.ApplicationService
-	groupApp   *appGroup.ApplicationService
+	removalApp RemovalAppPort
+	idolApp    RemovalIdolPort
+	groupApp   RemovalGroupPort
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(removalApp *appRemoval.ApplicationService, idolApp *appIdol.ApplicationService, groupApp *appGroup.ApplicationService) *Usecase {
+func NewUsecase(removalApp RemovalAppPort, idolApp RemovalIdolPort, groupApp RemovalGroupPort) *Usecase {
 	return &Usecase{
 		removalApp: removalApp,
 		idolApp:    idolApp,
@@ -46,7 +43,7 @@ func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalReq
 		}
 	}
 
-	request, err := u.removalApp.CreateRemovalRequest(ctx, appRemoval.CreateInput{
+	request, err := u.removalApp.CreateRemovalRequest(ctx, RemovalCreateInput{
 		TargetType:  cmd.TargetType,
 		TargetID:    cmd.TargetID,
 		Requester:   cmd.RequesterType,
