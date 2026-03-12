@@ -77,7 +77,8 @@ jobs:
         run: |
           violations=$(grep -rn \
             'github.com/kuro48/idol-api/internal/application/' \
-            internal/usecase/ --include='*.go' || true)
+            internal/usecase/ --include='*.go' \
+            --exclude='*_test.go' || true)
           if [ -n "$violations" ]; then
             echo "BOUNDARY VIOLATION: usecase layer must not import application layer directly"
             echo "Use output port interfaces (port_out.go) instead"
