@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -108,6 +109,38 @@ func (h *WebhookHandler) DeleteSubscription(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// ReceiveWebhook はWebhookを受信して署名検証を行う
+// POST /webhooks/receive/:subscription_id
+func (h *WebhookHandler) ReceiveWebhook(c *gin.Context) {
+	subscriptionID := c.Param("subscription_id")
+	if subscriptionID == "" {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("サブスクリプションIDは必須です"))
+		return
+	}
+
+	// 署名ヘッダーの確認
+	signature := c.GetHeader("X-Webhook-Signature")
+	if signature == "" {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
+
+	// リクエストボディを読み取る
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストボディの読み取りエラー"))
+		return
+	}
+
+	// 署名検証
+	if err := h.appService.VerifyWebhookRequest(c.Request.Context(), subscriptionID, signature, body); err != nil {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Webhookを受信しました"})
 }
 
 func toSubscriptionResponse(sub *webhook.Subscription, includeSecret bool) SubscriptionResponse {
