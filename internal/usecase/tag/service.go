@@ -4,23 +4,21 @@ import (
 	"context"
 	"fmt"
 	"math"
-
-	app "github.com/kuro48/idol-api/internal/application/tag"
 )
 
 // Usecase はタグのユースケース
 type Usecase struct {
-	appService *app.ApplicationService
+	appService TagAppPort
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(appService *app.ApplicationService) *Usecase {
+func NewUsecase(appService TagAppPort) *Usecase {
 	return &Usecase{appService: appService}
 }
 
 // CreateTag はタグを作成する
 func (u *Usecase) CreateTag(ctx context.Context, cmd CreateTagCommand) (TagDTO, error) {
-	entity, err := u.appService.CreateTag(ctx, app.CreateInput{
+	entity, err := u.appService.CreateTag(ctx, TagCreateInput{
 		Name:        cmd.Name,
 		Category:    cmd.Category,
 		Description: cmd.Description,
@@ -34,7 +32,7 @@ func (u *Usecase) CreateTag(ctx context.Context, cmd CreateTagCommand) (TagDTO, 
 
 // UpdateTag はタグを更新する
 func (u *Usecase) UpdateTag(ctx context.Context, cmd UpdateTagCommand) error {
-	return u.appService.UpdateTag(ctx, app.UpdateInput{
+	return u.appService.UpdateTag(ctx, TagUpdateInput{
 		ID:          cmd.ID,
 		Name:        cmd.Name,
 		Category:    cmd.Category,
