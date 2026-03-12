@@ -10,7 +10,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/webhook"
@@ -25,11 +27,23 @@ type ApplicationService struct {
 
 // NewApplicationService はアプリケーションサービスを作成する
 func NewApplicationService(subRepo webhook.SubscriptionRepository, deliveryRepo webhook.DeliveryRepository) *ApplicationService {
+	return NewApplicationServiceWithTimeout(subRepo, deliveryRepo, 10*time.Second)
+}
+
+// NewApplicationServiceWithTimeout はタイムアウトを指定してアプリケーションサービスを作成する
+func NewApplicationServiceWithTimeout(subRepo webhook.SubscriptionRepository, deliveryRepo webhook.DeliveryRepository, timeout time.Duration) *ApplicationService {
 	return &ApplicationService{
 		subRepo:      subRepo,
 		deliveryRepo: deliveryRepo,
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: timeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 3 {
+					return fmt.Errorf("リダイレクト回数の上限（3回）に達しました")
+				}
+				// リダイレクト先もSSRFチェック
+				return validateWebhookURL(req.URL.String())
+			},
 		},
 	}
 }
@@ -43,6 +57,11 @@ type CreateSubscriptionInput struct {
 
 // CreateSubscription はWebhook購読を作成する
 func (s *ApplicationService) CreateSubscription(ctx context.Context, input CreateSubscriptionInput) (*webhook.Subscription, error) {
+	// URLバリデーション（SSRF対策）
+	if err := validateWebhookURL(input.URL); err != nil {
+		return nil, err
+	}
+
 	id := generateID()
 	secret := generateSecret()
 	sub := webhook.NewSubscription(id, input.URL, secret, input.Events, input.CreatedBy)
@@ -140,6 +159,68 @@ func (s *ApplicationService) deliver(ctx context.Context, sub *webhook.Subscript
 	}
 
 	_ = s.deliveryRepo.Update(ctx, delivery)
+}
+
+// validateWebhookURL はWebhookURLのSSRF対策バリデーションを行う
+func validateWebhookURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("無効なURL形式です: %w", err)
+	}
+
+	// httpsのみ許可
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("WebhookURLはhttpsスキームのみ使用できます")
+	}
+
+	// ホスト名の解決とプライベートIPチェック
+	host := parsed.Hostname()
+	if host == "" {
+		return fmt.Errorf("URLにホスト名が必要です")
+	}
+
+	// ループバックアドレスの拒否
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return fmt.Errorf("ループバックアドレスへのWebhookは許可されていません")
+	}
+
+	// DNS解決してIPチェック
+	addrs, err := net.LookupHost(host)
+	if err == nil {
+		for _, addr := range addrs {
+			ip := net.ParseIP(addr)
+			if ip == nil {
+				continue
+			}
+			if isPrivateIP(ip) {
+				return fmt.Errorf("プライベートIPアドレスへのWebhookは許可されていません")
+			}
+		}
+	}
+
+	return nil
+}
+
+// isPrivateIP はIPアドレスがプライベート範囲かチェックする
+func isPrivateIP(ip net.IP) bool {
+	privateRanges := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"169.254.0.0/16", // リンクローカル
+		"fc00::/7",       // IPv6 ユニークローカル
+		"fe80::/10",      // IPv6 リンクローカル
+	}
+	for _, cidr := range privateRanges {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // computeSignature はHMAC-SHA256シグネチャを計算する
