@@ -120,18 +120,22 @@ func main() {
 
 	// アダプター層: application サービスを usecase output port に適合させる
 	idolAppPort := adapters.NewIdolAppAdapter(idolAppService)
-	agencyAppPort := adapters.NewAgencyAppAdapter(agencyAppService)
+	agencyAppPortForIdol := adapters.NewAgencyAppAdapter(agencyAppService)
 	removalAppPort := adapters.NewRemovalAppAdapter(removalAppService)
 	removalIdolPort := adapters.NewRemovalIdolAdapter(idolAppService)
 	removalGroupPort := adapters.NewRemovalGroupAdapter(groupAppService)
+	groupAppPort := adapters.NewGroupAppAdapter(groupAppService)
+	agencyAppPort := adapters.NewAgencyAppAdapterForUsecase(agencyAppService)
+	eventAppPort := adapters.NewEventAppAdapter(eventAppService)
+	tagAppPort := adapters.NewTagAppAdapter(tagAppService)
 
 	// ユースケース層
-	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPort)
+	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPortForIdol)
 	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort)
-	groupUsecase := usecaseGroup.NewUsecase(groupAppService)
-	agencyUsecase := usecaseAgency.NewUsecase(agencyAppService)
-	eventUsecase := usecaseEvent.NewUsecase(eventAppService)
-	tagUsecase := usecaseTag.NewUsecase(tagAppService)
+	groupUsecase := usecaseGroup.NewUsecase(groupAppPort)
+	agencyUsecase := usecaseAgency.NewUsecase(agencyAppPort)
+	eventUsecase := usecaseEvent.NewUsecase(eventAppPort)
+	tagUsecase := usecaseTag.NewUsecase(tagAppPort)
 
 	// プレゼンテーション層: ハンドラー
 	idolHandler := handlers.NewIdolHandler(idolUsecase)
