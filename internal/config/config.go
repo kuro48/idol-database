@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -13,10 +14,11 @@ type Config struct {
 	MongoDBDatabase    string
 	ServerPort         string
 	GinMode            string
-	CORSAllowedOrigins string // カンマ区切り。空の場合はデフォルト値を使用
-	WriteAPIKey        string // 書き込み系API認証キー（POST/PUT/DELETE）
-	AdminAPIKey        string // 管理系API認証キー（必須）
-	TrustedProxies     string // カンマ区切りの信頼プロキシIPレンジ（空の場合はプロキシ信頼なし）
+	CORSAllowedOrigins string        // カンマ区切り。空の場合はデフォルト値を使用
+	WriteAPIKey        string        // 書き込み系API認証キー（POST/PUT/DELETE）
+	AdminAPIKey        string        // 管理系API認証キー（必須）
+	TrustedProxies     string        // カンマ区切りの信頼プロキシIPレンジ（空の場合はプロキシ信頼なし）
+	WebhookTimeout     time.Duration // WebhookHTTPクライアントのタイムアウト（WEBHOOK_TIMEOUT_SECONDS で変更可能、デフォルト: 10秒）
 }
 
 // ValidationError は設定バリデーションエラー
@@ -35,6 +37,11 @@ func Load() (*Config, error) {
 	_ = godotenv.Load(".env.local")
 	_ = godotenv.Load(".env")
 
+	webhookTimeoutSec, err := strconv.Atoi(getEnv("WEBHOOK_TIMEOUT_SECONDS", "10"))
+	if err != nil || webhookTimeoutSec <= 0 {
+		webhookTimeoutSec = 10
+	}
+
 	cfg := &Config{
 		MongoDBURI:         getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDBDatabase:    getEnv("MONGODB_DATABASE", "idol_database"),
@@ -44,6 +51,7 @@ func Load() (*Config, error) {
 		WriteAPIKey:        getEnv("WRITE_API_KEY", ""),
 		AdminAPIKey:        getEnv("ADMIN_API_KEY", ""),
 		TrustedProxies:     getEnv("TRUSTED_PROXIES", ""),
+		WebhookTimeout:     time.Duration(webhookTimeoutSec) * time.Second,
 	}
 
 	// バリデーション実行
