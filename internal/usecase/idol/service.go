@@ -407,9 +407,16 @@ type BulkError struct {
 	Message string `json:"message"`
 }
 
+// MaxBulkCreateSize はバルク作成の最大バッチサイズ
+const MaxBulkCreateSize = 100
+
 // BulkCreateIdols は複数のアイドルを一括作成する
 // エラーが発生しても他のアイドルの処理を続ける（partial success）
 func (u *Usecase) BulkCreateIdols(ctx context.Context, cmds []CreateIdolCommand) (*BulkResult, error) {
+	if len(cmds) > MaxBulkCreateSize {
+		return nil, fmt.Errorf("バッチサイズ %d は上限 %d を超えています", len(cmds), MaxBulkCreateSize)
+	}
+
 	result := &BulkResult{
 		Errors:  make([]BulkError, 0),
 		Created: make([]*IdolDTO, 0),
