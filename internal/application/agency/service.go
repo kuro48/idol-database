@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/agency"
+	sharedid "github.com/kuro48/idol-api/internal/shared/id"
 )
 
 // ApplicationService は事務所アプリケーションサービス
@@ -40,14 +41,14 @@ func (s *ApplicationService) CreateAgency(ctx context.Context, input CreateInput
 		return nil, err
 	}
 
-	// IDを生成（MongoDBのObjectIDを生成）
-	id, err := agency.NewAgencyID(generateID())
+	// IDを生成（MongoDB ObjectID hex文字列）
+	agID, err := agency.NewAgencyID(sharedid.Generate())
 	if err != nil {
 		return nil, fmt.Errorf("IDの生成エラー: %w", err)
 	}
 
 	// エンティティの生成
-	newAgency := agency.NewAgency(id, name, country)
+	newAgency := agency.NewAgency(agID, name, country)
 
 	// オプションフィールドの設定
 	if input.FoundedDate != nil {
@@ -94,12 +95,12 @@ func (s *ApplicationService) ListAgencies(ctx context.Context) ([]*agency.Agency
 
 // UpdateAgency は事務所を更新する
 func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput) error {
-	id, err := agency.NewAgencyID(input.ID)
+	agID, err := agency.NewAgencyID(input.ID)
 	if err != nil {
 		return fmt.Errorf("IDの生成エラー: %w", err)
 	}
 
-	existingAgency, err := s.repository.FindByID(ctx, id)
+	existingAgency, err := s.repository.FindByID(ctx, agID)
 	if err != nil {
 		return fmt.Errorf("事務所の取得エラー: %w", err)
 	}
@@ -113,7 +114,7 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput
 		}
 
 		// 名前の重複チェック（自分自身は除外）
-		isDuplicate, err := s.domainService.IsDuplicateName(ctx, name, &id)
+		isDuplicate, err := s.domainService.IsDuplicateName(ctx, name, &agID)
 		if err != nil {
 			return err
 		}
@@ -172,9 +173,3 @@ func (s *ApplicationService) RestoreAgency(ctx context.Context, id string) error
 	return nil
 }
 
-// generateID はIDを生成する（簡易実装）
-func generateID() string {
-	// 実際にはMongoDBのObjectIDを生成する
-	// ここでは仮実装
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}

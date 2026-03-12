@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/event"
+	sharedid "github.com/kuro48/idol-api/internal/shared/id"
 )
 
 // ApplicationService はイベントアプリケーションサービス
@@ -45,12 +46,12 @@ func (s *ApplicationService) CreateEvent(ctx context.Context, input CreateInput)
 		return nil, fmt.Errorf("イベントの生成エラー: %w", err)
 	}
 
-	// IDを生成
-	id, err := event.NewEventID(generateID())
+	// IDを生成（MongoDB ObjectID hex文字列）
+	evID, err := event.NewEventID(sharedid.Generate())
 	if err != nil {
 		return nil, fmt.Errorf("IDの生成エラー: %w", err)
 	}
-	newEvent.SetID(id)
+	newEvent.SetID(evID)
 
 	// 終了日時の設定
 	var endDateTime *time.Time
@@ -285,7 +286,3 @@ func (s *ApplicationService) FindUpcoming(ctx context.Context, limit int) ([]*ev
 	return events, nil
 }
 
-// generateID はIDを生成する（簡易実装）
-func generateID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}
