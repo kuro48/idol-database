@@ -7,23 +7,22 @@ import (
 	"strconv"
 	"time"
 
-	app "github.com/kuro48/idol-api/internal/application/event"
 	domain "github.com/kuro48/idol-api/internal/domain/event"
 )
 
 // Usecase はイベントのユースケース
 type Usecase struct {
-	appService *app.ApplicationService
+	appService EventAppPort
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(appService *app.ApplicationService) *Usecase {
+func NewUsecase(appService EventAppPort) *Usecase {
 	return &Usecase{appService: appService}
 }
 
 // CreateEvent はイベントを作成する
 func (u *Usecase) CreateEvent(ctx context.Context, cmd CreateEventCommand) (*EventDTO, error) {
-	entity, err := u.appService.CreateEvent(ctx, app.CreateInput{
+	entity, err := u.appService.CreateEvent(ctx, EventCreateInput{
 		Title:         cmd.Title,
 		EventType:     cmd.EventType,
 		StartDateTime: cmd.StartDateTime,
@@ -81,7 +80,7 @@ func (u *Usecase) SearchEvents(ctx context.Context, query ListEventsQuery) (*Sea
 
 // UpdateEvent はイベントを更新する
 func (u *Usecase) UpdateEvent(ctx context.Context, cmd UpdateEventCommand) error {
-	return u.appService.UpdateEvent(ctx, app.UpdateInput{
+	return u.appService.UpdateEvent(ctx, EventUpdateInput{
 		ID:            cmd.ID,
 		Title:         cmd.Title,
 		StartDateTime: cmd.StartDateTime,
@@ -100,7 +99,7 @@ func (u *Usecase) DeleteEvent(ctx context.Context, cmd DeleteEventCommand) error
 
 // AddPerformer はパフォーマーを追加する
 func (u *Usecase) AddPerformer(ctx context.Context, cmd AddPerformerCommand) error {
-	return u.appService.AddPerformer(ctx, app.AddPerformerInput{
+	return u.appService.AddPerformer(ctx, EventAddPerformerInput{
 		EventID:     cmd.EventID,
 		PerformerID: cmd.PerformerID,
 	})
@@ -108,7 +107,7 @@ func (u *Usecase) AddPerformer(ctx context.Context, cmd AddPerformerCommand) err
 
 // RemovePerformer はパフォーマーを削除する
 func (u *Usecase) RemovePerformer(ctx context.Context, cmd RemovePerformerCommand) error {
-	return u.appService.RemovePerformer(ctx, app.RemovePerformerInput{
+	return u.appService.RemovePerformer(ctx, EventRemovePerformerInput{
 		EventID:     cmd.EventID,
 		PerformerID: cmd.PerformerID,
 	})
