@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -29,7 +29,7 @@ func ErrorHandler() gin.HandlerFunc {
 		// パニック回復
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("パニック回復: %v", err)
+				slog.Error("パニック回復", "error", err)
 
 				c.JSON(http.StatusInternalServerError, ErrorResponse{
 					Code:    "INTERNAL_ERROR",
