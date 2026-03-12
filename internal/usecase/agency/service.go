@@ -2,6 +2,7 @@ package agency
 
 import (
 	"context"
+	"fmt"
 
 	domain "github.com/kuro48/idol-api/internal/domain/agency"
 )
@@ -46,20 +47,42 @@ func (u *Usecase) GetAgency(ctx context.Context, query GetAgencyQuery) (*AgencyD
 	return &dto, nil
 }
 
-// ListAgencies は事務所一覧を取得する
-func (u *Usecase) ListAgencies(ctx context.Context, query ListAgenciesQuery) ([]*AgencyDTO, error) {
-	agencies, err := u.appService.ListAgencies(ctx)
+// ListAgencies は事務所一覧を取得する（ページネーション付き）
+func (u *Usecase) ListAgencies(ctx context.Context, query ListAgenciesQuery) (*AgencySearchResult, error) {
+	query.Normalize()
+
+	result, err := u.appService.ListAgenciesWithPagination(ctx, domain.SearchOptions{
+		Name:    query.Name,
+		Country: query.Country,
+		Sort:    *query.Sort,
+		Order:   *query.Order,
+		Page:    *query.Page,
+		Limit:   *query.Limit,
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("事務所一覧の取得エラー: %w", err)
 	}
 
-	dtos := make([]*AgencyDTO, 0, len(agencies))
-	for _, a := range agencies {
+	dtos := make([]*AgencyDTO, 0, len(result.Agencies))
+	for _, a := range result.Agencies {
 		dto := toDTO(a)
 		dtos = append(dtos, &dto)
 	}
 
-	return dtos, nil
+	totalPages := int(result.Total) / *query.Limit
+	if int(result.Total)%*query.Limit != 0 {
+		totalPages++
+	}
+
+	return &AgencySearchResult{
+		Data: dtos,
+		Meta: PaginationMeta{
+			Total:      result.Total,
+			Page:       *query.Page,
+			PerPage:    *query.Limit,
+			TotalPages: totalPages,
+		},
+	}, nil
 }
 
 // UpdateAgency は事務所を更新する

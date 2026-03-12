@@ -34,6 +34,10 @@ func (a *GroupAppAdapter) ListGroup(ctx context.Context) ([]*groupDomain.Group, 
 	return a.svc.ListGroup(ctx)
 }
 
+func (a *GroupAppAdapter) ListGroupWithPagination(ctx context.Context, opts groupDomain.SearchOptions) (*groupDomain.SearchResult, error) {
+	return a.svc.ListGroupWithPagination(ctx, opts)
+}
+
 func (a *GroupAppAdapter) UpdateGroup(ctx context.Context, input ucGroup.GroupUpdateInput) error {
 	return a.svc.UpdateGroup(ctx, appGroup.UpdateInput{
 		ID:            input.ID,

@@ -11,6 +11,7 @@ type AgencyAppPort interface {
 	CreateAgency(ctx context.Context, input AgencyCreateInput) (*domain.Agency, error)
 	GetAgency(ctx context.Context, id string) (*domain.Agency, error)
 	ListAgencies(ctx context.Context) ([]*domain.Agency, error)
+	ListAgenciesWithPagination(ctx context.Context, opts domain.SearchOptions) (*domain.SearchResult, error)
 	UpdateAgency(ctx context.Context, input AgencyUpdateInput) error
 	DeleteAgency(ctx context.Context, id string) error
 }

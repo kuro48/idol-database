@@ -10,6 +10,7 @@ import (
 	"github.com/kuro48/idol-api/internal/shared/audit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // AgencyRepository はMongoDBを使用した事務所リポジトリの実装
@@ -93,6 +94,65 @@ func (r *AgencyRepository) FindAll(ctx context.Context) ([]*agency.Agency, error
 	}
 
 	return agencies, nil
+}
+
+// FindWithPagination はページネーション付きで事務所を検索する
+func (r *AgencyRepository) FindWithPagination(ctx context.Context, opts agency.SearchOptions) (*agency.SearchResult, error) {
+	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
+
+	if opts.Name != nil {
+		filter["name"] = bson.M{"$regex": *opts.Name, "$options": "i"}
+	}
+	if opts.Country != nil {
+		filter["country"] = *opts.Country
+	}
+
+	total, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("件数取得エラー: %w", err)
+	}
+
+	sortOrder := 1
+	if opts.Order == "desc" {
+		sortOrder = -1
+	}
+	sortField := opts.Sort
+	if sortField == "" {
+		sortField = "created_at"
+	}
+
+	skip := int64((opts.Page - 1) * opts.Limit)
+	limit := int64(opts.Limit)
+
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: sortField, Value: sortOrder}}).
+		SetSkip(skip).
+		SetLimit(limit)
+
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("事務所一覧の取得エラー: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var agencies []*agency.Agency
+	for cursor.Next(ctx) {
+		var doc agencyDocument
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, fmt.Errorf("ドキュメントのデコードエラー: %w", err)
+		}
+		a, err := fromAgencyDocument(&doc)
+		if err != nil {
+			return nil, err
+		}
+		agencies = append(agencies, a)
+	}
+
+	if agencies == nil {
+		agencies = []*agency.Agency{}
+	}
+
+	return &agency.SearchResult{Agencies: agencies, Total: total}, nil
 }
 
 // Update は事務所を更新する
