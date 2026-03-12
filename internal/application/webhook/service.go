@@ -174,6 +174,21 @@ func VerifySignature(secret, signature string, payload []byte) bool {
 	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
+// VerifyWebhookRequest はサブスクリプションIDと署名を検証する
+func (s *ApplicationService) VerifyWebhookRequest(ctx context.Context, subscriptionID, signature string, payload []byte) error {
+	sub, err := s.subRepo.FindByID(ctx, subscriptionID)
+	if err != nil {
+		return fmt.Errorf("サブスクリプションが見つかりません: %w", err)
+	}
+	if !sub.Active() {
+		return fmt.Errorf("サブスクリプションが無効です")
+	}
+	if !VerifySignature(sub.Secret(), signature, payload) {
+		return fmt.Errorf("署名が無効です")
+	}
+	return nil
+}
+
 func generateID() string {
 	b := make([]byte, 16)
 	rand.Read(b)
