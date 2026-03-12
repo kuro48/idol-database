@@ -19,7 +19,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/gin-contrib/cors"
@@ -38,6 +39,7 @@ import (
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
+	"github.com/kuro48/idol-api/internal/shared/logger"
 	usecaseAgency "github.com/kuro48/idol-api/internal/usecase/agency"
 	usecaseEvent "github.com/kuro48/idol-api/internal/usecase/event"
 	usecaseGroup "github.com/kuro48/idol-api/internal/usecase/group"
@@ -52,16 +54,21 @@ import (
 )
 
 func main() {
+	// ロガーの初期化（最初に実行）
+	logger.Setup(slog.LevelInfo)
+
 	// 設定の読み込み
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("設定読み込みエラー:", err)
+		slog.Error("設定読み込みエラー", "error", err)
+		os.Exit(1)
 	}
 
 	// MongoDBに接続
 	db, err := database.Connect(cfg.MongoDBURI, cfg.MongoDBDatabase)
 	if err != nil {
-		log.Fatal("データベース接続エラー:", err)
+		slog.Error("データベース接続エラー", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
@@ -83,29 +90,29 @@ func main() {
 	// MongoDBインデックスの作成
 	ctx := context.Background()
 	if err := idolRepo.EnsureIndexes(ctx); err != nil {
-		log.Printf("⚠️  Idolインデックス作成エラー（続行します）: %v", err)
+		slog.Warn("Idolインデックス作成失敗（続行）", "error", err, "collection", "idols")
 	} else {
-		log.Println("✅ Idol MongoDBインデックスを作成しました")
+		slog.Info("Idolインデックス作成完了", "collection", "idols")
 	}
 	if err := eventRepo.EnsureIndexes(ctx); err != nil {
-		log.Printf("⚠️  Eventインデックス作成エラー（続行します）: %v", err)
+		slog.Warn("Eventインデックス作成失敗（続行）", "error", err, "collection", "events")
 	} else {
-		log.Println("✅ Event MongoDBインデックスを作成しました")
+		slog.Info("Eventインデックス作成完了", "collection", "events")
 	}
 	if err := tagRepo.EnsureIndexes(ctx); err != nil {
-		log.Printf("⚠️  Tagインデックス作成エラー（続行します）: %v", err)
+		slog.Warn("Tagインデックス作成失敗（続行）", "error", err, "collection", "tags")
 	} else {
-		log.Println("✅ Tag MongoDBインデックスを作成しました")
+		slog.Info("Tagインデックス作成完了", "collection", "tags")
 	}
 	if err := groupRepo.EnsureIndexes(ctx); err != nil {
-		log.Printf("⚠️  Groupインデックス作成エラー（続行します）: %v", err)
+		slog.Warn("Groupインデックス作成失敗（続行）", "error", err, "collection", "groups")
 	} else {
-		log.Println("✅ Group MongoDBインデックスを作成しました")
+		slog.Info("Groupインデックス作成完了", "collection", "groups")
 	}
 	if err := agencyRepo.EnsureIndexes(ctx); err != nil {
-		log.Printf("⚠️  Agencyインデックス作成エラー（続行します）: %v", err)
+		slog.Warn("Agencyインデックス作成失敗（続行）", "error", err, "collection", "agencies")
 	} else {
-		log.Println("✅ Agency MongoDBインデックスを作成しました")
+		slog.Info("Agencyインデックス作成完了", "collection", "agencies")
 	}
 
 	// アプリケーション層: アプリケーションサービス
@@ -158,12 +165,12 @@ func main() {
 			trustedProxies[i] = strings.TrimSpace(p)
 		}
 		if err := router.SetTrustedProxies(trustedProxies); err != nil {
-			log.Printf("⚠️  信頼プロキシ設定エラー: %v", err)
+			slog.Warn("信頼プロキシ設定エラー", "error", err)
 		}
 	} else {
 		// プロキシを信頼しない（RemoteAddr を直接使用）
 		if err := router.SetTrustedProxies(nil); err != nil {
-			log.Printf("⚠️  信頼プロキシ設定エラー: %v", err)
+			slog.Warn("信頼プロキシ設定エラー", "error", err)
 		}
 	}
 
@@ -339,8 +346,9 @@ func main() {
 
 	// サーバー起動
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
-	fmt.Printf("🚀 サーバーを起動します (DDD architecture): http://localhost%s\n", addr)
+	slog.Info("サーバーを起動します", "address", addr, "architecture", "DDD")
 	if err := router.Run(addr); err != nil {
-		log.Fatal("サーバー起動エラー:", err)
+		slog.Error("サーバー起動エラー", "error", err)
+		os.Exit(1)
 	}
 }
