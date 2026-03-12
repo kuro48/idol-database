@@ -1,6 +1,6 @@
 # CleanArch 依存マップ（Issue #12）
 
-最終更新: 2026-02-14
+最終更新: 2026-03-12 (Clean Architecture M2 完了後に更新 - #83)
 対象リポジトリ: `kuro48/idol-database`
 
 ## 1. 目的と範囲
@@ -33,68 +33,83 @@ graph LR
   INF --> DOM
 ```
 
-| 依存方向 | 件数 |
-|---|---:|
-| `application -> domain` | 6 |
-| `usecase -> application` | 9 |
-| `usecase -> domain` | 6 |
-| `interface -> usecase` | 6 |
-| `interface -> interface` | 1 |
-| `infrastructure -> domain` | 6 |
-| `cmd -> application` | 6 |
-| `cmd -> usecase` | 6 |
-| `cmd -> interface` | 2 |
-| `cmd -> infrastructure` | 2 |
-| `cmd -> config` | 1 |
+> **注**: M1（2026-02-14）時点の依存図。`UC --> APP` の矢印は M2 で解消済み。
 
-## 4. 主要パッケージ依存一覧（内部依存のみ）
+### M2 後（2026-03-12）の依存図
+
+```mermaid
+graph TD
+  CMD["cmd/api"] --> IF["interface"]
+  CMD --> UC["usecase"]
+  CMD --> ADAPTERS["infrastructure/adapters"]
+  CMD --> APP["application"]
+  CMD --> INF["infrastructure/persistence"]
+  IF --> UC
+  ADAPTERS --> APP
+  ADAPTERS --> UC
+  APP --> DOM["domain"]
+  UC --> DOM
+  INF --> DOM
+```
+
+`usecase → application` の直接依存が **adapters 経由** に変わり、usecase は domain のみに依存。
+
+| 依存方向 | M1 | M2 |
+|---|---:|---:|
+| `application -> domain` | 6 | 6 |
+| `usecase -> application` | **9** | **0** ✅ |
+| `usecase -> domain` | 6 | 6 |
+| `adapters -> application` | 0 | 7 |
+| `adapters -> usecase` | 0 | 7 |
+| `interface -> usecase` | 6 | 6 |
+| `infrastructure -> domain` | 6 | 6 |
+| `cmd -> application` | 6 | 6 |
+| `cmd -> usecase` | 6 | 6 |
+
+## 4. 主要パッケージ依存一覧（M2 後）
 
 | パッケージ | 依存先（内部） |
 |---|---|
-| `cmd/api` | `docs`, `internal/application/*`, `internal/usecase/*`, `internal/interface/{handlers,middleware}`, `internal/infrastructure/{database,persistence/mongodb}`, `internal/config` |
+| `cmd/api` | `internal/application/*`, `internal/usecase/*`, `internal/interface/*`, `internal/infrastructure/*`, `internal/config` |
 | `internal/application/*` | 各 `internal/domain/*` |
-| `internal/usecase/agency` | `internal/application/agency`, `internal/domain/agency` |
-| `internal/usecase/event` | `internal/application/event`, `internal/domain/event` |
-| `internal/usecase/group` | `internal/application/group`, `internal/domain/group` |
-| `internal/usecase/idol` | `internal/application/{idol,agency}`, `internal/domain/idol` |
-| `internal/usecase/removal` | `internal/application/{removal,idol,group}`, `internal/domain/removal` |
-| `internal/usecase/tag` | `internal/application/tag`, `internal/domain/tag` |
+| `internal/usecase/idol` | `internal/domain/idol`, `internal/domain/agency` |
+| `internal/usecase/removal` | `internal/domain/removal`, `internal/domain/idol`, `internal/domain/group` |
+| `internal/usecase/{group,agency,event,tag}` | 各 `internal/domain/*` |
+| `internal/infrastructure/adapters` | `internal/application/*`, `internal/usecase/*`, `internal/domain/*` |
 | `internal/interface/handlers` | `internal/interface/middleware`, `internal/usecase/*` |
 | `internal/infrastructure/persistence/mongodb` | `internal/domain/*` |
 
-## 5. 許容依存（現時点）
+## 5. 許容依存（M2 後）
 
 - `interface -> usecase`
-- `usecase -> domain`
+- `usecase -> domain` のみ（usecase → application は禁止）
 - `application -> domain`
-- `infrastructure -> domain`
-- `cmd -> *`（Composition Rootとして許容）
+- `adapters -> application, usecase, domain`（Output Port の bridge として許容）
+- `infrastructure/persistence -> domain`
+- `cmd -> *`（Composition Root として許容）
 
-## 6. 境界違反候補（初版）
+## 6. 境界違反一覧（M1 → M2 対応状況）
 
-1. Domain層がMongoDBドライバに依存
-- `internal/domain/removal/removal_id.go:6`
-- `internal/domain/tag/value_object.go:7`
-- 影響: `domain` が特定DB実装（`bson.ObjectID`）を知っている。
+| # | 違反内容 | M1 状態 | M2 後 |
+|---|---------|---------|------|
+| 1 | Domain 層が MongoDB ドライバに依存 | 未対応 | **残課題** |
+| 2 | Interface middleware が MongoDB エラー型に依存 | 未対応 | **残課題** |
+| 3 | UseCase 層が Application 層へ直接依存 | 9件 | **✅ 解消**（Epic #83） |
+| 4 | UseCase 層が複数 Application サービスを横断参照 | あり | **✅ 解消**（Output Port で整理） |
+| 5 | cmd/api の DI 配線が不統一 | あり | **✅ 改善**（adapters 経由に統一） |
 
-2. Interface middlewareがMongoDB固有エラー型に依存
-- `internal/interface/middleware/error.go:10`
-- 影響: HTTP層で永続化実装詳細（`mongo`）に結合。
+### 残課題（M3 候補）
 
-3. UseCase層がApplication層へ直接依存
-- 例: `internal/usecase/idol/service.go:12`
-- 影響: 目標依存方向（`Entity <- UseCase <- Interface Adapter`）へ移行する際の段差。
-- 補足: 現構成では移行途中設計としては成立しており、直ちに不正とは断定しない。
+1. **Domain 層の MongoDB 依存**
+   - `internal/domain/removal/removal_id.go:6`
+   - `internal/domain/tag/value_object.go:7`
+   - 対処: `bson.ObjectID` を domain から分離するか、Infrastructure 層で変換
 
-4. UseCase層が複数Applicationサービスを横断参照
-- 例: `internal/usecase/removal/service.go:7`
-- 影響: ユースケース境界の肥大化、責務重複の温床。
+2. **Interface middleware の MongoDB エラー型依存**
+   - `internal/interface/middleware/error.go:10`
+   - 対処: `mongo.WriteException` などを domain エラー型に変換するアダプターを追加
 
-5. `cmd/api` が `application` と `usecase` の両方を同時配線
-- `cmd/api/main.go:26`
-- 影響: 依存注入方針が不統一で、ポート境界の見通しが悪化。
+## 7. 次アクション
 
-## 7. 次アクション（#13 接続）
-
-- #13で上記候補を `High/Medium/Low` に優先度付けし、責務重複バックログへ昇格する。
-- 特に `Domain層のMongo依存` は最優先候補として切り出す。
+- Domain 層の MongoDB 依存を Medium 優先度として次 Milestone に設定する。
+- CI boundary-check が全て GREEN であることを継続的に確認する。
