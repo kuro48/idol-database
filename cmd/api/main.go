@@ -164,6 +164,19 @@ func main() {
 	router.Use(rateLimiter.Limit())
 
 	// ヘルスチェックエンドポイント
+	// liveness: プロセスが生きているかのみ確認（依存先チェックなし）
+	router.GET("/health/live", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+	// readiness: MongoDB疎通確認（依存先が利用可能か確認）
+	router.GET("/health/ready", func(c *gin.Context) {
+		if err := db.Ping(c.Request.Context()); err != nil {
+			c.JSON(503, gin.H{"status": "unavailable", "error": "database unreachable"})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+	// 後方互換のため /health も維持
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
