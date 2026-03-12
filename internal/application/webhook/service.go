@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -85,7 +86,16 @@ func (s *ApplicationService) Publish(ctx context.Context, event webhook.EventTyp
 		}
 
 		// 非同期で配信（コンテキストから独立させる）
-		go s.deliver(context.Background(), sub, delivery)
+		localSub := sub
+		localDelivery := delivery
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Webhook配信パニック回復 [subscription: %s]: %v", localSub.ID(), r)
+				}
+			}()
+			s.deliver(context.Background(), localSub, localDelivery)
+		}()
 	}
 
 	return nil
@@ -103,7 +113,16 @@ func (s *ApplicationService) RetryPendingDeliveries(ctx context.Context) error {
 		if err != nil || !sub.Active() {
 			continue
 		}
-		go s.deliver(context.Background(), sub, delivery)
+		localSub := sub
+		localDelivery := delivery
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Webhook配信パニック回復 [subscription: %s]: %v", localSub.ID(), r)
+				}
+			}()
+			s.deliver(context.Background(), localSub, localDelivery)
+		}()
 	}
 
 	return nil
