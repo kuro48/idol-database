@@ -3,23 +3,22 @@ package group
 import (
 	"context"
 
-	app "github.com/kuro48/idol-api/internal/application/group"
 	domain "github.com/kuro48/idol-api/internal/domain/group"
 )
 
 // Usecase はグループのユースケース
 type Usecase struct {
-	appService *app.ApplicationService
+	appService GroupAppPort
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(appService *app.ApplicationService) *Usecase {
+func NewUsecase(appService GroupAppPort) *Usecase {
 	return &Usecase{appService: appService}
 }
 
 // CreateGroup はグループを作成する
 func (u *Usecase) CreateGroup(ctx context.Context, cmd CreateGroupCommand) (*GroupDTO, error) {
-	entity, err := u.appService.CreateGroup(ctx, app.CreateInput{
+	entity, err := u.appService.CreateGroup(ctx, GroupCreateInput{
 		Name:          cmd.Name,
 		FormationDate: cmd.FormationDate,
 		DisbandDate:   cmd.DisbandDate,
@@ -61,7 +60,7 @@ func (u *Usecase) ListGroup(ctx context.Context, query ListGroupQuery) ([]*Group
 
 // UpdateGroup はグループを更新する
 func (u *Usecase) UpdateGroup(ctx context.Context, cmd UpdateGroupCommand) error {
-	return u.appService.UpdateGroup(ctx, app.UpdateInput{
+	return u.appService.UpdateGroup(ctx, GroupUpdateInput{
 		ID:            cmd.ID,
 		Name:          cmd.Name,
 		FormationDate: cmd.FormationDate,
