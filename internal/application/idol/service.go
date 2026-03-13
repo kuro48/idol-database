@@ -55,6 +55,11 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, input CreateInput) 
 		newIdol.UpdateAgency(input.AgencyID)
 	}
 
+	// 別名の設定
+	if len(input.Aliases) > 0 {
+		newIdol.SetAliases(input.Aliases)
+	}
+
 	// 保存
 	if err := s.repository.Save(ctx, newIdol); err != nil {
 		return nil, fmt.Errorf("アイドルの保存エラー: %w", err)
@@ -133,6 +138,10 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, input UpdateInput) 
 
 	if input.AgencyID != nil {
 		existingIdol.UpdateAgency(input.AgencyID)
+	}
+
+	if input.Aliases != nil {
+		existingIdol.SetAliases(input.Aliases)
 	}
 
 	// 更新の保存

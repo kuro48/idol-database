@@ -14,6 +14,7 @@ type Idol struct {
 	socialLinks *SocialLinks // SNS/外部リンク（オプショナル）
 	externalIDs *ExternalIDs // 外部サービスIDマッピング（オプショナル）
 	tagIDs      []string     // タグID一覧
+	aliases     []string     // 別名一覧（多言語・旧名）
 	createdAt   time.Time
 	updatedAt   time.Time
 }
@@ -42,6 +43,7 @@ func Reconstruct(
 	socialLinks *SocialLinks,
 	externalIDs *ExternalIDs,
 	tagIDs []string,
+	aliases []string,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Idol {
@@ -53,6 +55,7 @@ func Reconstruct(
 		socialLinks: socialLinks,
 		externalIDs: externalIDs,
 		tagIDs:      tagIDs,
+		aliases:     aliases,
 		createdAt:   createdAt,
 		updatedAt:   updatedAt,
 	}
@@ -89,6 +92,13 @@ func (i *Idol) ExternalIDs() *ExternalIDs {
 
 func (i *Idol) TagIDs() []string {
 	return i.tagIDs
+}
+
+func (i *Idol) Aliases() []string {
+	if i.aliases == nil {
+		return []string{}
+	}
+	return i.aliases
 }
 
 func (i *Idol) CreatedAt() time.Time {
@@ -162,6 +172,12 @@ func (i *Idol) RemoveTag(tagID string) {
 // SetTags はタグIDのリストを設定する
 func (i *Idol) SetTags(tagIDs []string) {
 	i.tagIDs = tagIDs
+	i.updatedAt = time.Now()
+}
+
+// SetAliases は別名一覧を設定する
+func (i *Idol) SetAliases(aliases []string) {
+	i.aliases = aliases
 	i.updatedAt = time.Now()
 }
 
