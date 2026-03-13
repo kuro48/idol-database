@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,19 +10,24 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	appExport "github.com/kuro48/idol-api/internal/application/export"
 	domainExport "github.com/kuro48/idol-api/internal/domain/export"
 	domainIdol "github.com/kuro48/idol-api/internal/domain/idol"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
+// exportService は ExportHandler が依存するサービス契約
+type exportService interface {
+	ExportIdols(ctx context.Context, format domainExport.ExportFormat, actor string) (*domainExport.ExportIdolsResult, error)
+	ListExportLogs(ctx context.Context, limit int) ([]*domainExport.ExportLog, error)
+}
+
 // ExportHandler はエクスポートハンドラー
 type ExportHandler struct {
-	appService *appExport.ApplicationService
+	appService exportService
 }
 
 // NewExportHandler はエクスポートハンドラーを作成する
-func NewExportHandler(appService *appExport.ApplicationService) *ExportHandler {
+func NewExportHandler(appService exportService) *ExportHandler {
 	return &ExportHandler{appService: appService}
 }
 
@@ -111,7 +117,7 @@ func (h *ExportHandler) ListExportLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": responses, "count": len(responses)})
 }
 
-func (h *ExportHandler) writeJSON(c *gin.Context, result *appExport.ExportIdolsResult) {
+func (h *ExportHandler) writeJSON(c *gin.Context, result *domainExport.ExportIdolsResult) {
 	records := idolsToExportRecords(result.Idols)
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="idols_%s.json"`, result.LogID))
 	c.Header("X-Export-Log-ID", result.LogID)
@@ -124,7 +130,7 @@ func (h *ExportHandler) writeJSON(c *gin.Context, result *appExport.ExportIdolsR
 	})
 }
 
-func (h *ExportHandler) writeJSONL(c *gin.Context, result *appExport.ExportIdolsResult) {
+func (h *ExportHandler) writeJSONL(c *gin.Context, result *domainExport.ExportIdolsResult) {
 	records := idolsToExportRecords(result.Idols)
 
 	var buf bytes.Buffer

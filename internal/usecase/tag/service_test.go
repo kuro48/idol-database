@@ -10,9 +10,43 @@ import (
 
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	domaintag "github.com/kuro48/idol-api/internal/domain/tag"
-	"github.com/kuro48/idol-api/internal/infrastructure/adapters"
 	ucTag "github.com/kuro48/idol-api/internal/usecase/tag"
 )
+
+// tagAppAdapter はテスト用の TagAppPort 実装。
+// appTag.ApplicationService を ucTag.TagAppPort に適合させる。
+type tagAppAdapter struct {
+	svc *appTag.ApplicationService
+}
+
+func (a *tagAppAdapter) CreateTag(ctx context.Context, input ucTag.TagCreateInput) (*domaintag.Tag, error) {
+	return a.svc.CreateTag(ctx, appTag.CreateInput{
+		Name:        input.Name,
+		Category:    input.Category,
+		Description: input.Description,
+	})
+}
+
+func (a *tagAppAdapter) UpdateTag(ctx context.Context, input ucTag.TagUpdateInput) error {
+	return a.svc.UpdateTag(ctx, appTag.UpdateInput{
+		ID:          input.ID,
+		Name:        input.Name,
+		Category:    input.Category,
+		Description: input.Description,
+	})
+}
+
+func (a *tagAppAdapter) DeleteTag(ctx context.Context, id string) error {
+	return a.svc.DeleteTag(ctx, id)
+}
+
+func (a *tagAppAdapter) GetTag(ctx context.Context, id string) (*domaintag.Tag, error) {
+	return a.svc.GetTag(ctx, id)
+}
+
+func (a *tagAppAdapter) SearchTags(ctx context.Context, criteria domaintag.SearchCriteria) ([]*domaintag.Tag, int64, error) {
+	return a.svc.SearchTags(ctx, criteria)
+}
 
 // inMemoryTagRepo はテスト用インメモリリポジトリ
 type inMemoryTagRepo struct {
@@ -94,7 +128,7 @@ func (r *inMemoryTagRepo) Restore(_ context.Context, id domaintag.TagID) error {
 func newTagUsecase() ucTag.TagUseCase {
 	repo := newInMemoryTagRepo()
 	appSvc := appTag.NewApplicationService(repo)
-	return ucTag.NewUsecase(adapters.NewTagAppAdapter(appSvc))
+	return ucTag.NewUsecase(&tagAppAdapter{svc: appSvc})
 }
 
 func TestCreateTag(t *testing.T) {

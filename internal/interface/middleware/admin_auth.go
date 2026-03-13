@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -39,7 +40,7 @@ func AdminAuth(adminAPIKey string) gin.HandlerFunc {
 		}
 
 		token := strings.TrimPrefix(authHeader, prefix)
-		if token != adminAPIKey {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(adminAPIKey)) != 1 {
 			c.JSON(http.StatusForbidden, NewForbiddenError())
 			c.Abort()
 			return

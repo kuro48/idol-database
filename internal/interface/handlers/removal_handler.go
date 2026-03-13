@@ -71,9 +71,8 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 // GetRemovalRequest は削除申請を取得する
 // GET /api/v1/removal-requests/:id
 func (h *RemovalHandler) GetRemovalRequest(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -123,9 +122,8 @@ func (h *RemovalHandler) ListPendingRemovalRequests(c *gin.Context) {
 // UpdateStatus はステータスを更新する（管理者用）
 // PUT /api/v1/removal-requests/:id
 func (h *RemovalHandler) UpdateStatus(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 

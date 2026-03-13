@@ -92,3 +92,12 @@ func docToExportLog(doc *exportLogDocument) *domainExport.ExportLog {
 	}
 	return log
 }
+
+// EnsureIndexes は export_logs コレクションに必要なインデックスを作成する
+func (r *ExportLogRepository) EnsureIndexes(ctx context.Context) error {
+	_, err := r.collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "executed_by", Value: 1}, {Key: "executed_at", Value: -1}}},
+		{Keys: bson.D{{Key: "executed_at", Value: -1}}},
+	})
+	return err
+}
