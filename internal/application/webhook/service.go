@@ -10,20 +10,25 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
-	"log"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/webhook"
 )
+
+// deliveryTimeout はWebhook配信の最大待ち時間
+const deliveryTimeout = 30 * time.Second
 
 // ApplicationService はWebhookアプリケーションサービス
 type ApplicationService struct {
 	subRepo      webhook.SubscriptionRepository
 	deliveryRepo webhook.DeliveryRepository
 	httpClient   *http.Client
+	wg           sync.WaitGroup
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
@@ -42,11 +47,15 @@ func NewApplicationServiceWithTimeout(subRepo webhook.SubscriptionRepository, de
 				if len(via) >= 3 {
 					return fmt.Errorf("リダイレクト回数の上限（3回）に達しました")
 				}
-				// リダイレクト先もSSRFチェック
 				return validateWebhookURL(req.URL.String())
 			},
 		},
 	}
+}
+
+// Shutdown はインフライトのWebhook配信がすべて完了するまで待機する
+func (s *ApplicationService) Shutdown() {
+	s.wg.Wait()
 }
 
 // CreateSubscriptionInput はWebhook購読作成入力
@@ -58,13 +67,19 @@ type CreateSubscriptionInput struct {
 
 // CreateSubscription はWebhook購読を作成する
 func (s *ApplicationService) CreateSubscription(ctx context.Context, input CreateSubscriptionInput) (*webhook.Subscription, error) {
-	// URLバリデーション（SSRF対策）
 	if err := validateWebhookURL(input.URL); err != nil {
 		return nil, err
 	}
 
-	id := generateID()
-	secret := generateSecret()
+	id, err := generateID()
+	if err != nil {
+		return nil, fmt.Errorf("サブスクリプションIDの生成エラー: %w", err)
+	}
+	secret, err := generateSecret()
+	if err != nil {
+		return nil, fmt.Errorf("シークレットの生成エラー: %w", err)
+	}
+
 	sub := webhook.NewSubscription(id, input.URL, secret, input.Events, input.CreatedBy)
 	if err := s.subRepo.Save(ctx, sub); err != nil {
 		return nil, fmt.Errorf("Webhook購読の保存エラー: %w", err)
@@ -99,21 +114,29 @@ func (s *ApplicationService) Publish(ctx context.Context, event webhook.EventTyp
 	}
 
 	for _, sub := range subs {
-		delivery := webhook.NewDelivery(generateID(), sub.ID(), event, payloadBytes)
+		deliveryID, err := generateID()
+		if err != nil {
+			slog.Error("配信IDの生成に失敗しました", "subscription_id", sub.ID(), "error", err)
+			continue
+		}
+		delivery := webhook.NewDelivery(deliveryID, sub.ID(), event, payloadBytes)
 		if err := s.deliveryRepo.Save(ctx, delivery); err != nil {
-			continue // 保存エラーでも他の購読者への配信は続ける
+			continue
 		}
 
-		// 非同期で配信（コンテキストから独立させる）
+		s.wg.Add(1)
 		localSub := sub
 		localDelivery := delivery
 		go func() {
+			defer s.wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					log.Printf("Webhook配信パニック回復 [subscription: %s]: %v", localSub.ID(), r)
+					slog.Error("Webhook配信パニック回復", "subscription_id", localSub.ID(), "panic", r)
 				}
 			}()
-			s.deliver(context.Background(), localSub, localDelivery)
+			deliverCtx, cancel := context.WithTimeout(context.Background(), deliveryTimeout)
+			defer cancel()
+			s.deliver(deliverCtx, localSub, localDelivery)
 		}()
 	}
 
@@ -132,15 +155,19 @@ func (s *ApplicationService) RetryPendingDeliveries(ctx context.Context) error {
 		if err != nil || !sub.Active() {
 			continue
 		}
+		s.wg.Add(1)
 		localSub := sub
 		localDelivery := delivery
 		go func() {
+			defer s.wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					log.Printf("Webhook配信パニック回復 [subscription: %s]: %v", localSub.ID(), r)
+					slog.Error("Webhook配信パニック回復", "subscription_id", localSub.ID(), "panic", r)
 				}
 			}()
-			s.deliver(context.Background(), localSub, localDelivery)
+			deliverCtx, cancel := context.WithTimeout(context.Background(), deliveryTimeout)
+			defer cancel()
+			s.deliver(deliverCtx, localSub, localDelivery)
 		}()
 	}
 
@@ -154,7 +181,9 @@ func (s *ApplicationService) deliver(ctx context.Context, sub *webhook.Subscript
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sub.URL(), bytes.NewReader(delivery.Payload()))
 	if err != nil {
 		delivery.MarkFailed(nil, err.Error())
-		_ = s.deliveryRepo.Update(ctx, delivery)
+		if updateErr := s.deliveryRepo.Update(ctx, delivery); updateErr != nil {
+			slog.Error("配信失敗状態の更新に失敗しました", "delivery_id", delivery.ID(), "error", updateErr)
+		}
 		return
 	}
 
@@ -166,7 +195,9 @@ func (s *ApplicationService) deliver(ctx context.Context, sub *webhook.Subscript
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		delivery.MarkFailed(nil, err.Error())
-		_ = s.deliveryRepo.Update(ctx, delivery)
+		if updateErr := s.deliveryRepo.Update(ctx, delivery); updateErr != nil {
+			slog.Error("配信失敗状態の更新に失敗しました", "delivery_id", delivery.ID(), "error", updateErr)
+		}
 		return
 	}
 	defer resp.Body.Close()
@@ -177,7 +208,9 @@ func (s *ApplicationService) deliver(ctx context.Context, sub *webhook.Subscript
 		delivery.MarkFailed(&resp.StatusCode, fmt.Sprintf("HTTP %d", resp.StatusCode))
 	}
 
-	_ = s.deliveryRepo.Update(ctx, delivery)
+	if updateErr := s.deliveryRepo.Update(ctx, delivery); updateErr != nil {
+		slog.Error("配信状態の更新に失敗しました", "delivery_id", delivery.ID(), "error", updateErr)
+	}
 }
 
 // validateWebhookURL はWebhookURLのSSRF対策バリデーションを行う
@@ -187,19 +220,22 @@ func validateWebhookURL(rawURL string) error {
 		return fmt.Errorf("無効なURL形式です: %w", err)
 	}
 
-	// httpsのみ許可
 	if parsed.Scheme != "https" {
 		return fmt.Errorf("WebhookURLはhttpsスキームのみ使用できます")
 	}
 
-	// ホスト名の解決とプライベートIPチェック
+	// 認証情報の埋め込みを禁止（SSRF拡大リスク）
+	if parsed.User != nil {
+		return fmt.Errorf("WebhookURLに認証情報を含めることはできません")
+	}
+
 	host := parsed.Hostname()
 	if host == "" {
 		return fmt.Errorf("URLにホスト名が必要です")
 	}
 
-	// ループバックアドレスの拒否
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+	// ループバックアドレスの拒否（IPv4 / IPv6）
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" {
 		return fmt.Errorf("ループバックアドレスへのWebhookは許可されていません")
 	}
 
@@ -211,8 +247,8 @@ func validateWebhookURL(rawURL string) error {
 			if ip == nil {
 				continue
 			}
-			if isPrivateIP(ip) {
-				return fmt.Errorf("プライベートIPアドレスへのWebhookは許可されていません")
+			if ip.IsLoopback() || ip.IsLinkLocalUnicast() || isPrivateIP(ip) {
+				return fmt.Errorf("プライベート/ループバックIPアドレスへのWebhookは許可されていません")
 			}
 		}
 	}
@@ -226,9 +262,9 @@ func isPrivateIP(ip net.IP) bool {
 		"10.0.0.0/8",
 		"172.16.0.0/12",
 		"192.168.0.0/16",
-		"169.254.0.0/16", // リンクローカル
-		"fc00::/7",       // IPv6 ユニークローカル
-		"fe80::/10",      // IPv6 リンクローカル
+		"169.254.0.0/16",
+		"fc00::/7",
+		"fe80::/10",
 	}
 	for _, cidr := range privateRanges {
 		_, network, err := net.ParseCIDR(cidr)
@@ -270,14 +306,18 @@ func (s *ApplicationService) VerifyWebhookRequest(ctx context.Context, subscript
 	return nil
 }
 
-func generateID() string {
+func generateID() (string, error) {
 	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("乱数生成エラー: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
 
-func generateSecret() string {
+func generateSecret() (string, error) {
 	b := make([]byte, 32)
-	rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("乱数生成エラー: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }

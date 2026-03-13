@@ -87,9 +87,8 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 // @Failure      404 {object} middleware.ErrorResponse
 // @Router       /idols/{id} [get]
 func (h *IdolHandler) GetIdol(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -166,9 +165,8 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 // @Failure      500 {object} middleware.ErrorResponse
 // @Router       /idols/{id} [put]
 func (h *IdolHandler) UpdateIdol(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -207,9 +205,8 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 // @Failure      500 {object} middleware.ErrorResponse
 // @Router       /idols/{id} [delete]
 func (h *IdolHandler) DeleteIdol(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -235,9 +232,8 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 // @Failure      500 {object} middleware.ErrorResponse
 // @Router       /idols/{id}/restore [put]
 func (h *IdolHandler) RestoreIdol(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDが必要です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -261,9 +257,8 @@ func (h *IdolHandler) RestoreIdol(c *gin.Context) {
 // @Failure      400 {object} middleware.ErrorResponse
 // @Router       /idols/{id}/social-links [put]
 func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -295,9 +290,8 @@ func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
 // @Failure      500 {object} middleware.ErrorResponse
 // @Router       /idols/{id}/duplicate-candidates [get]
 func (h *IdolHandler) GetDuplicateCandidates(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 

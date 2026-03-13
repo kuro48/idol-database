@@ -103,9 +103,10 @@ func TestApplicationService_GetJobStatus(t *testing.T) {
 		dto, err := svc.GetJobStatus(context.Background(), "job-123")
 
 		require.NoError(t, err)
-		assert.Equal(t, "job-123", dto.ID)
-		assert.Equal(t, string(domainJob.JobStatusPending), dto.Status)
-		assert.Equal(t, string(domainJob.JobTypeBulkImport), dto.JobType)
+		require.NotNil(t, dto)
+		assert.Equal(t, "job-123", dto.ID())
+		assert.Equal(t, domainJob.JobStatusPending, dto.Status())
+		assert.Equal(t, domainJob.JobTypeBulkImport, dto.JobType())
 	})
 
 	t.Run("存在しないジョブはエラーを返す", func(t *testing.T) {
@@ -130,11 +131,12 @@ func TestApplicationService_GetJobStatus(t *testing.T) {
 		dto, err := svc.GetJobStatus(context.Background(), "job-456")
 
 		require.NoError(t, err)
-		assert.Equal(t, string(domainJob.JobStatusCompleted), dto.Status)
-		require.NotNil(t, dto.Result)
-		assert.Contains(t, *dto.Result, "processed")
-		assert.NotNil(t, dto.StartedAt)
-		assert.NotNil(t, dto.CompletedAt)
+		require.NotNil(t, dto)
+		assert.Equal(t, domainJob.JobStatusCompleted, dto.Status())
+		assert.NotEmpty(t, dto.Result())
+		assert.Contains(t, string(dto.Result()), "processed")
+		assert.NotNil(t, dto.StartedAt())
+		assert.NotNil(t, dto.CompletedAt())
 	})
 }
 

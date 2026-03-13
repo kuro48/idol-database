@@ -63,9 +63,8 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 // @Failure      404 {object} middleware.ErrorResponse
 // @Router       /tags/{id} [get]
 func (h *TagHandler) GetTag(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -138,9 +137,8 @@ func (h *TagHandler) ListTags(c *gin.Context) {
 // @Failure      500 {object} middleware.ErrorResponse
 // @Router       /tags/{id} [put]
 func (h *TagHandler) UpdateTag(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -176,9 +174,8 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 // @Failure      500 {object} middleware.ErrorResponse
 // @Router       /tags/{id} [delete]
 func (h *TagHandler) DeleteTag(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 

@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	appJob "github.com/kuro48/idol-api/internal/application/job"
 	domainJob "github.com/kuro48/idol-api/internal/domain/job"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/stretchr/testify/assert"
@@ -31,12 +30,12 @@ func (m *MockJobService) EnqueueBulkImport(ctx context.Context, payload []byte) 
 	return args.Get(0).(*domainJob.Job), args.Error(1)
 }
 
-func (m *MockJobService) GetJobStatus(ctx context.Context, id string) (*appJob.JobStatusDTO, error) {
+func (m *MockJobService) GetJobStatus(ctx context.Context, id string) (*domainJob.Job, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*appJob.JobStatusDTO), args.Error(1)
+	return args.Get(0).(*domainJob.Job), args.Error(1)
 }
 
 func (m *MockJobService) RetryJob(ctx context.Context, id string) (*domainJob.Job, error) {
@@ -148,12 +147,8 @@ func TestJobHandler_EnqueueBulkImport(t *testing.T) {
 func TestJobHandler_GetJobStatus(t *testing.T) {
 	t.Run("存在するジョブのステータスを200で返す", func(t *testing.T) {
 		svc := new(MockJobService)
-		dto := &appJob.JobStatusDTO{
-			ID:      "job-001",
-			JobType: string(domainJob.JobTypeBulkImport),
-			Status:  string(domainJob.JobStatusPending),
-		}
-		svc.On("GetJobStatus", mock.Anything, "job-001").Return(dto, nil)
+		j := newTestJob("job-001")
+		svc.On("GetJobStatus", mock.Anything, "job-001").Return(j, nil)
 
 		h := handlers.NewJobHandler(svc)
 		router := setupJobRouter(h)
@@ -164,10 +159,10 @@ func TestJobHandler_GetJobStatus(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var resp appJob.JobStatusDTO
+		var resp map[string]interface{}
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-		assert.Equal(t, "job-001", resp.ID)
-		assert.Equal(t, "pending", resp.Status)
+		assert.Equal(t, "job-001", resp["id"])
+		assert.Equal(t, "pending", resp["status"])
 	})
 
 	t.Run("存在しないジョブは500を返す（エラー伝播）", func(t *testing.T) {

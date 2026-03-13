@@ -8,30 +8,48 @@ import (
 	domainAnalytics "github.com/kuro48/idol-api/internal/domain/analytics"
 )
 
+// maxConcurrentSaves はAPI利用記録の最大同時保存数
+const maxConcurrentSaves = 50
+
+// recordSaveTimeout はAPI利用記録保存のタイムアウト
+const recordSaveTimeout = 5 * time.Second
+
 // ApplicationService はAPI利用分析のアプリケーションサービス
 type ApplicationService struct {
 	repo domainAnalytics.UsageRepository
+	sem  chan struct{}
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
 func NewApplicationService(repo domainAnalytics.UsageRepository) *ApplicationService {
-	return &ApplicationService{repo: repo}
+	return &ApplicationService{
+		repo: repo,
+		sem:  make(chan struct{}, maxConcurrentSaves),
+	}
 }
 
-// RecordUsage はAPI利用記録を保存する（非ブロッキング）
+// RecordUsage はAPI利用記録を保存する（非ブロッキング、上限超過時はドロップ）
 func (s *ApplicationService) RecordUsage(ctx context.Context, record *domainAnalytics.APIUsageRecord) {
-	// リクエストcontextからvalueを引き継ぎつつ、タイムアウトは独立させる
-	saveCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	go func() {
-		defer cancel()
-		if err := s.repo.Save(saveCtx, record); err != nil {
-			slog.Error("API利用記録の保存に失敗しました",
-				"error", err,
-				"endpoint", record.Endpoint,
-				"method", record.Method,
-			)
-		}
-	}()
+	select {
+	case s.sem <- struct{}{}:
+		go func() {
+			defer func() { <-s.sem }()
+			saveCtx, cancel := context.WithTimeout(context.Background(), recordSaveTimeout)
+			defer cancel()
+			if err := s.repo.Save(saveCtx, record); err != nil {
+				slog.Error("API利用記録の保存に失敗しました",
+					"error", err,
+					"endpoint", record.Endpoint,
+					"method", record.Method,
+				)
+			}
+		}()
+	default:
+		slog.Warn("API利用記録をスキップします（同時保存数上限）",
+			"endpoint", record.Endpoint,
+			"method", record.Method,
+		)
+	}
 }
 
 // GetUsageSummary はAPIキー単位の利用サマリーを取得する

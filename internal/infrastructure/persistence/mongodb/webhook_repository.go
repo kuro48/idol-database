@@ -231,3 +231,21 @@ func docToDelivery(doc *deliveryDocument) *webhook.Delivery {
 	_ = fmt.Sprintf("restored delivery %s", d.ID()) // suppress unused warning
 	return d
 }
+
+// EnsureIndexes は webhook_subscriptions コレクションに必要なインデックスを作成する
+func (r *WebhookSubscriptionRepository) EnsureIndexes(ctx context.Context) error {
+	_, err := r.collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "active", Value: 1}, {Key: "events", Value: 1}}},
+		{Keys: bson.D{{Key: "created_at", Value: -1}}},
+	})
+	return err
+}
+
+// EnsureIndexes は webhook_deliveries コレクションに必要なインデックスを作成する
+func (r *WebhookDeliveryRepository) EnsureIndexes(ctx context.Context) error {
+	_, err := r.collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "next_retry_at", Value: 1}}},
+		{Keys: bson.D{{Key: "subscription_id", Value: 1}}},
+	})
+	return err
+}
