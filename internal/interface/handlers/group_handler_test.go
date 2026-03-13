@@ -37,12 +37,12 @@ func (m *MockGroupUseCase) GetGroup(ctx context.Context, query group.GetGroupQue
 	return args.Get(0).(*group.GroupDTO), args.Error(1)
 }
 
-func (m *MockGroupUseCase) ListGroup(ctx context.Context, query group.ListGroupQuery) ([]*group.GroupDTO, error) {
+func (m *MockGroupUseCase) ListGroup(ctx context.Context, query group.ListGroupQuery) (*group.GroupSearchResult, error) {
 	args := m.Called(ctx, query)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*group.GroupDTO), args.Error(1)
+	return args.Get(0).(*group.GroupSearchResult), args.Error(1)
 }
 
 func (m *MockGroupUseCase) UpdateGroup(ctx context.Context, cmd group.UpdateGroupCommand) error {
@@ -156,11 +156,13 @@ func TestGetGroup_NotFound(t *testing.T) {
 
 func TestListGroup_Success(t *testing.T) {
 	mockUC := new(MockGroupUseCase)
-	dtos := []*group.GroupDTO{
-		{ID: "abc123", Name: "グループA"},
-		{ID: "def456", Name: "グループB"},
+	result := &group.GroupSearchResult{
+		Data: []*group.GroupDTO{
+			{ID: "abc123", Name: "グループA"},
+			{ID: "def456", Name: "グループB"},
+		},
 	}
-	mockUC.On("ListGroup", mock.Anything, mock.Anything).Return(dtos, nil)
+	mockUC.On("ListGroup", mock.Anything, mock.Anything).Return(result, nil)
 
 	router := setupGroupRouter(mockUC)
 	req := httptest.NewRequest(http.MethodGet, "/groups", nil)
@@ -173,8 +175,8 @@ func TestListGroup_Success(t *testing.T) {
 
 func TestListGroup_Empty(t *testing.T) {
 	mockUC := new(MockGroupUseCase)
-	dtos := []*group.GroupDTO{}
-	mockUC.On("ListGroup", mock.Anything, mock.Anything).Return(dtos, nil)
+	result := &group.GroupSearchResult{Data: []*group.GroupDTO{}}
+	mockUC.On("ListGroup", mock.Anything, mock.Anything).Return(result, nil)
 
 	router := setupGroupRouter(mockUC)
 	req := httptest.NewRequest(http.MethodGet, "/groups", nil)
