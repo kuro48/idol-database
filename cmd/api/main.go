@@ -26,10 +26,12 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	appAgency "github.com/kuro48/idol-api/internal/application/agency"
+	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
 	appEvent "github.com/kuro48/idol-api/internal/application/event"
 	appExport "github.com/kuro48/idol-api/internal/application/export"
 	appGroup "github.com/kuro48/idol-api/internal/application/group"
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
+	appJob "github.com/kuro48/idol-api/internal/application/job"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
@@ -86,6 +88,8 @@ func main() {
 	webhookSubRepo := mongodb.NewWebhookSubscriptionRepository(db.Database)
 	webhookDelRepo := mongodb.NewWebhookDeliveryRepository(db.Database)
 	exportLogRepo := mongodb.NewExportLogRepository(db.Database)
+	analyticsRepo := mongodb.NewAnalyticsRepository(db.Database)
+	jobRepo := mongodb.NewJobRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -114,8 +118,20 @@ func main() {
 	} else {
 		slog.Info("Agencyインデックス作成完了", "collection", "agencies")
 	}
+	if err := analyticsRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Analyticsインデックス作成失敗（続行）", "error", err, "collection", "api_usage_logs")
+	} else {
+		slog.Info("Analyticsインデックス作成完了", "collection", "api_usage_logs")
+	}
+	if err := jobRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Jobインデックス作成失敗（続行）", "error", err, "collection", "async_jobs")
+	} else {
+		slog.Info("Jobインデックス作成完了", "collection", "async_jobs")
+	}
 
 	// アプリケーション層: アプリケーションサービス
+	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
+	jobAppService := appJob.NewApplicationService(jobRepo)
 	idolAppService := appIdol.NewApplicationService(idolRepo)
 	removalAppService := appRemoval.NewApplicationService(removalRepo)
 	groupAppService := appGroup.NewApplicationService(groupRepo)
@@ -145,6 +161,8 @@ func main() {
 	tagUsecase := usecaseTag.NewUsecase(tagAppPort)
 
 	// プレゼンテーション層: ハンドラー
+	analyticsHandler := handlers.NewAnalyticsHandler(analyticsAppService)
+	jobHandler := handlers.NewJobHandler(jobAppService)
 	idolHandler := handlers.NewIdolHandler(idolUsecase)
 	removalHandler := handlers.NewRemovalHandler(removalUsecase)
 	groupHandler := handlers.NewGroupHandler(groupUsecase)
@@ -179,6 +197,7 @@ func main() {
 	router.Use(middleware.Logger())              // 構造化ログ
 	router.Use(middleware.ErrorHandler())        // エラーハンドリング
 	router.Use(middleware.AuditContext())        // 監査コンテキスト（作成者・ソース追跡）
+	router.Use(middleware.UsageTrackerMiddleware(analyticsAppService)) // API利用トラッキング
 
 	// CORS設定（CORS_ALLOWED_ORIGINS 環境変数で制御）
 	corsOrigins := strings.Split(cfg.CORSAllowedOrigins, ",")
@@ -265,6 +284,20 @@ func main() {
 		{
 			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                          // アイドル復元
 			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates)  // 重複候補取得
+		}
+
+		// API利用分析（admin スコープ必須）
+		adminAnalytics := v1.Group("/admin/analytics", adminAuth)
+		{
+			adminAnalytics.GET("/usage", analyticsHandler.GetUsageSummary) // API利用サマリー取得
+		}
+
+		// 非同期ジョブ管理（admin スコープ必須）
+		adminJobs := v1.Group("/admin/jobs", adminAuth)
+		{
+			adminJobs.POST("/bulk-import", jobHandler.EnqueueBulkImport) // バルクインポートジョブ作成
+			adminJobs.GET("/:id", jobHandler.GetJobStatus)               // ジョブステータス取得
+			adminJobs.POST("/:id/retry", jobHandler.RetryJob)            // ジョブリトライ
 		}
 
 		// Webhook管理（admin スコープ必須）

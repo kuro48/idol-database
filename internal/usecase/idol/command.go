@@ -5,6 +5,7 @@ type CreateIdolCommand struct {
 	Name      string
 	Birthdate *string
 	AgencyID  *string
+	Aliases   []string
 }
 
 // UpdateIdolCommand はアイドル更新コマンド
@@ -13,6 +14,7 @@ type UpdateIdolCommand struct {
 	Name      *string
 	Birthdate *string
 	AgencyID  *string
+	Aliases   []string
 }
 
 // DeleteIdolCommand はアイドル削除コマンド

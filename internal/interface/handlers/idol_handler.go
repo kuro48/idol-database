@@ -22,16 +22,18 @@ func NewIdolHandler(usecase idol.IdolUseCase) *IdolHandler {
 
 // CreateIdolRequest はアイドル作成リクエスト
 type CreateIdolRequest struct {
-	Name      string  `json:"name" binding:"required,min=1,max=100"`
-	Birthdate string  `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
-	AgencyID  *string `json:"agency_id" binding:"omitempty"`
+	Name      string   `json:"name" binding:"required,min=1,max=100"`
+	Birthdate string   `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
+	AgencyID  *string  `json:"agency_id" binding:"omitempty"`
+	Aliases   []string `json:"aliases" binding:"omitempty"`
 }
 
 // UpdateIdolRequest はアイドル更新リクエスト
 type UpdateIdolRequest struct {
-	Name      *string `json:"name" binding:"omitempty,min=1,max=100"`
-	Birthdate *string `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
-	AgencyID  *string `json:"agency_id" binding:"omitempty"`
+	Name      *string  `json:"name" binding:"omitempty,min=1,max=100"`
+	Birthdate *string  `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
+	AgencyID  *string  `json:"agency_id" binding:"omitempty"`
+	Aliases   []string `json:"aliases" binding:"omitempty"`
 }
 
 // CreateIdol はアイドルを作成する
@@ -60,6 +62,7 @@ func (h *IdolHandler) CreateIdol(c *gin.Context) {
 		Name:      req.Name,
 		Birthdate: birthdate,
 		AgencyID:  req.AgencyID,
+		Aliases:   req.Aliases,
 	}
 
 	dto, err := h.usecase.CreateIdol(middleware.AuditContextFor(c), cmd)
@@ -180,6 +183,7 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 		Name:      req.Name,
 		Birthdate: req.Birthdate,
 		AgencyID:  req.AgencyID,
+		Aliases:   req.Aliases,
 	}
 
 	err := h.usecase.UpdateIdol(middleware.AuditContextFor(c), cmd)

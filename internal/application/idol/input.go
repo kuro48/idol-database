@@ -6,6 +6,7 @@ type CreateInput struct {
 	Name      string
 	Birthdate *string
 	AgencyID  *string
+	Aliases   []string
 }
 
 // UpdateInput はアイドル更新の入力
@@ -14,6 +15,7 @@ type UpdateInput struct {
 	Name      *string
 	Birthdate *string
 	AgencyID  *string
+	Aliases   []string
 }
 
 // UpdateSocialLinksInput はSNS/外部リンク更新の入力
