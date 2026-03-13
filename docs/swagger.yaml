@@ -125,10 +125,45 @@ definitions:
     required:
     - idols
     type: object
+  handlers.BulkImportItem:
+    properties:
+      agency_id:
+        type: string
+      aliases:
+        items:
+          type: string
+        type: array
+      birthdate:
+        description: YYYY-MM-DD
+        type: string
+      name:
+        type: string
+      tag_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - name
+    type: object
+  handlers.BulkImportRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handlers.BulkImportItem'
+        maxItems: 1000
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
   handlers.CreateIdolRequest:
     properties:
       agency_id:
         type: string
+      aliases:
+        items:
+          type: string
+        type: array
       birthdate:
         type: string
       name:
@@ -150,6 +185,27 @@ definitions:
     required:
     - events
     - url
+    type: object
+  handlers.JobStatusDTO:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      error_msg:
+        type: string
+      id:
+        type: string
+      job_type:
+        type: string
+      result:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
     type: object
   handlers.SubscriptionResponse:
     properties:
@@ -184,6 +240,10 @@ definitions:
     properties:
       agency_id:
         type: string
+      aliases:
+        items:
+          type: string
+        type: array
       birthdate:
         type: string
       name:
@@ -232,6 +292,11 @@ definitions:
         description: include=agency時に展開
       agency_id:
         type: string
+      aliases:
+        description: 別名一覧（多言語・旧名）
+        items:
+          type: string
+        type: array
       birthdate:
         type: string
       created_at:
@@ -417,6 +482,34 @@ info:
   title: Idol API
   version: "1.0"
 paths:
+  /admin/analytics/usage:
+    get:
+      description: APIキー単位のAPI利用統計を返す（管理者専用）
+      parameters:
+      - default: 7
+        description: 集計期間（日数、デフォルト7、最大90）
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: API利用サマリー取得
+      tags:
+      - admin
   /admin/export/idols:
     get:
       description: 全アイドルデータをJSON/JSONL形式でエクスポートする（管理者専用、レート制限あり）
@@ -458,6 +551,100 @@ paths:
       summary: エクスポート実行履歴
       tags:
       - export
+  /admin/jobs/{id}:
+    get:
+      description: 指定したジョブのステータスと結果を返す（管理者専用）
+      parameters:
+      - description: ジョブID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.JobStatusDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: ジョブステータス取得
+      tags:
+      - admin
+  /admin/jobs/{id}/retry:
+    post:
+      description: 失敗したジョブを再実行する（管理者専用）
+      parameters:
+      - description: ジョブID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: ジョブリトライ
+      tags:
+      - admin
+  /admin/jobs/bulk-import:
+    post:
+      consumes:
+      - application/json
+      description: バルクインポートを非同期で実行するジョブをキューに追加する（管理者専用）
+      parameters:
+      - description: インポートデータ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BulkImportRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: バルクインポートジョブ作成
+      tags:
+      - admin
   /admin/webhooks:
     get:
       description: Webhook購読一覧を返す（管理者専用）

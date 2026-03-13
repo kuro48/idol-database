@@ -62,9 +62,8 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 // @Failure      404 {object} middleware.ErrorResponse
 // @Router       /events/{id} [get]
 func (h *EventHandler) GetEvent(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -131,9 +130,8 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 
 // UpdateEvent はイベントを更新する
 func (h *EventHandler) UpdateEvent(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -159,9 +157,8 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 
 // DeleteEvent はイベントを削除する
 func (h *EventHandler) DeleteEvent(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -181,9 +178,8 @@ func (h *EventHandler) DeleteEvent(c *gin.Context) {
 
 // AddPerformer はイベントにパフォーマーを追加する
 func (h *EventHandler) AddPerformer(c *gin.Context) {
-	eventID := c.Param("id")
-	if eventID == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("イベントIDは必須です"))
+	eventID, ok := getPathID(c)
+	if !ok {
 		return
 	}
 

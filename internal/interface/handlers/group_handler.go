@@ -56,9 +56,8 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 }
 
 func (h *GroupHandler) GetGroup(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -92,9 +91,8 @@ func (h *GroupHandler) ListGroup(c *gin.Context) {
 }
 
 func (h *GroupHandler) UpdateGroup(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -125,9 +123,8 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 
 // DeleteGroup はグループを削除する
 func (h *GroupHandler) DeleteGroup(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 

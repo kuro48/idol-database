@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -58,23 +59,29 @@ func ScopeAuth(required Scope, cfg APIKeyConfig) gin.HandlerFunc {
 
 // isAuthorized はトークンが必要スコープを持つか検証する
 // スコープ階層: admin ⊇ write
+// タイミング攻撃対策のため subtle.ConstantTimeCompare を使用する
 func isAuthorized(token string, required Scope, cfg APIKeyConfig) bool {
 	switch required {
 	case ScopeAdmin:
 		// admin スコープは AdminAPIKey のみ許可
-		return cfg.AdminAPIKey != "" && token == cfg.AdminAPIKey
+		return cfg.AdminAPIKey != "" && constantTimeEqual(token, cfg.AdminAPIKey)
 	case ScopeWrite:
 		// write スコープは WriteAPIKey または AdminAPIKey を許可
-		if cfg.WriteAPIKey != "" && token == cfg.WriteAPIKey {
+		if cfg.WriteAPIKey != "" && constantTimeEqual(token, cfg.WriteAPIKey) {
 			return true
 		}
-		if cfg.AdminAPIKey != "" && token == cfg.AdminAPIKey {
+		if cfg.AdminAPIKey != "" && constantTimeEqual(token, cfg.AdminAPIKey) {
 			return true
 		}
 		return false
 	default:
 		return false
 	}
+}
+
+// constantTimeEqual は長さが異なる場合もタイミングが一定な文字列比較を行う
+func constantTimeEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
 // WriteAuth は write スコープ認証ミドルウェアを返す

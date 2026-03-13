@@ -20,8 +20,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -36,7 +40,7 @@ import (
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
-	"github.com/kuro48/idol-api/internal/infrastructure/adapters"
+	"github.com/kuro48/idol-api/cmd/api/adapters"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
@@ -128,6 +132,26 @@ func main() {
 	} else {
 		slog.Info("Jobインデックス作成完了", "collection", "async_jobs")
 	}
+	if err := removalRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Removalインデックス作成失敗（続行）", "error", err, "collection", "removal_requests")
+	} else {
+		slog.Info("Removalインデックス作成完了", "collection", "removal_requests")
+	}
+	if err := webhookSubRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("WebhookSubインデックス作成失敗（続行）", "error", err, "collection", "webhook_subscriptions")
+	} else {
+		slog.Info("WebhookSubインデックス作成完了", "collection", "webhook_subscriptions")
+	}
+	if err := webhookDelRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("WebhookDelインデックス作成失敗（続行）", "error", err, "collection", "webhook_delivery_logs")
+	} else {
+		slog.Info("WebhookDelインデックス作成完了", "collection", "webhook_delivery_logs")
+	}
+	if err := exportLogRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("ExportLogインデックス作成失敗（続行）", "error", err, "collection", "export_logs")
+	} else {
+		slog.Info("ExportLogインデックス作成完了", "collection", "export_logs")
+	}
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
@@ -140,6 +164,11 @@ func main() {
 	tagAppService := appTag.NewApplicationService(tagRepo)
 	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
 	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
+
+	// 起動時に RUNNING 状態で止まっているジョブを PENDING に戻す
+	if err := jobAppService.RecoverStuckJobs(ctx); err != nil {
+		slog.Warn("スタックジョブのリカバリ失敗（続行）", "error", err)
+	}
 
 	// アダプター層: application サービスを usecase output port に適合させる
 	idolAppPort := adapters.NewIdolAppAdapter(idolAppService)
@@ -170,7 +199,7 @@ func main() {
 	eventHandler := handlers.NewEventHandler(eventUsecase)
 	tagHandler := handlers.NewTagHandler(tagUsecase)
 	termHandler := handlers.NewTermHandler("./static")
-	webhookHandler := handlers.NewWebhookHandler(webhookAppService)
+	webhookHandler := handlers.NewWebhookHandler(adapters.NewWebhookAppAdapter(webhookAppService))
 	exportHandler := handlers.NewExportHandler(exportAppService)
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
@@ -238,8 +267,10 @@ func main() {
 		})
 	})
 
-	// Swagger UI
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger UI（本番環境では無効化）
+	if cfg.GinMode != gin.ReleaseMode {
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	// APIキー設定
 	apiKeyCfg := middleware.APIKeyConfig{
@@ -380,11 +411,36 @@ func main() {
 		}
 	}
 
-	// サーバー起動
+	// サーバー起動（グレースフルシャットダウン対応）
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
-	slog.Info("サーバーを起動します", "address", addr, "architecture", "DDD")
-	if err := router.Run(addr); err != nil {
-		slog.Error("サーバー起動エラー", "error", err)
-		os.Exit(1)
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: router,
 	}
+
+	slog.Info("サーバーを起動します", "address", addr, "architecture", "DDD")
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("サーバー起動エラー", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// SIGTERM/SIGINT を待機
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	slog.Info("シャットダウン開始...")
+
+	// インフライトの非同期処理が完了するまで待機
+	webhookAppService.Shutdown()
+	jobAppService.Shutdown()
+
+	// HTTP サーバーを 30 秒以内にシャットダウン
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("HTTPシャットダウンエラー", "error", err)
+	}
+	slog.Info("サーバーを正常に停止しました")
 }
