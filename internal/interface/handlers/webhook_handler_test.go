@@ -84,13 +84,34 @@ func computeTestSignature(secret string, payload []byte) string {
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
 
+// webhookAppAdapter は appWebhook.ApplicationService をテスト用に handlers.webhookService へ適合させる
+type webhookAppAdapter struct {
+	svc *appWebhook.ApplicationService
+}
+
+func (a *webhookAppAdapter) CreateSubscription(ctx context.Context, url string, events []webhook.EventType, createdBy string) (*webhook.Subscription, error) {
+	return a.svc.CreateSubscription(ctx, appWebhook.CreateSubscriptionInput{URL: url, Events: events, CreatedBy: createdBy})
+}
+
+func (a *webhookAppAdapter) ListSubscriptions(ctx context.Context) ([]*webhook.Subscription, error) {
+	return a.svc.ListSubscriptions(ctx)
+}
+
+func (a *webhookAppAdapter) DeleteSubscription(ctx context.Context, id string) error {
+	return a.svc.DeleteSubscription(ctx, id)
+}
+
+func (a *webhookAppAdapter) VerifyWebhookRequest(ctx context.Context, subscriptionID, signature string, payload []byte) error {
+	return a.svc.VerifyWebhookRequest(ctx, subscriptionID, signature, payload)
+}
+
 func setupTestRouter() (*gin.Engine, *stubSubscriptionRepo) {
 	gin.SetMode(gin.TestMode)
 
 	subRepo := newStubSubscriptionRepo()
 	deliveryRepo := &stubDeliveryRepo{}
 	appService := appWebhook.NewApplicationService(subRepo, deliveryRepo)
-	h := handlers.NewWebhookHandler(appService)
+	h := handlers.NewWebhookHandler(&webhookAppAdapter{svc: appService})
 
 	router := gin.New()
 	router.POST("/api/v1/webhooks/receive/:subscription_id", h.ReceiveWebhook)

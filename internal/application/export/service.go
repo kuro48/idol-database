@@ -10,7 +10,6 @@ import (
 
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	domainExport "github.com/kuro48/idol-api/internal/domain/export"
-	domainIdol "github.com/kuro48/idol-api/internal/domain/idol"
 )
 
 // rateLimitDuration はエクスポートのレート制限間隔（同一アクターは1分に1回まで）
@@ -27,15 +26,8 @@ func NewApplicationService(logRepo domainExport.LogRepository, idolApp *appIdol.
 	return &ApplicationService{logRepo: logRepo, idolApp: idolApp}
 }
 
-// ExportIdolsResult はアイドルエクスポート結果
-type ExportIdolsResult struct {
-	Idols  []*domainIdol.Idol
-	Format domainExport.ExportFormat
-	LogID  string
-}
-
 // ExportIdols はアイドル一覧をエクスポートする
-func (s *ApplicationService) ExportIdols(ctx context.Context, format domainExport.ExportFormat, actor string) (*ExportIdolsResult, error) {
+func (s *ApplicationService) ExportIdols(ctx context.Context, format domainExport.ExportFormat, actor string) (*domainExport.ExportIdolsResult, error) {
 	// レート制限チェック
 	since := time.Now().Add(-rateLimitDuration)
 	lastLog, err := s.logRepo.FindLastByActor(ctx, actor, since)
@@ -69,7 +61,7 @@ func (s *ApplicationService) ExportIdols(ctx context.Context, format domainExpor
 		_ = err
 	}
 
-	return &ExportIdolsResult{
+	return &domainExport.ExportIdolsResult{
 		Idols:  idols,
 		Format: format,
 		LogID:  logID,

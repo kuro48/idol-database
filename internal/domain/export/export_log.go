@@ -1,7 +1,11 @@
 // Package export はデータエクスポートのドメインモデルを定義する
 package export
 
-import "time"
+import (
+	"time"
+
+	"github.com/kuro48/idol-api/internal/domain/idol"
+)
 
 // ExportFormat はエクスポート形式
 type ExportFormat string
@@ -66,4 +70,12 @@ func (e *ExportLog) SetRecordCount(n int) { e.recordCount = n }
 func (e *ExportLog) MarkFailed(msg string) {
 	e.status = ExportStatusFailed
 	e.errorMsg = msg
+}
+
+
+// ExportIdolsResult はアイドルエクスポートの結果
+type ExportIdolsResult struct {
+	Idols  []*idol.Idol
+	Format ExportFormat
+	LogID  string
 }

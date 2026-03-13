@@ -275,3 +275,13 @@ func (r *RemovalRepository) Delete(ctx context.Context, id removal.RemovalID) er
 
 	return nil
 }
+
+// EnsureIndexes は removal_requests コレクションに必要なインデックスを作成する
+func (r *RemovalRepository) EnsureIndexes(ctx context.Context) error {
+	_, err := r.collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "status", Value: 1}}},
+		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "created_at", Value: -1}}},
+		{Keys: bson.D{{Key: "target_id", Value: 1}, {Key: "target_type", Value: 1}}},
+	})
+	return err
+}

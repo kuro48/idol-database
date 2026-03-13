@@ -1,17 +1,22 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
 	domainAnalytics "github.com/kuro48/idol-api/internal/domain/analytics"
 )
 
+// usageRecorder はAPI利用記録のサービス契約
+type usageRecorder interface {
+	RecordUsage(ctx context.Context, record *domainAnalytics.APIUsageRecord)
+}
+
 // UsageTrackerMiddleware はAPI利用をトラッキングするミドルウェアを返す
-func UsageTrackerMiddleware(svc *appAnalytics.ApplicationService) gin.HandlerFunc {
+func UsageTrackerMiddleware(svc usageRecorder) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ヘルスチェックエンドポイントは記録しない
 		path := c.Request.URL.Path

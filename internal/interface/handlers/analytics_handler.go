@@ -1,21 +1,27 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
+	domainAnalytics "github.com/kuro48/idol-api/internal/domain/analytics"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
+// AnalyticsService はanalytics applicationサービスのインターフェース
+type AnalyticsService interface {
+	GetUsageSummary(ctx context.Context, days int) ([]*domainAnalytics.KeyUsageSummary, error)
+}
+
 // AnalyticsHandler はAPI利用分析ハンドラー
 type AnalyticsHandler struct {
-	svc *appAnalytics.ApplicationService
+	svc AnalyticsService
 }
 
 // NewAnalyticsHandler はAnalyticsHandlerを作成する
-func NewAnalyticsHandler(svc *appAnalytics.ApplicationService) *AnalyticsHandler {
+func NewAnalyticsHandler(svc AnalyticsService) *AnalyticsHandler {
 	return &AnalyticsHandler{svc: svc}
 }
 

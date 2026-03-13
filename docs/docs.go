@@ -23,6 +23,48 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/analytics/usage": {
+            "get": {
+                "description": "APIキー単位のAPI利用統計を返す（管理者専用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "API利用サマリー取得",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 7,
+                        "description": "集計期間（日数、デフォルト7、最大90）",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/export/idols": {
             "get": {
                 "description": "全アイドルデータをJSON/JSONL形式でエクスポートする（管理者専用、レート制限あり）",
@@ -82,6 +124,148 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK"
+                    }
+                }
+            }
+        },
+        "/admin/jobs/bulk-import": {
+            "post": {
+                "description": "バルクインポートを非同期で実行するジョブをキューに追加する（管理者専用）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "バルクインポートジョブ作成",
+                "parameters": [
+                    {
+                        "description": "インポートデータ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.BulkImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/jobs/{id}": {
+            "get": {
+                "description": "指定したジョブのステータスと結果を返す（管理者専用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "ジョブステータス取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ジョブID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.JobStatusDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/jobs/{id}/retry": {
+            "post": {
+                "description": "失敗したジョブを再実行する（管理者専用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "ジョブリトライ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ジョブID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -1414,6 +1598,52 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.BulkImportItem": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "agency_id": {
+                    "type": "string"
+                },
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "birthdate": {
+                    "description": "YYYY-MM-DD",
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tag_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handlers.BulkImportRequest": {
+            "type": "object",
+            "required": [
+                "items"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/handlers.BulkImportItem"
+                    }
+                }
+            }
+        },
         "handlers.CreateIdolRequest": {
             "type": "object",
             "required": [
@@ -1422,6 +1652,12 @@ const docTemplate = `{
             "properties": {
                 "agency_id": {
                     "type": "string"
+                },
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "birthdate": {
                     "type": "string"
@@ -1448,6 +1684,38 @@ const docTemplate = `{
                     }
                 },
                 "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.JobStatusDTO": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "error_msg": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job_type": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -1501,6 +1769,12 @@ const docTemplate = `{
             "properties": {
                 "agency_id": {
                     "type": "string"
+                },
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "birthdate": {
                     "type": "string"
@@ -1574,6 +1848,13 @@ const docTemplate = `{
                 },
                 "agency_id": {
                     "type": "string"
+                },
+                "aliases": {
+                    "description": "別名一覧（多言語・旧名）",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "birthdate": {
                     "type": "string"

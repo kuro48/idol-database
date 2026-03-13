@@ -1,22 +1,30 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/domain/webhook"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
+// webhookService は WebhookHandler が依存するサービス契約
+type webhookService interface {
+	CreateSubscription(ctx context.Context, url string, events []webhook.EventType, createdBy string) (*webhook.Subscription, error)
+	ListSubscriptions(ctx context.Context) ([]*webhook.Subscription, error)
+	DeleteSubscription(ctx context.Context, id string) error
+	VerifyWebhookRequest(ctx context.Context, subscriptionID, signature string, payload []byte) error
+}
+
 // WebhookHandler はWebhook管理ハンドラー
 type WebhookHandler struct {
-	appService *appWebhook.ApplicationService
+	appService webhookService
 }
 
 // NewWebhookHandler はWebhookハンドラーを作成する
-func NewWebhookHandler(appService *appWebhook.ApplicationService) *WebhookHandler {
+func NewWebhookHandler(appService webhookService) *WebhookHandler {
 	return &WebhookHandler{appService: appService}
 }
 
@@ -60,11 +68,7 @@ func (h *WebhookHandler) CreateSubscription(c *gin.Context) {
 		events[i] = webhook.EventType(e)
 	}
 
-	sub, err := h.appService.CreateSubscription(middleware.AuditContextFor(c), appWebhook.CreateSubscriptionInput{
-		URL:       req.URL,
-		Events:    events,
-		CreatedBy: middleware.GetActor(c),
-	})
+	sub, err := h.appService.CreateSubscription(middleware.AuditContextFor(c), req.URL, events, middleware.GetActor(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, middleware.NewInternalError("Webhook購読の作成に失敗しました"))
 		return

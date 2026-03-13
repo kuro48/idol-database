@@ -83,9 +83,8 @@ func (h *AgencyHandler) ListAgencies(c *gin.Context) {
 
 // UpdateAgency は事務所を更新する
 func (h *AgencyHandler) UpdateAgency(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
@@ -111,9 +110,8 @@ func (h *AgencyHandler) UpdateAgency(c *gin.Context) {
 
 // DeleteAgency は事務所を削除する
 func (h *AgencyHandler) DeleteAgency(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("IDは必須です"))
+	id, ok := getPathID(c)
+	if !ok {
 		return
 	}
 
