@@ -31,6 +31,7 @@ type IdolCreateInput struct {
 	Name      string
 	Birthdate *string
 	AgencyID  *string
+	Aliases   []string
 }
 
 // IdolUpdateInput はアイドル更新の入力
@@ -39,6 +40,7 @@ type IdolUpdateInput struct {
 	Name      *string
 	Birthdate *string
 	AgencyID  *string
+	Aliases   []string
 }
 
 // IdolUpdateSocialLinksInput はSNS/外部リンク更新の入力

@@ -27,6 +27,7 @@ func (a *IdolAppAdapter) CreateIdol(ctx context.Context, input ucIdol.IdolCreate
 		Name:      input.Name,
 		Birthdate: input.Birthdate,
 		AgencyID:  input.AgencyID,
+		Aliases:   input.Aliases,
 	})
 }
 
@@ -44,6 +45,7 @@ func (a *IdolAppAdapter) UpdateIdol(ctx context.Context, input ucIdol.IdolUpdate
 		Name:      input.Name,
 		Birthdate: input.Birthdate,
 		AgencyID:  input.AgencyID,
+		Aliases:   input.Aliases,
 	})
 }
 
