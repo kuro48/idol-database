@@ -1,27 +1,45 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	appJob "github.com/kuro48/idol-api/internal/application/job"
+	domainJob "github.com/kuro48/idol-api/internal/domain/job"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 )
 
+// JobService はジョブアプリケーションサービスのインターフェース
+type JobService interface {
+	EnqueueBulkImport(ctx context.Context, payload []byte) (*domainJob.Job, error)
+	GetJobStatus(ctx context.Context, id string) (*appJob.JobStatusDTO, error)
+	RetryJob(ctx context.Context, id string) (*domainJob.Job, error)
+}
+
 // JobHandler は非同期ジョブハンドラー
 type JobHandler struct {
-	svc *appJob.ApplicationService
+	svc JobService
 }
 
 // NewJobHandler はJobHandlerを作成する
-func NewJobHandler(svc *appJob.ApplicationService) *JobHandler {
+func NewJobHandler(svc JobService) *JobHandler {
 	return &JobHandler{svc: svc}
+}
+
+// BulkImportItem はバルクインポートの1件分のデータ
+type BulkImportItem struct {
+	Name      string   `json:"name" binding:"required"`
+	Birthdate string   `json:"birthdate,omitempty"` // YYYY-MM-DD
+	AgencyID  string   `json:"agency_id,omitempty"`
+	Aliases   []string `json:"aliases,omitempty"`
+	TagIDs    []string `json:"tag_ids,omitempty"`
 }
 
 // BulkImportRequest はバルクインポートリクエスト
 type BulkImportRequest struct {
-	Items []map[string]interface{} `json:"items" binding:"required,min=1"`
+	Items []BulkImportItem `json:"items" binding:"required,min=1,max=1000,dive"`
 }
 
 // EnqueueBulkImport はバルクインポートジョブをエンキューする

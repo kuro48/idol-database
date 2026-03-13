@@ -2,7 +2,7 @@ package analytics
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	domainAnalytics "github.com/kuro48/idol-api/internal/domain/analytics"
@@ -20,10 +20,16 @@ func NewApplicationService(repo domainAnalytics.UsageRepository) *ApplicationSer
 
 // RecordUsage はAPI利用記録を保存する（非ブロッキング）
 func (s *ApplicationService) RecordUsage(ctx context.Context, record *domainAnalytics.APIUsageRecord) {
+	// リクエストcontextからvalueを引き継ぎつつ、タイムアウトは独立させる
+	saveCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	go func() {
-		if err := s.repo.Save(context.Background(), record); err != nil {
-			// ロギングのみ、利用記録の失敗はリクエストに影響させない
-			_ = fmt.Errorf("API利用記録の保存に失敗しました: %w", err)
+		defer cancel()
+		if err := s.repo.Save(saveCtx, record); err != nil {
+			slog.Error("API利用記録の保存に失敗しました",
+				"error", err,
+				"endpoint", record.Endpoint,
+				"method", record.Method,
+			)
 		}
 	}()
 }
@@ -42,7 +48,7 @@ func (s *ApplicationService) GetUsageSummary(ctx context.Context, days int) ([]*
 
 	summaries, err := s.repo.AggregateByKey(ctx, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("利用統計の取得エラー: %w", err)
+		return nil, err
 	}
 
 	return summaries, nil
