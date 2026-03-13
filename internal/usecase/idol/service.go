@@ -36,6 +36,7 @@ func (u *Usecase) CreateIdol(ctx context.Context, cmd CreateIdolCommand) (*IdolD
 		Name:      cmd.Name,
 		Birthdate: cmd.Birthdate,
 		AgencyID:  cmd.AgencyID,
+		Aliases:   cmd.Aliases,
 	})
 	if err != nil {
 		return nil, err
@@ -94,6 +95,7 @@ func (u *Usecase) UpdateIdol(ctx context.Context, cmd UpdateIdolCommand) error {
 		Name:      cmd.Name,
 		Birthdate: cmd.Birthdate,
 		AgencyID:  cmd.AgencyID,
+		Aliases:   cmd.Aliases,
 	})
 }
 
@@ -333,6 +335,7 @@ func (u *Usecase) toDTO(i *domain.Idol) *IdolDTO {
 		AgencyID:    i.AgencyID(),
 		SocialLinks: socialLinksMap,
 		ExternalIDs: externalIDsMap,
+		Aliases:     i.Aliases(),
 		CreatedAt:   i.CreatedAt().Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   i.UpdatedAt().Format("2006-01-02T15:04:05Z07:00"),
 	}

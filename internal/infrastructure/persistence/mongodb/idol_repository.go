@@ -34,6 +34,7 @@ type idolDocument struct {
 	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
 	ExternalIDs map[string]string    `bson:"external_ids,omitempty"`
 	TagIDs      []string             `bson:"tag_ids,omitempty"`
+	Aliases     []string             `bson:"aliases,omitempty"`
 	CreatedAt   time.Time            `bson:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"`
 	CreatedBy   string               `bson:"created_by,omitempty"`
@@ -92,6 +93,7 @@ func toIdolDocument(i *idol.Idol) (*idolDocument, error) {
 		SocialLinks: socialLinksDoc,
 		ExternalIDs: externalIDsDoc,
 		TagIDs:      i.TagIDs(),
+		Aliases:     i.Aliases(),
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
 	}, nil
@@ -153,7 +155,12 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		tagIDs = []string{}
 	}
 
-	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, externalIDs, tagIDs, doc.CreatedAt, doc.UpdatedAt), nil
+	aliases := doc.Aliases
+	if aliases == nil {
+		aliases = []string{}
+	}
+
+	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, externalIDs, tagIDs, aliases, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
@@ -278,6 +285,7 @@ func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
 		"agency_id":  doc.AgencyID,
 		"updated_at": doc.UpdatedAt,
 		"updated_by": audit.ActorFrom(ctx),
+		"aliases":    doc.Aliases,
 	}
 	if doc.ExternalIDs != nil {
 		setFields["external_ids"] = doc.ExternalIDs
@@ -435,9 +443,13 @@ func (r *IdolRepository) Search(ctx context.Context, criteria idol.SearchCriteri
 func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
 	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
-	// 名前検索（部分一致）
+	// 名前検索（部分一致）: name フィールドまたは aliases フィールドにマッチ
 	if criteria.Name != nil {
-		filter["name"] = bson.M{"$regex": *criteria.Name, "$options": "i"}
+		nameRegex := bson.M{"$regex": *criteria.Name, "$options": "i"}
+		filter["$or"] = bson.A{
+			bson.M{"name": nameRegex},
+			bson.M{"aliases": nameRegex},
+		}
 	}
 
 	// 事務所ID
@@ -531,6 +543,12 @@ func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
         {
             Keys: bson.D{
                 {Key: "tag_ids", Value: 1},
+            },
+        },
+        // エイリアスインデックス（別名検索用）
+        {
+            Keys: bson.D{
+                {Key: "aliases", Value: 1},
             },
         },
         // 複合インデックス1: 事務所ID + 作成日時（事務所別一覧取得の最適化）
