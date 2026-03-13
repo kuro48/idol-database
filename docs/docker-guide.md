@@ -46,9 +46,9 @@ go run cmd/api/main.go
 #### ステップ4: 動作確認
 ```bash
 # ヘルスチェック
-curl http://localhost:8081/
+curl http://localhost:8081/health
 
-# 期待される出力: {"message":"Hello World"}
+# 期待される出力: {"status":"ok","message":"Idol API is running with DDD architecture"}
 ```
 
 #### ステップ5: 使用後の停止
@@ -79,9 +79,9 @@ go run cmd/api/main.go
 #### ステップ3: 動作確認
 ```bash
 # ヘルスチェック
-curl http://localhost:8081/
+curl http://localhost:8081/health
 
-# 期待される出力: {"message":"Hello World"}
+# 期待される出力: {"status":"ok","message":"Idol API is running with DDD architecture"}
 ```
 
 ---
@@ -90,13 +90,12 @@ curl http://localhost:8081/
 
 ```
 idol-api/
-├── .env                 # 現在使用中の環境変数（自動生成、Git管理外）
+├── .env                 # 現在使用中の環境変数（Git管理外）
 ├── .env.local           # ローカルDocker用の設定
 ├── .env.atlas           # MongoDB Atlas用の設定
 ├── .env.example         # サンプル設定ファイル
+├── Dockerfile           # マルチステージビルド
 ├── docker-compose.yml   # ローカルMongoDB用のDocker設定
-├── .docker/
-│   └── Dockerfile       # MongoDBコンテナの設定
 └── scripts/
     ├── use-local.sh     # ローカル環境切り替えスクリプト
     └── use-atlas.sh     # Atlas環境切り替えスクリプト
@@ -228,18 +227,28 @@ kill -9 <PID>
 現在のDocker設定は**開発環境専用**です。本番環境では以下を変更してください：
 
 1. **パスワードを強固に**:
-```dockerfile
-# .docker/Dockerfile
-ENV MONGO_INITDB_ROOT_USERNAME=admin
-ENV MONGO_INITDB_ROOT_PASSWORD=your_strong_password_here
+
+`docker-compose.yml` では MongoDB の認証情報を環境変数で外部化しています。`.env` ファイルで強固なパスワードを設定してください。
+
+```bash
+# .env
+MONGO_USERNAME=admin
+MONGO_PASSWORD=your_strong_password_here
 ```
 
-2. **環境変数を外部化**:
 ```yaml
-# docker-compose.yml
+# docker-compose.yml（現在の設定）
 environment:
   MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
   MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+```
+
+2. **リバースプロキシ経由の場合は TRUSTED_PROXIES を設定**:
+
+nginx や Traefik などのリバースプロキシを経由する場合、クライアント IP の正確な取得のために `TRUSTED_PROXIES` 環境変数を設定してください。
+
+```bash
+export TRUSTED_PROXIES="10.0.0.0/8,172.16.0.0/12"
 ```
 
 3. **認証を有効化**:

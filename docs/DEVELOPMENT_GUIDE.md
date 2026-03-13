@@ -5,8 +5,9 @@
 2. [新機能の追加手順](#新機能の追加手順)
 3. [各層での開発ルール](#各層での開発ルール)
 4. [ファイルの命名規則](#ファイルの命名規則)
-5. [よくある間違いと回避方法](#よくある間違いと回避方法)
-6. [具体例: 新機能追加](#具体例-新機能追加)
+5. [コーディング規約](#コーディング規約)
+6. [よくある間違いと回避方法](#よくある間違いと回避方法)
+7. [具体例: 新機能追加](#具体例-新機能追加)
 
 ---
 
@@ -978,7 +979,46 @@ func (h *ConcertHandler) AddIdolToConcert(c *gin.Context) {
 
 ---
 
-### ステップ5: main.goに登録
+### ステップ5: アダプターを作る（必要な場合のみ）
+
+usecase の Output Port（インターフェース）を application サービスが直接実装していない場合、`cmd/api/adapters/` にアダプターを作成して適合させます。
+
+```bash
+# ファイル: cmd/api/adapters/concert_adapter.go
+```
+
+```go
+package adapters
+
+import (
+    "context"
+
+    appConcert "github.com/kuro48/idol-api/internal/application/concert"
+    "github.com/kuro48/idol-api/internal/domain/concert"
+)
+
+// ConcertAppAdapter は ApplicationService を usecase の Output Port に適合させるアダプター
+type ConcertAppAdapter struct {
+    svc *appConcert.ApplicationService
+}
+
+func NewConcertAppAdapter(svc *appConcert.ApplicationService) *ConcertAppAdapter {
+    return &ConcertAppAdapter{svc: svc}
+}
+
+func (a *ConcertAppAdapter) FindConcert(ctx context.Context, id string) (*concert.Concert, error) {
+    return a.svc.FindByID(ctx, id)
+}
+```
+
+**ポイント**:
+- `cmd/api/adapters/` は Composition Root の一部なので、interface 層・infrastructure 層の両方を参照可能
+- application サービスのメソッドシグネチャが usecase の Output Port と一致する場合はアダプター不要
+- アダプターは薄いラッパーにとどめ、ビジネスロジックを書かない
+
+---
+
+### ステップ6: main.goに登録
 
 ```bash
 # ファイル: cmd/api/main.go
@@ -1075,6 +1115,96 @@ internal/interface/handlers/
 └── {エンティティ名}_handler.go
     例: idol_handler.go, concert_handler.go
 ```
+
+---
+
+## 🔒 コーディング規約
+
+### エラーハンドリング
+
+**goroutine 内のエラーは必ずログに記録する**
+
+```go
+// ❌ 悪い例
+go func() {
+    _, err := collection.InsertOne(ctx, doc)
+    _ = err  // エラーを握り潰している
+}()
+
+// ✅ 良い例
+go func() {
+    _, err := collection.InsertOne(ctx, doc)
+    if err != nil {
+        slog.Error("ドキュメントの保存に失敗しました", "error", err)
+    }
+}()
+```
+
+### goroutine 内のコンテキスト
+
+**goroutine 内で DB 操作する場合は必ずタイムアウトを設定する**
+
+```go
+// ❌ 悪い例（タイムアウトなし）
+go func() {
+    ctx := context.Background()
+    _ = repo.Save(ctx, entity)
+}()
+
+// ✅ 良い例
+go func() {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+    if err := repo.Save(ctx, entity); err != nil {
+        slog.Error("保存エラー", "error", err)
+    }
+}()
+```
+
+### ロギング
+
+**`log.Printf` / `fmt.Println` を使わず `log/slog` を使う**
+
+```go
+// ❌ 悪い例
+log.Printf("エラー: %v", err)
+fmt.Println("処理完了")
+
+// ✅ 良い例
+slog.Error("処理に失敗しました", "error", err)
+slog.Info("処理が完了しました", "id", id)
+```
+
+### セキュリティ
+
+**タイミング攻撃対策には `crypto/subtle.ConstantTimeCompare` を使う**
+
+```go
+// ❌ 悪い例（タイミング攻撃に脆弱）
+if apiKey == expectedKey {
+    // ...
+}
+
+// ✅ 良い例
+import "crypto/subtle"
+
+if subtle.ConstantTimeCompare([]byte(apiKey), []byte(expectedKey)) != 1 {
+    // 認証失敗
+}
+```
+
+### 境界ルール（CI で自動チェック）
+
+| レイヤー | 参照可能なパッケージ | 禁止 |
+|---------|---------------------|------|
+| `domain` | 標準ライブラリのみ | 外部パッケージすべて |
+| `application` | `domain` のみ | それ以外すべて |
+| `infrastructure` | `domain` のみ | `application` / `usecase` / `interface` |
+| `usecase` | `application`, `domain` | `interface` / `infrastructure` |
+| `interface` | `usecase` のみ | `infrastructure` 直接参照（middleware 除く） |
+| `cmd/api/adapters` | interface・infrastructure 両方 | なし（Composition Root） |
+
+> **注**: `internal/infrastructure/adapters/` は削除済み。アダプターは `cmd/api/adapters/` に配置してください。
 
 ---
 
@@ -1288,9 +1418,12 @@ type Concert struct {
    └─ リポジトリ実装
 
 4. プレゼンテーション層
-   └─ ハンドラー
+   └─ ハンドラー（インターフェース経由）
 
-5. 統合
+5. アダプター（必要な場合のみ）
+   └─ cmd/api/adapters/ に Output Port アダプターを作成
+
+6. 統合
    └─ main.goに登録 → テスト
 ```
 

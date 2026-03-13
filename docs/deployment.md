@@ -38,6 +38,7 @@ export SERVER_PORT="8080"
 export GIN_MODE="release"
 export CORS_ALLOWED_ORIGINS="https://your-frontend.example.com"
 export ADMIN_API_KEY="$(openssl rand -hex 32)"
+export WRITE_API_KEY="$(openssl rand -hex 32)"
 
 # 3. コンテナ起動
 docker run -d \
@@ -49,6 +50,7 @@ docker run -d \
   -e GIN_MODE \
   -e CORS_ALLOWED_ORIGINS \
   -e ADMIN_API_KEY \
+  -e WRITE_API_KEY \
   idol-api:$(git rev-parse --short HEAD)
 ```
 
@@ -60,7 +62,25 @@ docker run -d \
 |---|---|---|
 | build-and-test | push/PR | go vet / go build / go test |
 | boundary-check | push/PR | レイヤ依存方向違反チェック |
+| openapi-contract | push/PR | Swagger spec の同期チェック・バリデーション |
 | docker-build | push/PR | Docker イメージビルド確認 |
+
+### GHCR への自動 publish
+
+`.github/workflows/docker-publish.yml` により、`main` ブランチへのマージで GHCR にイメージが自動 publish されます。
+
+- イメージ名: `ghcr.io/kuro48/idol-database:main`
+- タグ付きリリース（`v*.*.*`）では `ghcr.io/kuro48/idol-database:<version>` も同時に publish されます。
+
+## グレースフルシャットダウン
+
+SIGTERM を受信すると、以下の順でシャットダウンします。
+
+1. インフライト Webhook 配信が完了するまで待機
+2. インフライトジョブ（非同期ジョブ）が完了するまで待機
+3. HTTP サーバーを最大 30 秒で停止
+
+コンテナオーケストレーター（Kubernetes など）や `docker stop` はデフォルトで SIGTERM を送信するため、追加設定なしでグレースフルシャットダウンが機能します。
 
 ## ヘルスチェック
 
@@ -86,11 +106,13 @@ docker run -d --name idol-api <旧タグのイメージ> ...
 - [ ] `go vet ./...` がパス
 - [ ] CI の全ジョブがグリーン
 - [ ] `.env` の `GIN_MODE=release` を確認
+- [ ] `GIN_MODE=release` で `/swagger/index.html` が 404 になること
 - [ ] `ADMIN_API_KEY` が本番用の値か確認
+- [ ] `WRITE_API_KEY` が本番用の値か確認
+- [ ] `ADMIN_API_KEY` / `WRITE_API_KEY` ともに `openssl rand -hex 32` で生成したキーを使用していること
 - [ ] `CORS_ALLOWED_ORIGINS` が本番フロントエンドURLか確認
 - [ ] MongoDB接続先が本番DBか確認
 - [ ] ヘルスチェック `/health` が正常応答
-- [ ] Swagger UI `/swagger/index.html` が正常表示
 
 ## 障害時対応
 
