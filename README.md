@@ -28,7 +28,7 @@ internal/
 - **言語**: Go 1.24+
 - **フレームワーク**: Gin
 - **データベース**: MongoDB (go.mongodb.org/mongo-driver/v2)
-- **ドキュメント**: Swagger UI (`/swagger/index.html`)
+- **ドキュメント**: Swagger UI (`/swagger/index.html`, `GIN_MODE=debug/test` のみ)
 
 ## セットアップ
 
@@ -58,21 +58,21 @@ MONGODB_URI=mongodb://admin:password@localhost:27017/?authSource=admin
 MONGODB_DATABASE=idol_database
 SERVER_PORT=8081
 GIN_MODE=debug
-API_KEY=your-write-api-key
+WRITE_API_KEY=your-write-api-key
 ADMIN_API_KEY=your-admin-api-key
 ```
 
 ## API エンドポイント
 
-Swagger UI: `http://localhost:8081/swagger/index.html`
+Swagger UI: `http://localhost:8081/swagger/index.html` (`GIN_MODE=debug/test` のみ)
 
 ### 認証
 
 | スコープ | ヘッダー | 用途 |
 |---------|---------|------|
 | 読み取り | なし | GET 系エンドポイント |
-| 書き込み | `X-API-Key: <API_KEY>` | 作成・更新・削除 |
-| 管理者 | `X-API-Key: <ADMIN_API_KEY>` | 管理エンドポイント |
+| 書き込み | `Authorization: Bearer <WRITE_API_KEY>` | 作成・更新・削除 |
+| 管理者 | `Authorization: Bearer <ADMIN_API_KEY>` | 管理エンドポイント |
 
 ### ヘルスチェック
 
@@ -87,11 +87,15 @@ GET /health/ready
 ```
 GET    /api/v1/idols                  # 検索・一覧（ページネーション付き）
 GET    /api/v1/idols/:id              # 詳細
+GET    /api/v1/idols/:id/external-ids # 外部IDマッピング取得
 POST   /api/v1/idols                  # 作成（write 権限）
 PUT    /api/v1/idols/:id              # 更新（write 権限）
 DELETE /api/v1/idols/:id              # 削除（write 権限）
 PUT    /api/v1/idols/:id/social-links # SNS リンク更新（write 権限）
+PUT    /api/v1/idols/:id/external-ids # 外部IDマッピング更新（write 権限）
 POST   /api/v1/idols/bulk             # 一括作成（write 権限）
+PUT    /api/v1/idols/:id/restore      # 復元（admin）
+GET    /api/v1/idols/:id/duplicate-candidates # 重複候補取得（admin）
 ```
 
 アイドルは `name`・`aliases`（別名/旧名）・`birthdate`・`agency_id`・`tag_ids`・`social_links`・`external_ids` を持つ。別名でも検索可能。
@@ -154,7 +158,6 @@ PUT  /api/v1/removal-requests/:id    # ステータス更新（admin）
 ```
 POST   /api/v1/admin/webhooks                      # サブスクリプション作成（admin）
 GET    /api/v1/admin/webhooks                      # 一覧（admin）
-GET    /api/v1/admin/webhooks/:id                  # 詳細（admin）
 DELETE /api/v1/admin/webhooks/:id                  # 削除（admin）
 POST   /api/v1/webhooks/receive/:subscription_id   # Webhook 受信
 ```

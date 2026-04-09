@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -220,5 +221,5 @@ func isRateLimitError(err error) bool {
 	if err == nil {
 		return false
 	}
-	return len(err.Error()) > 8 && err.Error()[:8] == "レート制限"
+	return strings.HasPrefix(err.Error(), "レート制限")
 }
