@@ -736,7 +736,7 @@ const docTemplate = `{
         },
         "/idols/bulk": {
             "post": {
-                "description": "複数のアイドルを一括作成する（write認証必須、最大500件）",
+                "description": "複数のアイドルを一括作成する（write認証必須、最大100件）",
                 "consumes": [
                     "application/json"
                 ],
@@ -1574,7 +1574,7 @@ const docTemplate = `{
             "properties": {
                 "idols": {
                     "type": "array",
-                    "maxItems": 500,
+                    "maxItems": 100,
                     "minItems": 1,
                     "items": {
                         "type": "object",
