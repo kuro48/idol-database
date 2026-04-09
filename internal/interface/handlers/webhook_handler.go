@@ -65,7 +65,12 @@ func (h *WebhookHandler) CreateSubscription(c *gin.Context) {
 
 	events := make([]webhook.EventType, len(req.Events))
 	for i, e := range req.Events {
-		events[i] = webhook.EventType(e)
+		et := webhook.EventType(e)
+		if !webhook.IsValidEventType(et) {
+			c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("不正なイベントタイプです: "+e))
+			return
+		}
+		events[i] = et
 	}
 
 	sub, err := h.appService.CreateSubscription(middleware.AuditContextFor(c), req.URL, events, middleware.GetActor(c))

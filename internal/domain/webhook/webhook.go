@@ -17,6 +17,18 @@ const (
 	EventRemovalApproved EventType = "removal.approved"
 )
 
+// IsValidEventType はEventTypeが定義済みの有効な値かを判定する
+func IsValidEventType(e EventType) bool {
+	switch e {
+	case EventIdolCreated, EventIdolUpdated, EventIdolDeleted,
+		EventGroupCreated, EventGroupUpdated, EventGroupDeleted,
+		EventRemovalApproved:
+		return true
+	default:
+		return false
+	}
+}
+
 // DeliveryStatus はWebhook配信状態
 type DeliveryStatus string
 

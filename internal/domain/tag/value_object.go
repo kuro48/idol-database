@@ -32,7 +32,9 @@ func NewTagID(value string) (TagID, error) {
 // GenerateTagID は新しいIDを生成する（12バイトランダム = 24文字16進数）
 func GenerateTagID() TagID {
 	var b [12]byte
-	_, _ = rand.Read(b[:])
+	if _, err := rand.Read(b[:]); err != nil {
+		panic("crypto/rand.Read failed: " + err.Error())
+	}
 	return TagID{value: hex.EncodeToString(b[:])}
 }
 

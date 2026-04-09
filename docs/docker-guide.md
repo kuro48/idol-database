@@ -2,7 +2,7 @@
 
 このプロジェクトでは、ローカルDockerのMongoDBとMongoDB Atlas（クラウド）の両方を使い分けることができます。
 
-## 📋 環境の種類
+## 環境の種類
 
 ### 1. **ローカルDocker MongoDB**
 - 開発・テスト用
@@ -18,9 +18,9 @@
 
 ---
 
-## 🚀 使い方
+## 使い方
 
-### **ローカルDocker MongoDBを使う場合**
+### ローカルDocker MongoDBを使う場合
 
 #### ステップ1: 環境を切り替え
 ```bash
@@ -31,10 +31,10 @@ bash scripts/use-local.sh
 #### ステップ2: MongoDBコンテナを起動
 ```bash
 # MongoDBコンテナを起動
-docker-compose up -d
+docker compose up -d
 
 # 起動確認
-docker-compose ps
+docker compose ps
 ```
 
 #### ステップ3: APIサーバーを起動
@@ -46,23 +46,29 @@ go run cmd/api/main.go
 #### ステップ4: 動作確認
 ```bash
 # ヘルスチェック
-curl http://localhost:8081/
+curl http://localhost:8081/health
 
-# 期待される出力: {"message":"Hello World"}
+# 期待される出力: {"status":"ok","message":"Idol API is running with DDD architecture"}
+
+# 依存先も含めた確認
+curl http://localhost:8081/health/ready
+
+# 開発モード時のみ Swagger UI を確認可能
+open http://localhost:8081/swagger/index.html
 ```
 
 #### ステップ5: 使用後の停止
 ```bash
 # MongoDBコンテナを停止
-docker-compose down
+docker compose down
 
 # データも削除する場合（注意！）
-docker-compose down -v
+docker compose down -v
 ```
 
 ---
 
-### **MongoDB Atlasを使う場合**
+### MongoDB Atlasを使う場合
 
 #### ステップ1: 環境を切り替え
 ```bash
@@ -79,14 +85,17 @@ go run cmd/api/main.go
 #### ステップ3: 動作確認
 ```bash
 # ヘルスチェック
-curl http://localhost:8081/
+curl http://localhost:8081/health
 
-# 期待される出力: {"message":"Hello World"}
+# 期待される出力: {"status":"ok","message":"Idol API is running with DDD architecture"}
+
+# 依存先も含めた確認
+curl http://localhost:8081/health/ready
 ```
 
 ---
 
-## 📁 ファイル構成
+## ファイル構成
 
 ```
 idol-api/
@@ -95,8 +104,7 @@ idol-api/
 ├── .env.atlas           # MongoDB Atlas用の設定
 ├── .env.example         # サンプル設定ファイル
 ├── docker-compose.yml   # ローカルMongoDB用のDocker設定
-├── .docker/
-│   └── Dockerfile       # MongoDBコンテナの設定
+├── Dockerfile           # API コンテナの設定
 └── scripts/
     ├── use-local.sh     # ローカル環境切り替えスクリプト
     └── use-atlas.sh     # Atlas環境切り替えスクリプト
@@ -104,14 +112,16 @@ idol-api/
 
 ---
 
-## 🔧 環境変数の詳細
+## 環境変数の詳細
 
 ### **.env.local（ローカルDocker用）**
 ```bash
-MONGODB_URI=mongodb://admin:password@localhost:27017
+MONGODB_URI=mongodb://admin:password@localhost:27017/?authSource=admin
 MONGODB_DATABASE=idol_database
 SERVER_PORT=8081
 GIN_MODE=debug
+WRITE_API_KEY=your-write-api-key
+ADMIN_API_KEY=your-admin-api-key
 ```
 
 ### **.env.atlas（MongoDB Atlas用）**
@@ -120,17 +130,19 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
 MONGODB_DATABASE=idol_database
 SERVER_PORT=8081
 GIN_MODE=debug
+WRITE_API_KEY=your-write-api-key
+ADMIN_API_KEY=your-admin-api-key
 ```
 
 ---
 
-## 💡 よくある使い方
+## よくある使い方
 
 ### **パターン1: 通常の開発**
 ```bash
 # ローカルDockerで開発
 bash scripts/use-local.sh
-docker-compose up -d
+docker compose up -d
 go run cmd/api/main.go
 ```
 
@@ -144,27 +156,27 @@ go run cmd/api/main.go
 ### **パターン3: 環境切り替え**
 ```bash
 # ローカル → Atlas
-docker-compose down           # ローカルMongoDB停止
+docker compose down           # ローカルMongoDB停止
 bash scripts/use-atlas.sh     # Atlas設定に切り替え
 go run cmd/api/main.go        # 再起動
 
 # Atlas → ローカル
 # （APIサーバーを停止）
 bash scripts/use-local.sh     # ローカル設定に切り替え
-docker-compose up -d          # ローカルMongoDB起動
+docker compose up -d          # ローカルMongoDB起動
 go run cmd/api/main.go        # 再起動
 ```
 
 ---
 
-## 🐛 トラブルシューティング
+## トラブルシューティング
 
-### 問題1: `docker-compose up -d`が失敗する
+### 問題1: `docker compose up -d`が失敗する
 **原因**: Dockerが起動していない
 **解決策**:
 ```bash
 # Docker Desktopを起動してから再実行
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 問題2: MongoDBに接続できない（ローカル）
@@ -172,10 +184,10 @@ docker-compose up -d
 **解決策**:
 ```bash
 # コンテナの状態確認
-docker-compose ps
+docker compose ps
 
 # 再起動
-docker-compose restart mongodb
+docker compose restart mongodb
 ```
 
 ### 問題3: MongoDBに接続できない（Atlas）
@@ -201,23 +213,23 @@ kill -9 <PID>
 ```
 
 ### 問題5: データが消えた
-**原因**: `docker-compose down -v`でボリュームを削除した
+**原因**: `docker compose down -v`でボリュームを削除した
 **解決策**:
 - **ローカル**: データはボリュームに保存されるため、`-v`オプションなしで停止すること
 - **Atlas**: クラウドなので心配不要
 
 ---
 
-## ⚙️ Docker Composeコマンド早見表
+## Docker Composeコマンド早見表
 
 | コマンド | 説明 |
 |---------|------|
-| `docker-compose up -d` | バックグラウンドで起動 |
-| `docker-compose ps` | コンテナの状態確認 |
-| `docker-compose logs mongodb` | MongoDBのログ確認 |
-| `docker-compose restart mongodb` | MongoDB再起動 |
-| `docker-compose down` | コンテナ停止（データは保持） |
-| `docker-compose down -v` | コンテナ停止 + データ削除 ⚠️ |
+| `docker compose up -d` | バックグラウンドで起動 |
+| `docker compose ps` | コンテナの状態確認 |
+| `docker compose logs mongodb` | MongoDBのログ確認 |
+| `docker compose restart mongodb` | MongoDB再起動 |
+| `docker compose down` | コンテナ停止（データは保持） |
+| `docker compose down -v` | コンテナ停止 + データ削除 ⚠️ |
 
 ---
 

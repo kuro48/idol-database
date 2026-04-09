@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"time"
 
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
@@ -51,14 +52,16 @@ func (s *ApplicationService) ExportIdols(ctx context.Context, format domainExpor
 	idols, err := s.idolApp.ListIdols(ctx)
 	if err != nil {
 		exportLog.MarkFailed(err.Error())
-		_ = s.logRepo.Save(ctx, exportLog)
+		if saveErr := s.logRepo.Save(ctx, exportLog); saveErr != nil {
+			slog.Warn("エクスポート失敗ログの保存に失敗しました", "error", saveErr)
+		}
 		return nil, fmt.Errorf("アイドルデータ取得エラー: %w", err)
 	}
 
 	exportLog.SetRecordCount(len(idols))
 	if err := s.logRepo.Save(ctx, exportLog); err != nil {
 		// ログ保存失敗でもエクスポート自体は続行
-		_ = err
+		slog.Warn("エクスポートログの保存に失敗しました", "error", err)
 	}
 
 	return &domainExport.ExportIdolsResult{
@@ -78,6 +81,8 @@ func (s *ApplicationService) ListExportLogs(ctx context.Context, limit int) ([]*
 
 func generateExportID() string {
 	b := make([]byte, 12)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("crypto/rand.Read failed: %v", err))
+	}
 	return hex.EncodeToString(b)
 }

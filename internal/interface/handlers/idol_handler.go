@@ -313,12 +313,12 @@ type BulkCreateIdolsRequest struct {
 		Name      string  `json:"name" binding:"required,min=1,max=100"`
 		Birthdate *string `json:"birthdate"`
 		AgencyID  *string `json:"agency_id"`
-	} `json:"idols" binding:"required,min=1,max=500"`
+	} `json:"idols" binding:"required,min=1,max=100"`
 }
 
-// BulkCreateIdols はアイドルを一括作成する（最大500件）
+// BulkCreateIdols はアイドルを一括作成する（最大100件）
 // @Summary      アイドル一括作成
-// @Description  複数のアイドルを一括作成する（write認証必須、最大500件）
+// @Description  複数のアイドルを一括作成する（write認証必須、最大100件）
 // @Tags         idols
 // @Accept       json
 // @Produce      json
