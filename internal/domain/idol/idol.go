@@ -27,10 +27,10 @@ func NewIdol(
 	now := time.Now()
 
 	return &Idol{
-		name:        name,
-		birthdate:   birthdate,
-		createdAt:   now,
-		updatedAt:   now,
+		name:      name,
+		birthdate: birthdate,
+		createdAt: now,
+		updatedAt: now,
 	}, nil
 }
 

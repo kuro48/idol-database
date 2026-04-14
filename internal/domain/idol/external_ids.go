@@ -10,16 +10,16 @@ import (
 type ExternalIDKind string
 
 const (
-	ExternalIDKindTwitter       ExternalIDKind = "twitter"
-	ExternalIDKindInstagram     ExternalIDKind = "instagram"
-	ExternalIDKindTikTok        ExternalIDKind = "tiktok"
-	ExternalIDKindYouTube       ExternalIDKind = "youtube_channel"
-	ExternalIDKindSpotify       ExternalIDKind = "spotify_artist"
-	ExternalIDKindAppleMusic    ExternalIDKind = "apple_music_artist"
-	ExternalIDKindAmebaAmeba    ExternalIDKind = "ameba"
-	ExternalIDKindNote          ExternalIDKind = "note"
-	ExternalIDKindWikipediaJa   ExternalIDKind = "wikipedia_ja"
-	ExternalIDKindWikipediaEn   ExternalIDKind = "wikipedia_en"
+	ExternalIDKindTwitter     ExternalIDKind = "twitter"
+	ExternalIDKindInstagram   ExternalIDKind = "instagram"
+	ExternalIDKindTikTok      ExternalIDKind = "tiktok"
+	ExternalIDKindYouTube     ExternalIDKind = "youtube_channel"
+	ExternalIDKindSpotify     ExternalIDKind = "spotify_artist"
+	ExternalIDKindAppleMusic  ExternalIDKind = "apple_music_artist"
+	ExternalIDKindAmebaAmeba  ExternalIDKind = "ameba"
+	ExternalIDKindNote        ExternalIDKind = "note"
+	ExternalIDKindWikipediaJa ExternalIDKind = "wikipedia_ja"
+	ExternalIDKindWikipediaEn ExternalIDKind = "wikipedia_en"
 )
 
 // validKinds は受け入れ可能な外部ID種別の集合

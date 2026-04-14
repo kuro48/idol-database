@@ -27,8 +27,8 @@ type Job struct {
 	id          string
 	jobType     JobType
 	status      JobStatus
-	payload     []byte     // JSON payload
-	result      []byte     // JSON result
+	payload     []byte // JSON payload
+	result      []byte // JSON result
 	errorMsg    string
 	createdBy   string
 	createdAt   time.Time

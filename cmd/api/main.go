@@ -29,6 +29,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/kuro48/idol-api/cmd/api/adapters"
 	appAgency "github.com/kuro48/idol-api/internal/application/agency"
 	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
 	appEvent "github.com/kuro48/idol-api/internal/application/event"
@@ -40,7 +41,6 @@ import (
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
-	"github.com/kuro48/idol-api/cmd/api/adapters"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
@@ -222,10 +222,10 @@ func main() {
 	}
 
 	// ミドルウェア設定（順序重要）
-	router.Use(gin.Recovery())                   // パニック回復
-	router.Use(middleware.Logger())              // 構造化ログ
-	router.Use(middleware.ErrorHandler())        // エラーハンドリング
-	router.Use(middleware.AuditContext())        // 監査コンテキスト（作成者・ソース追跡）
+	router.Use(gin.Recovery())                                         // パニック回復
+	router.Use(middleware.Logger())                                    // 構造化ログ
+	router.Use(middleware.ErrorHandler())                              // エラーハンドリング
+	router.Use(middleware.AuditContext())                              // 監査コンテキスト（作成者・ソース追跡）
 	router.Use(middleware.UsageTrackerMiddleware(analyticsAppService)) // API利用トラッキング
 
 	// CORS設定（CORS_ALLOWED_ORIGINS 環境変数で制御）
@@ -285,18 +285,18 @@ func main() {
 		// アイドル: 読み取りは公開、書き込みは write スコープ必須
 		idols := v1.Group("/idols")
 		{
-			idols.GET("", idolHandler.ListIdols)                                   // 一覧取得（公開）
-			idols.GET("/:id", idolHandler.GetIdol)                                // 詳細取得（公開）
-			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs)            // 外部IDマッピング取得（公開）
+			idols.GET("", idolHandler.ListIdols)                       // 一覧取得（公開）
+			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得（公開）
+			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs) // 外部IDマッピング取得（公開）
 		}
 		idolsWrite := v1.Group("/idols", writeAuth)
 		{
-			idolsWrite.POST("", idolHandler.CreateIdol)                            // 新規作成
-			idolsWrite.POST("/bulk", idolHandler.BulkCreateIdols)                  // バルク作成
-			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                         // 更新
-			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                      // 削除
-			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks)     // SNSリンク更新
-			idolsWrite.PUT("/:id/external-ids", idolHandler.UpdateExternalIDs)     // 外部IDマッピング更新
+			idolsWrite.POST("", idolHandler.CreateIdol)                        // 新規作成
+			idolsWrite.POST("/bulk", idolHandler.BulkCreateIdols)              // バルク作成
+			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                     // 更新
+			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                  // 削除
+			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
+			idolsWrite.PUT("/:id/external-ids", idolHandler.UpdateExternalIDs) // 外部IDマッピング更新
 		}
 
 		// 削除申請: 申請・参照は公開、管理は admin スコープ必須
@@ -313,8 +313,8 @@ func main() {
 		}
 		idolsAdmin := v1.Group("/idols", adminAuth)
 		{
-			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                          // アイドル復元
-			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates)  // 重複候補取得
+			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                         // アイドル復元
+			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates) // 重複候補取得
 		}
 
 		// API利用分析（admin スコープ必須）
@@ -384,24 +384,24 @@ func main() {
 		// イベント: 読み取りは公開、書き込みは write スコープ必須
 		events := v1.Group("/events")
 		{
-			events.GET("", eventHandler.ListEvents)            // イベント一覧取得（検索機能付き）
+			events.GET("", eventHandler.ListEvents)                 // イベント一覧取得（検索機能付き）
 			events.GET("/upcoming", eventHandler.GetUpcomingEvents) // 今後のイベント取得
-			events.GET("/:id", eventHandler.GetEvent)          // イベント詳細取得
+			events.GET("/:id", eventHandler.GetEvent)               // イベント詳細取得
 		}
 		eventsWrite := v1.Group("/events", writeAuth)
 		{
-			eventsWrite.POST("", eventHandler.CreateEvent)                               // イベント作成
-			eventsWrite.PUT("/:id", eventHandler.UpdateEvent)                            // イベント更新
-			eventsWrite.DELETE("/:id", eventHandler.DeleteEvent)                         // イベント削除
-			eventsWrite.POST("/:id/performers", eventHandler.AddPerformer)               // パフォーマー追加
+			eventsWrite.POST("", eventHandler.CreateEvent)                                    // イベント作成
+			eventsWrite.PUT("/:id", eventHandler.UpdateEvent)                                 // イベント更新
+			eventsWrite.DELETE("/:id", eventHandler.DeleteEvent)                              // イベント削除
+			eventsWrite.POST("/:id/performers", eventHandler.AddPerformer)                    // パフォーマー追加
 			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
 		}
 
 		// タグ: 読み取りは公開、書き込みは write スコープ必須
 		tags := v1.Group("/tags")
 		{
-			tags.GET("", tagHandler.ListTags)      // タグ一覧取得
-			tags.GET("/:id", tagHandler.GetTag)    // タグ詳細取得
+			tags.GET("", tagHandler.ListTags)   // タグ一覧取得
+			tags.GET("/:id", tagHandler.GetTag) // タグ詳細取得
 		}
 		tagsWrite := v1.Group("/tags", writeAuth)
 		{
