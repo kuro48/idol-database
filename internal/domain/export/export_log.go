@@ -57,7 +57,7 @@ func NewExportLog(id string, resource ExportResource, format ExportFormat, execu
 	}
 }
 
-func (e *ExportLog) ID() string              { return e.id }
+func (e *ExportLog) ID() string               { return e.id }
 func (e *ExportLog) Resource() ExportResource { return e.resource }
 func (e *ExportLog) Format() ExportFormat     { return e.format }
 func (e *ExportLog) RecordCount() int         { return e.recordCount }
@@ -71,7 +71,6 @@ func (e *ExportLog) MarkFailed(msg string) {
 	e.status = ExportStatusFailed
 	e.errorMsg = msg
 }
-
 
 // ExportIdolsResult はアイドルエクスポートの結果
 type ExportIdolsResult struct {

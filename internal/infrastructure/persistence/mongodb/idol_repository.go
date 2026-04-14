@@ -524,77 +524,77 @@ func (r *IdolRepository) FindByExternalID(ctx context.Context, kind idol.Externa
 
 // EnsureIndexes は検索パフォーマンス向上のためのインデックスを作成
 func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
-    indexes := []mongo.IndexModel{
-        // 名前インデックス（部分一致検索用）
-        {
-            Keys: bson.D{
-                {Key: "name", Value: 1},
-            },
-        },
-        // 事務所IDインデックス（フィルタリング用）
-        {
-            Keys: bson.D{
-                {Key: "agency_id", Value: 1},
-            },
-        },
-        // 生年月日インデックス（年齢範囲検索・ソート用）
-        {
-            Keys: bson.D{
-                {Key: "birthdate", Value: 1},
-            },
-        },
-        // 作成日時インデックス（デフォルトソート用）
-        {
-            Keys: bson.D{
-                {Key: "created_at", Value: -1},
-            },
-        },
-        // タグIDインデックス（タグフィルタリング用）
-        {
-            Keys: bson.D{
-                {Key: "tag_ids", Value: 1},
-            },
-        },
-        // エイリアスインデックス（別名検索用）
-        {
-            Keys: bson.D{
-                {Key: "aliases", Value: 1},
-            },
-        },
-        // 複合インデックス1: 事務所ID + 作成日時（事務所別一覧取得の最適化）
-        {
-            Keys: bson.D{
-                {Key: "agency_id", Value: 1},
-                {Key: "created_at", Value: -1},
-            },
-        },
-        // 複合インデックス2: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
-        {
-            Keys: bson.D{
-                {Key: "birthdate", Value: 1},
-                {Key: "created_at", Value: -1},
-            },
-        },
-    }
+	indexes := []mongo.IndexModel{
+		// 名前インデックス（部分一致検索用）
+		{
+			Keys: bson.D{
+				{Key: "name", Value: 1},
+			},
+		},
+		// 事務所IDインデックス（フィルタリング用）
+		{
+			Keys: bson.D{
+				{Key: "agency_id", Value: 1},
+			},
+		},
+		// 生年月日インデックス（年齢範囲検索・ソート用）
+		{
+			Keys: bson.D{
+				{Key: "birthdate", Value: 1},
+			},
+		},
+		// 作成日時インデックス（デフォルトソート用）
+		{
+			Keys: bson.D{
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// タグIDインデックス（タグフィルタリング用）
+		{
+			Keys: bson.D{
+				{Key: "tag_ids", Value: 1},
+			},
+		},
+		// エイリアスインデックス（別名検索用）
+		{
+			Keys: bson.D{
+				{Key: "aliases", Value: 1},
+			},
+		},
+		// 複合インデックス1: 事務所ID + 作成日時（事務所別一覧取得の最適化）
+		{
+			Keys: bson.D{
+				{Key: "agency_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// 複合インデックス2: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
+		{
+			Keys: bson.D{
+				{Key: "birthdate", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+	}
 
-    // 外部ID種別ごとのスパース一意インデックス
-    externalIDKinds := []string{
-        "twitter", "instagram", "tiktok", "youtube_channel",
-        "spotify_artist", "apple_music_artist", "ameba", "note",
-        "wikipedia_ja", "wikipedia_en",
-    }
-    for _, kind := range externalIDKinds {
-        field := "external_ids." + kind
-        indexes = append(indexes, mongo.IndexModel{
-            Keys:    bson.D{{Key: field, Value: 1}},
-            Options: options.Index().SetSparse(true).SetUnique(true).SetName("unique_ext_" + kind),
-        })
-    }
+	// 外部ID種別ごとのスパース一意インデックス
+	externalIDKinds := []string{
+		"twitter", "instagram", "tiktok", "youtube_channel",
+		"spotify_artist", "apple_music_artist", "ameba", "note",
+		"wikipedia_ja", "wikipedia_en",
+	}
+	for _, kind := range externalIDKinds {
+		field := "external_ids." + kind
+		indexes = append(indexes, mongo.IndexModel{
+			Keys:    bson.D{{Key: field, Value: 1}},
+			Options: options.Index().SetSparse(true).SetUnique(true).SetName("unique_ext_" + kind),
+		})
+	}
 
-    _, err := r.collection.Indexes().CreateMany(ctx, indexes)
-    if err != nil {
-        return fmt.Errorf("インデックス作成エラー: %w", err)
-    }
+	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		return fmt.Errorf("インデックス作成エラー: %w", err)
+	}
 
-    return nil
+	return nil
 }

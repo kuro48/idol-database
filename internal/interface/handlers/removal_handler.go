@@ -47,13 +47,13 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 	}
 
 	cmd := removal.CreateRemovalRequestCommand{
-		TargetType:  req.TargetType,
-		TargetID:    req.TargetID,
+		TargetType:    req.TargetType,
+		TargetID:      req.TargetID,
 		RequesterType: req.RequesterType,
-		Reason:      req.Reason,
-		ContactInfo: req.ContactInfo,
-		Evidence:    req.Evidence,
-		Description: req.Description,
+		Reason:        req.Reason,
+		ContactInfo:   req.ContactInfo,
+		Evidence:      req.Evidence,
+		Description:   req.Description,
 	}
 
 	dto, err := h.removalService.CreateRemovalRequest(c.Request.Context(), cmd)

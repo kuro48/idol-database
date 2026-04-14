@@ -285,4 +285,3 @@ func (s *ApplicationService) FindUpcoming(ctx context.Context, limit int) ([]*ev
 
 	return events, nil
 }
-
