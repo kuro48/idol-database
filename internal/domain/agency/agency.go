@@ -33,16 +33,16 @@ func NewAgency(
 }
 
 // Getters
-func (a *Agency) ID() AgencyID              { return a.id }
-func (a *Agency) Name() AgencyName          { return a.name }
-func (a *Agency) NameEn() *string           { return a.nameEn }
-func (a *Agency) FoundedDate() *time.Time   { return a.foundedDate }
-func (a *Agency) Country() Country          { return a.country }
-func (a *Agency) OfficialWebsite() *string  { return a.officialWebsite }
-func (a *Agency) Description() *string      { return a.description }
-func (a *Agency) LogoURL() *string          { return a.logoURL }
-func (a *Agency) CreatedAt() time.Time      { return a.createdAt }
-func (a *Agency) UpdatedAt() time.Time      { return a.updatedAt }
+func (a *Agency) ID() AgencyID             { return a.id }
+func (a *Agency) Name() AgencyName         { return a.name }
+func (a *Agency) NameEn() *string          { return a.nameEn }
+func (a *Agency) FoundedDate() *time.Time  { return a.foundedDate }
+func (a *Agency) Country() Country         { return a.country }
+func (a *Agency) OfficialWebsite() *string { return a.officialWebsite }
+func (a *Agency) Description() *string     { return a.description }
+func (a *Agency) LogoURL() *string         { return a.logoURL }
+func (a *Agency) CreatedAt() time.Time     { return a.createdAt }
+func (a *Agency) UpdatedAt() time.Time     { return a.updatedAt }
 
 // UpdateDetails は事務所の詳細情報を更新する
 func (a *Agency) UpdateDetails(

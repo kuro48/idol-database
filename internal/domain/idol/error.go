@@ -1,6 +1,5 @@
 package idol
 
-
 // DomainError はドメイン層のエラー
 type DomainError struct {
 	message string

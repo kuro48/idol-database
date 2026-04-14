@@ -181,4 +181,3 @@ func (s *ApplicationService) RestoreAgency(ctx context.Context, id string) error
 
 	return nil
 }
-

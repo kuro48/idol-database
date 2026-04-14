@@ -55,8 +55,8 @@ type GroupDTO struct {
 
 // GroupSearchResult はグループ検索結果
 type GroupSearchResult struct {
-	Data  []*GroupDTO      `json:"data"`
-	Meta  *PaginationMeta  `json:"meta"`
+	Data []*GroupDTO     `json:"data"`
+	Meta *PaginationMeta `json:"meta"`
 }
 
 // PaginationMeta はページネーションメタ情報

@@ -41,12 +41,12 @@ type jobDocument struct {
 // Save は新しいジョブを保存する
 func (r *JobRepository) Save(ctx context.Context, job *domainJob.Job) error {
 	doc := jobDocument{
-		ID:          bson.NewObjectID(),
-		JobType:     string(job.JobType()),
-		Status:      string(job.Status()),
-		Payload:     job.Payload(),
-		CreatedBy:   job.CreatedBy(),
-		CreatedAt:   job.CreatedAt(),
+		ID:        bson.NewObjectID(),
+		JobType:   string(job.JobType()),
+		Status:    string(job.Status()),
+		Payload:   job.Payload(),
+		CreatedBy: job.CreatedBy(),
+		CreatedAt: job.CreatedAt(),
 	}
 
 	if _, err := r.collection.InsertOne(ctx, doc); err != nil {

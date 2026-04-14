@@ -5,7 +5,7 @@ type ErrorCode int
 
 const (
 	// バリデーション系 (400 Bad Request)
-	ErrCodeIDGeneration    ErrorCode = iota + 1
+	ErrCodeIDGeneration ErrorCode = iota + 1
 	ErrCodeNameValidation
 	ErrCodeCountryValidation
 	ErrCodeInvalidInput

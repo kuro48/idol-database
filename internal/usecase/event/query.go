@@ -27,11 +27,11 @@ type EventDTO struct {
 // ListEventsQuery はイベント一覧取得クエリ
 type ListEventsQuery struct {
 	// 検索条件
-	EventType     *string `form:"event_type"`
-	StartDateFrom *string `form:"start_date_from"` // YYYY-MM-DD
-	StartDateTo   *string `form:"start_date_to"`   // YYYY-MM-DD
-	VenueID       *string `form:"venue_id"`
-	PerformerID   *string `form:"performer_id"`
+	EventType     *string  `form:"event_type"`
+	StartDateFrom *string  `form:"start_date_from"` // YYYY-MM-DD
+	StartDateTo   *string  `form:"start_date_to"`   // YYYY-MM-DD
+	VenueID       *string  `form:"venue_id"`
+	PerformerID   *string  `form:"performer_id"`
 	Tags          []string `form:"tags"`
 
 	// ソート

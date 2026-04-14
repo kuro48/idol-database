@@ -68,7 +68,7 @@ func (r *stubSubscriptionRepo) Delete(_ context.Context, id string) error {
 // stubDeliveryRepo はテスト用スタブ配信リポジトリ
 type stubDeliveryRepo struct{}
 
-func (r *stubDeliveryRepo) Save(_ context.Context, _ *webhook.Delivery) error { return nil }
+func (r *stubDeliveryRepo) Save(_ context.Context, _ *webhook.Delivery) error   { return nil }
 func (r *stubDeliveryRepo) Update(_ context.Context, _ *webhook.Delivery) error { return nil }
 func (r *stubDeliveryRepo) FindByID(_ context.Context, _ string) (*webhook.Delivery, error) {
 	return nil, fmt.Errorf("not found")
