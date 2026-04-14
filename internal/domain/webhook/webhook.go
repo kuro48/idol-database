@@ -8,12 +8,12 @@ import (
 type EventType string
 
 const (
-	EventIdolCreated   EventType = "idol.created"
-	EventIdolUpdated   EventType = "idol.updated"
-	EventIdolDeleted   EventType = "idol.deleted"
-	EventGroupCreated  EventType = "group.created"
-	EventGroupUpdated  EventType = "group.updated"
-	EventGroupDeleted  EventType = "group.deleted"
+	EventIdolCreated     EventType = "idol.created"
+	EventIdolUpdated     EventType = "idol.updated"
+	EventIdolDeleted     EventType = "idol.deleted"
+	EventGroupCreated    EventType = "group.created"
+	EventGroupUpdated    EventType = "group.updated"
+	EventGroupDeleted    EventType = "group.deleted"
 	EventRemovalApproved EventType = "removal.approved"
 )
 
@@ -62,13 +62,13 @@ func NewSubscription(id, url, secret string, events []EventType, createdBy strin
 	}
 }
 
-func (s *Subscription) ID() string          { return s.id }
-func (s *Subscription) URL() string         { return s.url }
-func (s *Subscription) Secret() string      { return s.secret }
-func (s *Subscription) Events() []EventType { return s.events }
-func (s *Subscription) Active() bool        { return s.active }
+func (s *Subscription) ID() string           { return s.id }
+func (s *Subscription) URL() string          { return s.url }
+func (s *Subscription) Secret() string       { return s.secret }
+func (s *Subscription) Events() []EventType  { return s.events }
+func (s *Subscription) Active() bool         { return s.active }
 func (s *Subscription) CreatedAt() time.Time { return s.createdAt }
-func (s *Subscription) CreatedBy() string   { return s.createdBy }
+func (s *Subscription) CreatedBy() string    { return s.createdBy }
 
 // Deactivate はWebhook購読を無効化する
 func (s *Subscription) Deactivate() { s.active = false }
@@ -113,18 +113,18 @@ func NewDelivery(id, subscriptionID string, event EventType, payload []byte) *De
 	}
 }
 
-func (d *Delivery) ID() string               { return d.id }
-func (d *Delivery) SubscriptionID() string   { return d.subscriptionID }
-func (d *Delivery) Event() EventType         { return d.event }
-func (d *Delivery) Payload() []byte          { return d.payload }
-func (d *Delivery) Status() DeliveryStatus   { return d.status }
-func (d *Delivery) Attempts() int            { return d.attempts }
-func (d *Delivery) MaxAttempts() int         { return d.maxAttempts }
+func (d *Delivery) ID() string                { return d.id }
+func (d *Delivery) SubscriptionID() string    { return d.subscriptionID }
+func (d *Delivery) Event() EventType          { return d.event }
+func (d *Delivery) Payload() []byte           { return d.payload }
+func (d *Delivery) Status() DeliveryStatus    { return d.status }
+func (d *Delivery) Attempts() int             { return d.attempts }
+func (d *Delivery) MaxAttempts() int          { return d.maxAttempts }
 func (d *Delivery) LastAttemptAt() *time.Time { return d.lastAttemptAt }
-func (d *Delivery) NextRetryAt() *time.Time  { return d.nextRetryAt }
-func (d *Delivery) ResponseCode() *int       { return d.responseCode }
-func (d *Delivery) ErrorMessage() string     { return d.errorMessage }
-func (d *Delivery) CreatedAt() time.Time     { return d.createdAt }
+func (d *Delivery) NextRetryAt() *time.Time   { return d.nextRetryAt }
+func (d *Delivery) ResponseCode() *int        { return d.responseCode }
+func (d *Delivery) ErrorMessage() string      { return d.errorMessage }
+func (d *Delivery) CreatedAt() time.Time      { return d.createdAt }
 
 // CanRetry はリトライ可能かを判定する
 func (d *Delivery) CanRetry() bool {

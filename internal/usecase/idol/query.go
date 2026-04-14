@@ -15,10 +15,10 @@ type IdolDTO struct {
 	Birthdate   string            `json:"birthdate,omitempty"`
 	Age         *int              `json:"age,omitempty"`
 	AgencyID    *string           `json:"agency_id,omitempty"`
-	Agency      interface{}       `json:"agency,omitempty"` // include=agency時に展開
+	Agency      interface{}       `json:"agency,omitempty"`       // include=agency時に展開
 	SocialLinks interface{}       `json:"social_links,omitempty"` // SNS/外部リンク
 	ExternalIDs map[string]string `json:"external_ids,omitempty"` // 外部サービスIDマッピング
-	Aliases     []string          `json:"aliases,omitempty"` // 別名一覧（多言語・旧名）
+	Aliases     []string          `json:"aliases,omitempty"`      // 別名一覧（多言語・旧名）
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
 }

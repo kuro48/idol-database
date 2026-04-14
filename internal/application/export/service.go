@@ -18,8 +18,8 @@ const rateLimitDuration = 1 * time.Minute
 
 // ApplicationService はエクスポートアプリケーションサービス
 type ApplicationService struct {
-	logRepo    domainExport.LogRepository
-	idolApp    *appIdol.ApplicationService
+	logRepo domainExport.LogRepository
+	idolApp *appIdol.ApplicationService
 }
 
 // NewApplicationService はアプリケーションサービスを作成する

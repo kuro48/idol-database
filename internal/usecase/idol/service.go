@@ -165,12 +165,12 @@ func (u *Usecase) queryToCriteria(query ListIdolsQuery) domain.SearchCriteria {
 	criteria := domain.SearchCriteria{
 		Name:     query.Name,
 		AgencyID: query.AgencyID,
-		AgeMin:      query.AgeMin,
-		AgeMax:      query.AgeMax,
-		Sort:        *query.Sort,
-		Order:       *query.Order,
-		Offset:      (*query.Page - 1) * *query.Limit,
-		Limit:       *query.Limit,
+		AgeMin:   query.AgeMin,
+		AgeMax:   query.AgeMax,
+		Sort:     *query.Sort,
+		Order:    *query.Order,
+		Offset:   (*query.Page - 1) * *query.Limit,
+		Limit:    *query.Limit,
 	}
 
 	// 生年月日範囲の変換（YYYY-MM-DDからtime.Timeへ）
@@ -395,10 +395,10 @@ func (u *Usecase) UpdateExternalIDs(ctx context.Context, cmd UpdateExternalIDsCo
 
 // BulkResult はバルク処理の結果
 type BulkResult struct {
-	SuccessCount int           `json:"success_count"`
-	ErrorCount   int           `json:"error_count"`
-	Errors       []BulkError   `json:"errors,omitempty"`
-	Created      []*IdolDTO    `json:"created,omitempty"`
+	SuccessCount int         `json:"success_count"`
+	ErrorCount   int         `json:"error_count"`
+	Errors       []BulkError `json:"errors,omitempty"`
+	Created      []*IdolDTO  `json:"created,omitempty"`
 }
 
 // BulkError はバルク処理の個別エラー

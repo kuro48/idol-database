@@ -15,7 +15,7 @@ type Group struct {
 }
 
 func NewGroup(
-	name          GroupName,
+	name GroupName,
 	formationDate *FormationDate,
 ) (*Group, error) {
 	now := time.Now()
@@ -30,12 +30,12 @@ func NewGroup(
 }
 
 func Reconstruct(
-	id            GroupID,
-	name          GroupName,
+	id GroupID,
+	name GroupName,
 	formationDate *FormationDate,
-	disbandDate   *DisbandDate,
-	createdAt     time.Time,
-	updatedAt     time.Time,
+	disbandDate *DisbandDate,
+	createdAt time.Time,
+	updatedAt time.Time,
 ) *Group {
 	return &Group{
 		id:            id,
@@ -102,14 +102,14 @@ func (g *Group) Disband(disbandDate DisbandDate) error {
 		return errors.New("解散日は結成日より後である必要があります")
 	}
 
-    // ✅ 既に解散している場合はエラー
-    if g.disbandDate != nil {
+	// ✅ 既に解散している場合はエラー
+	if g.disbandDate != nil {
 		return errors.New("既に解散済みのグループです")
 	}
 
-    g.disbandDate = &disbandDate
-    g.updatedAt = time.Now()
-    return nil
+	g.disbandDate = &disbandDate
+	g.updatedAt = time.Now()
+	return nil
 }
 
 func (g *Group) IsActive() bool {

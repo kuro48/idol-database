@@ -124,10 +124,10 @@ func (h *ExportHandler) writeJSON(c *gin.Context, result *domainExport.ExportIdo
 	c.Header("X-Export-Log-ID", result.LogID)
 	c.Header("X-Record-Count", strconv.Itoa(len(records)))
 	c.JSON(http.StatusOK, gin.H{
-		"exported_at": time.Now().UTC().Format(time.RFC3339),
+		"exported_at":  time.Now().UTC().Format(time.RFC3339),
 		"record_count": len(records),
-		"log_id":      result.LogID,
-		"data":        records,
+		"log_id":       result.LogID,
+		"data":         records,
 	})
 }
 
