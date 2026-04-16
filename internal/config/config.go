@@ -19,6 +19,13 @@ type Config struct {
 	AdminAPIKey        string        // 管理系API認証キー（必須）
 	TrustedProxies     string        // カンマ区切りの信頼プロキシIPレンジ（空の場合はプロキシ信頼なし）
 	WebhookTimeout     time.Duration // WebhookHTTPクライアントのタイムアウト（WEBHOOK_TIMEOUT_SECONDS で変更可能、デフォルト: 10秒）
+	// SMTP メール通知設定（SMTP_HOST が空の場合はメール通知を無効化）
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	SMTPFrom     string // 送信元メールアドレス
+	SMTPFromName string // 送信元表示名
 }
 
 // ValidationError は設定バリデーションエラー
@@ -42,6 +49,11 @@ func Load() (*Config, error) {
 		webhookTimeoutSec = 10
 	}
 
+	smtpPort, err := strconv.Atoi(getEnv("SMTP_PORT", "587"))
+	if err != nil || smtpPort <= 0 {
+		smtpPort = 587
+	}
+
 	cfg := &Config{
 		MongoDBURI:         getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDBDatabase:    getEnv("MONGODB_DATABASE", "idol_database"),
@@ -52,6 +64,12 @@ func Load() (*Config, error) {
 		AdminAPIKey:        getEnv("ADMIN_API_KEY", ""),
 		TrustedProxies:     getEnv("TRUSTED_PROXIES", ""),
 		WebhookTimeout:     time.Duration(webhookTimeoutSec) * time.Second,
+		SMTPHost:           getEnv("SMTP_HOST", ""),
+		SMTPPort:           smtpPort,
+		SMTPUsername:       getEnv("SMTP_USERNAME", ""),
+		SMTPPassword:       getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:           getEnv("SMTP_FROM", ""),
+		SMTPFromName:       getEnv("SMTP_FROM_NAME", "Idol API"),
 	}
 
 	// バリデーション実行
