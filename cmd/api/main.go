@@ -37,10 +37,12 @@ import (
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	appJob "github.com/kuro48/idol-api/internal/application/job"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
+	appSubmission "github.com/kuro48/idol-api/internal/application/submission"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
 	"github.com/kuro48/idol-api/cmd/api/adapters"
+	"github.com/kuro48/idol-api/internal/infrastructure/email"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
@@ -51,6 +53,7 @@ import (
 	usecaseGroup "github.com/kuro48/idol-api/internal/usecase/group"
 	usecaseIdol "github.com/kuro48/idol-api/internal/usecase/idol"
 	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
+	usecaseSubmission "github.com/kuro48/idol-api/internal/usecase/submission"
 	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
 
 	_ "github.com/kuro48/idol-api/docs" // Swagger docs
@@ -94,6 +97,7 @@ func main() {
 	exportLogRepo := mongodb.NewExportLogRepository(db.Database)
 	analyticsRepo := mongodb.NewAnalyticsRepository(db.Database)
 	jobRepo := mongodb.NewJobRepository(db.Database)
+	submissionRepo := mongodb.NewSubmissionRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -137,6 +141,11 @@ func main() {
 	} else {
 		slog.Info("Removalインデックス作成完了", "collection", "removal_requests")
 	}
+	if err := submissionRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Submissionインデックス作成失敗（続行）", "error", err, "collection", "submissions")
+	} else {
+		slog.Info("Submissionインデックス作成完了", "collection", "submissions")
+	}
 	if err := webhookSubRepo.EnsureIndexes(ctx); err != nil {
 		slog.Warn("WebhookSubインデックス作成失敗（続行）", "error", err, "collection", "webhook_subscriptions")
 	} else {
@@ -164,6 +173,7 @@ func main() {
 	tagAppService := appTag.NewApplicationService(tagRepo)
 	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
 	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
+	submissionAppService := appSubmission.NewApplicationService(submissionRepo)
 
 	// 起動時に RUNNING 状態で止まっているジョブを PENDING に戻す
 	if err := jobAppService.RecoverStuckJobs(ctx); err != nil {
@@ -180,6 +190,23 @@ func main() {
 	agencyAppPort := adapters.NewAgencyAppAdapterForUsecase(agencyAppService)
 	eventAppPort := adapters.NewEventAppAdapter(eventAppService)
 	tagAppPort := adapters.NewTagAppAdapter(tagAppService)
+	submissionAppPort := adapters.NewSubmissionAppAdapter(submissionAppService)
+
+	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
+	var emailNotifier usecaseSubmission.EmailNotifier
+	if cfg.SMTPHost != "" {
+		emailNotifier = email.NewSMTPNotifier(email.SMTPConfig{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			Username: cfg.SMTPUsername,
+			Password: cfg.SMTPPassword,
+			From:     cfg.SMTPFrom,
+			FromName: cfg.SMTPFromName,
+		})
+		slog.Info("メール通知が有効です", "smtp_host", cfg.SMTPHost, "smtp_port", cfg.SMTPPort)
+	} else {
+		slog.Info("メール通知は無効です（SMTP_HOST 未設定）")
+	}
 
 	// ユースケース層
 	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPortForIdol)
@@ -188,6 +215,7 @@ func main() {
 	agencyUsecase := usecaseAgency.NewUsecase(agencyAppPort)
 	eventUsecase := usecaseEvent.NewUsecase(eventAppPort)
 	tagUsecase := usecaseTag.NewUsecase(tagAppPort)
+	submissionUsecase := usecaseSubmission.NewUsecase(submissionAppPort, emailNotifier)
 
 	// プレゼンテーション層: ハンドラー
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsAppService)
@@ -201,6 +229,7 @@ func main() {
 	termHandler := handlers.NewTermHandler("./static")
 	webhookHandler := handlers.NewWebhookHandler(adapters.NewWebhookAppAdapter(webhookAppService))
 	exportHandler := handlers.NewExportHandler(exportAppService)
+	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
 	router := gin.New()
@@ -395,6 +424,20 @@ func main() {
 			eventsWrite.DELETE("/:id", eventHandler.DeleteEvent)                         // イベント削除
 			eventsWrite.POST("/:id/performers", eventHandler.AddPerformer)               // パフォーマー追加
 			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
+		}
+
+		// 投稿審査: 作成・取得は公開、審査は admin スコープ必須
+		submissions := v1.Group("/submissions")
+		{
+			submissions.POST("", submissionHandler.CreateSubmission)          // 投稿作成（公開）
+			submissions.GET("/:id", submissionHandler.GetSubmission)          // 投稿詳細取得（公開）
+			submissions.PUT("/:id/revise", submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（公開）
+		}
+		adminSubmissions := v1.Group("/submissions", adminAuth)
+		{
+			adminSubmissions.GET("", submissionHandler.ListAllSubmissions)          // 全投稿一覧
+			adminSubmissions.GET("/pending", submissionHandler.ListPendingSubmissions) // 審査待ち一覧
+			adminSubmissions.PUT("/:id/status", submissionHandler.UpdateStatus)    // ステータス更新
 		}
 
 		// タグ: 読み取りは公開、書き込みは write スコープ必須
