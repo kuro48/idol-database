@@ -31,6 +31,7 @@ import (
 	"github.com/gin-gonic/gin"
 	appAgency "github.com/kuro48/idol-api/internal/application/agency"
 	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
+	appAPIKey "github.com/kuro48/idol-api/internal/application/apikey"
 	appEvent "github.com/kuro48/idol-api/internal/application/event"
 	appExport "github.com/kuro48/idol-api/internal/application/export"
 	appGroup "github.com/kuro48/idol-api/internal/application/group"
@@ -98,6 +99,8 @@ func main() {
 	analyticsRepo := mongodb.NewAnalyticsRepository(db.Database)
 	jobRepo := mongodb.NewJobRepository(db.Database)
 	submissionRepo := mongodb.NewSubmissionRepository(db.Database)
+	apikeyRepo := mongodb.NewAPIKeyRepository(db.Database)
+	usageRepo := mongodb.NewUsageRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -146,6 +149,16 @@ func main() {
 	} else {
 		slog.Info("Submissionインデックス作成完了", "collection", "submissions")
 	}
+	if err := apikeyRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("APIKeyインデックス作成失敗（続行）", "error", err, "collection", "api_keys")
+	} else {
+		slog.Info("APIKeyインデックス作成完了", "collection", "api_keys")
+	}
+	if err := usageRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Usageインデックス作成失敗（続行）", "error", err, "collection", "api_key_usage")
+	} else {
+		slog.Info("Usageインデックス作成完了", "collection", "api_key_usage")
+	}
 	if err := webhookSubRepo.EnsureIndexes(ctx); err != nil {
 		slog.Warn("WebhookSubインデックス作成失敗（続行）", "error", err, "collection", "webhook_subscriptions")
 	} else {
@@ -174,6 +187,7 @@ func main() {
 	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
 	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
 	submissionAppService := appSubmission.NewApplicationService(submissionRepo)
+	apikeyAppService := appAPIKey.NewApplicationService(apikeyRepo)
 
 	// 起動時に RUNNING 状態で止まっているジョブを PENDING に戻す
 	if err := jobAppService.RecoverStuckJobs(ctx); err != nil {
@@ -230,6 +244,12 @@ func main() {
 	webhookHandler := handlers.NewWebhookHandler(adapters.NewWebhookAppAdapter(webhookAppService))
 	exportHandler := handlers.NewExportHandler(exportAppService)
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
+	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
+
+	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
+	// TODO: Phase A-2 で公開 read/write ルートに適用する
+	planAuth := middleware.NewPlanAuth(apikeyRepo, usageRepo)
+	_ = planAuth
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
 	router := gin.New()
@@ -344,6 +364,14 @@ func main() {
 		{
 			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                          // アイドル復元
 			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates)  // 重複候補取得
+		}
+
+		// APIキー管理（admin スコープ必須）
+		adminAPIKeys := v1.Group("/admin/apikeys", adminAuth)
+		{
+			adminAPIKeys.POST("", apikeyHandler.CreateAPIKey)         // APIキー作成
+			adminAPIKeys.GET("", apikeyHandler.ListAPIKeys)           // APIキー一覧（?email=）
+			adminAPIKeys.DELETE("/:id", apikeyHandler.RevokeAPIKey)  // APIキー無効化
 		}
 
 		// API利用分析（admin スコープ必須）

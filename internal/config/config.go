@@ -26,6 +26,11 @@ type Config struct {
 	SMTPPassword string
 	SMTPFrom     string // 送信元メールアドレス
 	SMTPFromName string // 送信元表示名
+	// Stripe 決済設定（STRIPE_SECRET_KEY が空の場合は決済機能を無効化）
+	StripeSecretKey      string // sk_live_... または sk_test_...
+	StripeWebhookSecret  string // whsec_...（Webhook署名検証用）
+	StripePriceDeveloper string // Developer プランの Stripe Price ID
+	StripePriceBusiness  string // Business プランの Stripe Price ID
 }
 
 // ValidationError は設定バリデーションエラー
@@ -64,12 +69,16 @@ func Load() (*Config, error) {
 		AdminAPIKey:        getEnv("ADMIN_API_KEY", ""),
 		TrustedProxies:     getEnv("TRUSTED_PROXIES", ""),
 		WebhookTimeout:     time.Duration(webhookTimeoutSec) * time.Second,
-		SMTPHost:           getEnv("SMTP_HOST", ""),
-		SMTPPort:           smtpPort,
-		SMTPUsername:       getEnv("SMTP_USERNAME", ""),
-		SMTPPassword:       getEnv("SMTP_PASSWORD", ""),
-		SMTPFrom:           getEnv("SMTP_FROM", ""),
-		SMTPFromName:       getEnv("SMTP_FROM_NAME", "Idol API"),
+		SMTPHost:             getEnv("SMTP_HOST", ""),
+		SMTPPort:             smtpPort,
+		SMTPUsername:         getEnv("SMTP_USERNAME", ""),
+		SMTPPassword:         getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:             getEnv("SMTP_FROM", ""),
+		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Idol API"),
+		StripeSecretKey:      getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret:  getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		StripePriceDeveloper: getEnv("STRIPE_PRICE_DEVELOPER", ""),
+		StripePriceBusiness:  getEnv("STRIPE_PRICE_BUSINESS", ""),
 	}
 
 	// バリデーション実行
