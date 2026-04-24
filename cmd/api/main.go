@@ -247,9 +247,8 @@ func main() {
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 
 	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
-	// TODO: Phase A-2 で公開 read/write ルートに適用する
+	// OptionalAuth: キーあり → 検証+使用量カウント、キーなし → 匿名通過
 	planAuth := middleware.NewPlanAuth(apikeyRepo, usageRepo)
-	_ = planAuth
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
 	router := gin.New()
@@ -331,8 +330,8 @@ func main() {
 
 	v1 := router.Group("/api/v1")
 	{
-		// アイドル: 読み取りは公開、書き込みは write スコープ必須
-		idols := v1.Group("/idols")
+		// アイドル: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		idols := v1.Group("/idols", planAuth.OptionalAuth())
 		{
 			idols.GET("", idolHandler.ListIdols)                                   // 一覧取得（公開）
 			idols.GET("/:id", idolHandler.GetIdol)                                // 詳細取得（公開）
@@ -406,8 +405,8 @@ func main() {
 			adminExport.GET("/logs", exportHandler.ListExportLogs) // 実行履歴
 		}
 
-		// グループ: 読み取りは公開、書き込みは write スコープ必須
-		groups := v1.Group("/groups")
+		// グループ: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		groups := v1.Group("/groups", planAuth.OptionalAuth())
 		{
 			groups.GET("", groupHandler.ListGroup)
 			groups.GET("/:id", groupHandler.GetGroup)
@@ -419,8 +418,8 @@ func main() {
 			groupsWrite.DELETE("/:id", groupHandler.DeleteGroup)
 		}
 
-		// 事務所: 読み取りは公開、書き込みは write スコープ必須
-		agencies := v1.Group("/agencies")
+		// 事務所: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		agencies := v1.Group("/agencies", planAuth.OptionalAuth())
 		{
 			agencies.GET("", agencyHandler.ListAgencies)
 			agencies.GET("/:id", agencyHandler.GetAgency)
@@ -438,8 +437,8 @@ func main() {
 			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
 		}
 
-		// イベント: 読み取りは公開、書き込みは write スコープ必須
-		events := v1.Group("/events")
+		// イベント: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		events := v1.Group("/events", planAuth.OptionalAuth())
 		{
 			events.GET("", eventHandler.ListEvents)            // イベント一覧取得（検索機能付き）
 			events.GET("/upcoming", eventHandler.GetUpcomingEvents) // 今後のイベント取得
@@ -468,8 +467,8 @@ func main() {
 			adminSubmissions.PUT("/:id/status", submissionHandler.UpdateStatus)    // ステータス更新
 		}
 
-		// タグ: 読み取りは公開、書き込みは write スコープ必須
-		tags := v1.Group("/tags")
+		// タグ: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		tags := v1.Group("/tags", planAuth.OptionalAuth())
 		{
 			tags.GET("", tagHandler.ListTags)      // タグ一覧取得
 			tags.GET("/:id", tagHandler.GetTag)    // タグ詳細取得
