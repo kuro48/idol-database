@@ -157,6 +157,8 @@ func classifyError(err error, ctx ErrorContext) (int, ErrorResponse) {
 			resource = "対象"
 		}
 		return http.StatusNotFound, NewNotFoundError(resource)
+	case isUnauthorizedError(err):
+		return http.StatusUnauthorized, NewUnauthorizedError()
 	case isConflictError(err):
 		return http.StatusConflict, NewConflictError(err.Error())
 	case isBadRequestError(err):
@@ -168,6 +170,11 @@ func classifyError(err error, ctx ErrorContext) (int, ErrorResponse) {
 		}
 		return http.StatusInternalServerError, NewInternalError(msg)
 	}
+}
+
+func isUnauthorizedError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "アクセストークンが無効")
 }
 
 func isNotFoundError(err error) bool {

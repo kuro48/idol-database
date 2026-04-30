@@ -3,8 +3,10 @@ package removal
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	domain "github.com/kuro48/idol-api/internal/domain/removal"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 )
 
 // Usecase は削除申請のユースケース
@@ -12,19 +14,21 @@ type Usecase struct {
 	removalApp RemovalAppPort
 	idolApp    RemovalIdolPort
 	groupApp   RemovalGroupPort
+	publisher  RemovalWebhookPublisher
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(removalApp RemovalAppPort, idolApp RemovalIdolPort, groupApp RemovalGroupPort) *Usecase {
+func NewUsecase(removalApp RemovalAppPort, idolApp RemovalIdolPort, groupApp RemovalGroupPort, publisher RemovalWebhookPublisher) *Usecase {
 	return &Usecase{
 		removalApp: removalApp,
 		idolApp:    idolApp,
 		groupApp:   groupApp,
+		publisher:  publisher,
 	}
 }
 
 // CreateRemovalRequest は削除申請を作成する
-func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalRequestCommand) (*RemovalRequestDTO, error) {
+func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalRequestCommand) (*CreateRemovalRequestResult, error) {
 	// ターゲットタイプの検証
 	targetType, err := domain.NewTargetType(cmd.TargetType)
 	if err != nil {
@@ -43,7 +47,7 @@ func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalReq
 		}
 	}
 
-	request, err := u.removalApp.CreateRemovalRequest(ctx, RemovalCreateInput{
+	result, err := u.removalApp.CreateRemovalRequest(ctx, RemovalCreateInput{
 		TargetType:  cmd.TargetType,
 		TargetID:    cmd.TargetID,
 		Requester:   cmd.RequesterType,
@@ -56,8 +60,11 @@ func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalReq
 		return nil, err
 	}
 
-	dto := toDTO(request)
-	return &dto, nil
+	dto := toDTO(result.Request)
+	return &CreateRemovalRequestResult{
+		RemovalRequest: &dto,
+		AccessToken:    result.AccessToken,
+	}, nil
 }
 
 // GetRemovalRequest は削除申請を取得する
@@ -72,10 +79,13 @@ func (u *Usecase) GetRemovalRequest(ctx context.Context, id string) (*RemovalReq
 }
 
 // GetRemovalRequestPublic は削除申請を公開情報のみで取得する（contact_info等の機微情報を除外）
-func (u *Usecase) GetRemovalRequestPublic(ctx context.Context, id string) (*PublicRemovalRequestDTO, error) {
+func (u *Usecase) GetRemovalRequestPublic(ctx context.Context, id string, accessToken string) (*PublicRemovalRequestDTO, error) {
 	request, err := u.removalApp.GetRemovalRequest(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if !request.VerifyAccessToken(accessToken) {
+		return nil, fmt.Errorf("削除申請のアクセストークンが無効です")
 	}
 
 	dto := &PublicRemovalRequestDTO{
@@ -144,6 +154,13 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*R
 				return nil, fmt.Errorf("グループの削除に失敗しました: %w", err)
 			}
 		}
+
+		u.publishWebhook(ctx, domainWebhook.EventRemovalApproved, map[string]interface{}{
+			"id":          request.ID().Value(),
+			"target_id":   request.TargetID(),
+			"target_type": string(request.TargetType()),
+			"status":      string(request.Status()),
+		})
 	case "rejected":
 		if err := request.Reject(); err != nil {
 			return nil, fmt.Errorf("却下に失敗しました: %w", err)
@@ -186,4 +203,13 @@ func toDTOs(requests []*domain.RemovalRequest) []*RemovalRequestDTO {
 		dtos[i] = &dto
 	}
 	return dtos
+}
+
+func (u *Usecase) publishWebhook(ctx context.Context, event domainWebhook.EventType, payload interface{}) {
+	if u.publisher == nil {
+		return
+	}
+	if err := u.publisher.Publish(ctx, event, payload); err != nil {
+		slog.Error("削除申請Webhook配信キュー投入に失敗しました", "event", event, "error", err)
+	}
 }
