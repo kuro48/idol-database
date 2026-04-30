@@ -792,6 +792,58 @@
                 }
             }
         },
+        "/billing/free-apikeys": {
+            "post": {
+                "description": "誰でも free プランの API キーを発行できる",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "billing"
+                ],
+                "summary": "Free APIキー作成",
+                "parameters": [
+                    {
+                        "description": "Free APIキー作成リクエスト",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.createFreeAPIKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.createFreeAPIKeyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/billing/portal-sessions": {
             "post": {
                 "description": "認証済み API キーに紐づく顧客の Stripe Billing Portal Session を作成する",
@@ -4088,6 +4140,45 @@
                     "type": "string"
                 },
                 "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createFreeAPIKeyRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                }
+            }
+        },
+        "handlers.createFreeAPIKeyResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "masked_key": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "plan_type": {
+                    "type": "string"
+                },
+                "raw_key": {
                     "type": "string"
                 }
             }
