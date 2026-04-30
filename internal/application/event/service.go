@@ -3,22 +3,31 @@ package event
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/event"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 	sharedid "github.com/kuro48/idol-api/internal/shared/id"
 )
 
 // ApplicationService はイベントアプリケーションサービス
 type ApplicationService struct {
 	repository event.Repository
+	publisher  WebhookPublisher
+}
+
+// WebhookPublisher はイベント変更を通知する契約
+type WebhookPublisher interface {
+	Publish(ctx context.Context, event domainWebhook.EventType, payload interface{}) error
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
-func NewApplicationService(repository event.Repository) *ApplicationService {
+func NewApplicationService(repository event.Repository, publisher WebhookPublisher) *ApplicationService {
 	return &ApplicationService{
 		repository: repository,
+		publisher:  publisher,
 	}
 }
 
@@ -91,6 +100,8 @@ func (s *ApplicationService) CreateEvent(ctx context.Context, input CreateInput)
 	if err := s.repository.Save(ctx, newEvent); err != nil {
 		return nil, fmt.Errorf("イベントの保存エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventEventCreated, eventWebhookPayload(newEvent))
 
 	return newEvent, nil
 }
@@ -201,6 +212,8 @@ func (s *ApplicationService) UpdateEvent(ctx context.Context, input UpdateInput)
 		return fmt.Errorf("イベントの更新エラー: %w", err)
 	}
 
+	s.publishWebhook(ctx, domainWebhook.EventEventUpdated, eventWebhookPayload(existingEvent))
+
 	return nil
 }
 
@@ -214,6 +227,8 @@ func (s *ApplicationService) DeleteEvent(ctx context.Context, id string) error {
 	if err := s.repository.Delete(ctx, eventID); err != nil {
 		return fmt.Errorf("イベントの削除エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventEventDeleted, map[string]interface{}{"id": eventID.Value()})
 
 	return nil
 }
@@ -252,6 +267,8 @@ func (s *ApplicationService) AddPerformer(ctx context.Context, input AddPerforme
 		return fmt.Errorf("イベントの更新エラー: %w", err)
 	}
 
+	s.publishWebhook(ctx, domainWebhook.EventEventUpdated, eventWebhookPayload(existingEvent))
+
 	return nil
 }
 
@@ -273,6 +290,8 @@ func (s *ApplicationService) RemovePerformer(ctx context.Context, input RemovePe
 		return fmt.Errorf("イベントの更新エラー: %w", err)
 	}
 
+	s.publishWebhook(ctx, domainWebhook.EventEventUpdated, eventWebhookPayload(existingEvent))
+
 	return nil
 }
 
@@ -284,4 +303,40 @@ func (s *ApplicationService) FindUpcoming(ctx context.Context, limit int) ([]*ev
 	}
 
 	return events, nil
+}
+
+func (s *ApplicationService) publishWebhook(ctx context.Context, eventType domainWebhook.EventType, payload interface{}) {
+	if s.publisher == nil {
+		return
+	}
+	if err := s.publisher.Publish(ctx, eventType, payload); err != nil {
+		slog.Error("イベントWebhook配信キュー投入に失敗しました", "event", eventType, "error", err)
+	}
+}
+
+func eventWebhookPayload(entity *event.Event) map[string]interface{} {
+	payload := map[string]interface{}{
+		"id":              entity.ID().Value(),
+		"title":           entity.Title().Value(),
+		"event_type":      entity.EventType().Value(),
+		"start_date_time": entity.StartDateTime().Format(time.RFC3339),
+		"performer_ids":   entity.PerformerIDs(),
+		"tags":            entity.Tags(),
+	}
+	if entity.EndDateTime() != nil {
+		payload["end_date_time"] = entity.EndDateTime().Format(time.RFC3339)
+	}
+	if entity.VenueID() != nil {
+		payload["venue_id"] = *entity.VenueID()
+	}
+	if entity.TicketURL() != nil {
+		payload["ticket_url"] = *entity.TicketURL()
+	}
+	if entity.OfficialURL() != nil {
+		payload["official_url"] = *entity.OfficialURL()
+	}
+	if entity.Description() != nil {
+		payload["description"] = *entity.Description()
+	}
+	return payload
 }

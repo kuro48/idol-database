@@ -3,9 +3,11 @@ package agency
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/kuro48/idol-api/internal/domain/agency"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 	sharedid "github.com/kuro48/idol-api/internal/shared/id"
 )
 
@@ -13,13 +15,20 @@ import (
 type ApplicationService struct {
 	repository    agency.Repository
 	domainService *agency.DomainService
+	publisher     WebhookPublisher
+}
+
+// WebhookPublisher は事務所変更イベントを通知する契約
+type WebhookPublisher interface {
+	Publish(ctx context.Context, event domainWebhook.EventType, payload interface{}) error
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
-func NewApplicationService(repository agency.Repository) *ApplicationService {
+func NewApplicationService(repository agency.Repository, publisher WebhookPublisher) *ApplicationService {
 	return &ApplicationService{
 		repository:    repository,
 		domainService: agency.NewDomainService(repository),
+		publisher:     publisher,
 	}
 }
 
@@ -64,6 +73,8 @@ func (s *ApplicationService) CreateAgency(ctx context.Context, input CreateInput
 	if err := s.repository.Save(ctx, newAgency); err != nil {
 		return nil, fmt.Errorf("事務所の保存エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventAgencyCreated, agencyWebhookPayload(newAgency))
 
 	return newAgency, nil
 }
@@ -151,6 +162,8 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput
 		return fmt.Errorf("事務所の更新エラー: %w", err)
 	}
 
+	s.publishWebhook(ctx, domainWebhook.EventAgencyUpdated, agencyWebhookPayload(existingAgency))
+
 	return nil
 }
 
@@ -164,6 +177,8 @@ func (s *ApplicationService) DeleteAgency(ctx context.Context, id string) error 
 	if err := s.repository.Delete(ctx, agencyID); err != nil {
 		return fmt.Errorf("事務所の削除エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventAgencyDeleted, map[string]interface{}{"id": agencyID.Value()})
 
 	return nil
 }
@@ -180,4 +195,37 @@ func (s *ApplicationService) RestoreAgency(ctx context.Context, id string) error
 	}
 
 	return nil
+}
+
+func (s *ApplicationService) publishWebhook(ctx context.Context, event domainWebhook.EventType, payload interface{}) {
+	if s.publisher == nil {
+		return
+	}
+	if err := s.publisher.Publish(ctx, event, payload); err != nil {
+		slog.Error("事務所Webhook配信キュー投入に失敗しました", "event", event, "error", err)
+	}
+}
+
+func agencyWebhookPayload(entity *agency.Agency) map[string]interface{} {
+	payload := map[string]interface{}{
+		"id":      entity.ID().Value(),
+		"name":    entity.Name().Value(),
+		"country": entity.Country().Value(),
+	}
+	if entity.NameEn() != nil {
+		payload["name_en"] = *entity.NameEn()
+	}
+	if entity.FoundedDate() != nil {
+		payload["founded_date"] = entity.FoundedDate().Format("2006-01-02")
+	}
+	if entity.OfficialWebsite() != nil {
+		payload["official_website"] = *entity.OfficialWebsite()
+	}
+	if entity.Description() != nil {
+		payload["description"] = *entity.Description()
+	}
+	if entity.LogoURL() != nil {
+		payload["logo_url"] = *entity.LogoURL()
+	}
+	return payload
 }
