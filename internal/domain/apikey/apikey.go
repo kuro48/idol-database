@@ -2,6 +2,7 @@
 package apikey
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -45,6 +46,20 @@ func GenerateRawKey() (string, error) {
 		return "", errors.New("APIキーの生成に失敗しました")
 	}
 	return KeyPrefix + hex.EncodeToString(b), nil
+}
+
+// GenerateRawKeyFromSeed は seed と secret から決定的なAPIキーを生成する。
+func GenerateRawKeyFromSeed(secret, seed string) (string, error) {
+	if secret == "" || seed == "" {
+		return "", errors.New("決定的なAPIキー生成に必要な secret または seed が不足しています")
+	}
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	if _, err := mac.Write([]byte(seed)); err != nil {
+		return "", errors.New("APIキーの生成に失敗しました")
+	}
+	sum := mac.Sum(nil)
+	return KeyPrefix + hex.EncodeToString(sum[:keyBodyLen]), nil
 }
 
 // HashKey は生のAPIキーをSHA-256でハッシュ化して16進数文字列で返す

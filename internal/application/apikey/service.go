@@ -51,6 +51,30 @@ func (s *ApplicationService) CreateKey(ctx context.Context, input CreateKeyInput
 	return &CreateKeyOutput{RawKey: rawKey, Key: key}, nil
 }
 
+// CreateOrGetKeyWithRawKey は指定された rawKey を使って API キーを作成し、
+// 既に同じキーが存在する場合は既存キーを返す。
+func (s *ApplicationService) CreateOrGetKeyWithRawKey(ctx context.Context, input CreateKeyInput, rawKey string) (*CreateKeyOutput, error) {
+	if !plan.IsValid(plan.Type(input.PlanType)) {
+		return nil, fmt.Errorf("無効なプラン種別です: %s", input.PlanType)
+	}
+
+	newID := id.Generate()
+	key, err := domainapikey.New(newID, rawKey, input.Email, input.Name, plan.Type(input.PlanType))
+	if err != nil {
+		return nil, fmt.Errorf("APIキーエンティティの作成に失敗しました: %w", err)
+	}
+
+	if err := s.repo.Save(ctx, key); err != nil {
+		existing, lookupErr := s.findExistingByRawKey(ctx, rawKey)
+		if lookupErr != nil {
+			return nil, fmt.Errorf("APIキーの保存に失敗しました: %w", err)
+		}
+		return &CreateKeyOutput{RawKey: rawKey, Key: existing}, nil
+	}
+
+	return &CreateKeyOutput{RawKey: rawKey, Key: key}, nil
+}
+
 // ListKeysByEmail はメールアドレスに紐づく全APIキーを返す
 func (s *ApplicationService) ListKeysByEmail(ctx context.Context, email string) ([]*domainapikey.APIKey, error) {
 	keys, err := s.repo.FindByEmail(ctx, email)
@@ -75,4 +99,17 @@ func (s *ApplicationService) RevokeKey(ctx context.Context, input RevokeKeyInput
 		return fmt.Errorf("APIキーの無効化に失敗しました: %w", err)
 	}
 	return nil
+}
+
+func (s *ApplicationService) findExistingByRawKey(ctx context.Context, rawKey string) (*domainapikey.APIKey, error) {
+	candidates, err := s.repo.FindByPrefix(ctx, domainapikey.PrefixOf(rawKey))
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate := range candidates {
+		if candidate.VerifyKey(rawKey) {
+			return candidate, nil
+		}
+	}
+	return nil, fmt.Errorf("既存のAPIキーが見つかりません")
 }
