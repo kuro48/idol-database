@@ -3,22 +3,31 @@ package idol
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/kuro48/idol-api/internal/domain/idol"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 )
 
 // ApplicationService はアイドルアプリケーションサービス
 type ApplicationService struct {
 	repository    idol.Repository
 	domainService *idol.DomainService
+	publisher     WebhookPublisher
+}
+
+// WebhookPublisher はアイドル変更イベントを通知する契約
+type WebhookPublisher interface {
+	Publish(ctx context.Context, event domainWebhook.EventType, payload interface{}) error
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
-func NewApplicationService(repository idol.Repository) *ApplicationService {
+func NewApplicationService(repository idol.Repository, publisher WebhookPublisher) *ApplicationService {
 	return &ApplicationService{
 		repository:    repository,
 		domainService: idol.NewDomainService(repository),
+		publisher:     publisher,
 	}
 }
 
@@ -60,10 +69,17 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, input CreateInput) 
 		newIdol.SetAliases(input.Aliases)
 	}
 
+	// タグの設定
+	if len(input.TagIDs) > 0 {
+		newIdol.SetTags(input.TagIDs)
+	}
+
 	// 保存
 	if err := s.repository.Save(ctx, newIdol); err != nil {
 		return nil, fmt.Errorf("アイドルの保存エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventIdolCreated, idolWebhookPayload(newIdol))
 
 	return newIdol, nil
 }
@@ -149,6 +165,8 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, input UpdateInput) 
 		return fmt.Errorf("アイドルの更新エラー: %w", err)
 	}
 
+	s.publishWebhook(ctx, domainWebhook.EventIdolUpdated, idolWebhookPayload(existingIdol))
+
 	return nil
 }
 
@@ -162,6 +180,8 @@ func (s *ApplicationService) DeleteIdol(ctx context.Context, id string) error {
 	if err := s.repository.Delete(ctx, idolID); err != nil {
 		return fmt.Errorf("アイドルの削除エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventIdolDeleted, map[string]interface{}{"id": idolID.Value()})
 
 	return nil
 }
@@ -244,6 +264,31 @@ func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, input Update
 	}
 
 	return nil
+}
+
+func (s *ApplicationService) publishWebhook(ctx context.Context, event domainWebhook.EventType, payload interface{}) {
+	if s.publisher == nil {
+		return
+	}
+	if err := s.publisher.Publish(ctx, event, payload); err != nil {
+		slog.Error("アイドルWebhook配信キュー投入に失敗しました", "event", event, "error", err)
+	}
+}
+
+func idolWebhookPayload(entity *idol.Idol) map[string]interface{} {
+	payload := map[string]interface{}{
+		"id":      entity.ID().Value(),
+		"name":    entity.Name().Value(),
+		"aliases": entity.Aliases(),
+		"tag_ids": entity.TagIDs(),
+	}
+	if entity.Birthdate() != nil && !entity.Birthdate().IsEmpty() {
+		payload["birthdate"] = entity.Birthdate().String()
+	}
+	if entity.AgencyID() != nil {
+		payload["agency_id"] = *entity.AgencyID()
+	}
+	return payload
 }
 
 // SearchIdols は条件を指定してアイドルを検索する（並行処理版）

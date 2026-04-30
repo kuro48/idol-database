@@ -121,7 +121,17 @@ func (h *WebhookHandler) DeleteSubscription(c *gin.Context) {
 }
 
 // ReceiveWebhook はWebhookを受信して署名検証を行う
-// POST /webhooks/receive/:subscription_id
+// @Summary      Webhook受信
+// @Description  外部サービスからのWebhookを受信し、署名検証を行う
+// @Tags         webhooks
+// @Accept       json
+// @Produce      json
+// @Param        subscription_id path string true "サブスクリプションID"
+// @Param        X-Webhook-Signature header string true "Webhook署名"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      401 {object} middleware.ErrorResponse
+// @Router       /webhooks/receive/{subscription_id} [post]
 func (h *WebhookHandler) ReceiveWebhook(c *gin.Context) {
 	subscriptionID := c.Param("subscription_id")
 	if subscriptionID == "" {

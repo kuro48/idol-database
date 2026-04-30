@@ -32,16 +32,19 @@ import (
 	"github.com/kuro48/idol-api/cmd/api/adapters"
 	appAgency "github.com/kuro48/idol-api/internal/application/agency"
 	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
+	appAPIKey "github.com/kuro48/idol-api/internal/application/apikey"
 	appEvent "github.com/kuro48/idol-api/internal/application/event"
 	appExport "github.com/kuro48/idol-api/internal/application/export"
 	appGroup "github.com/kuro48/idol-api/internal/application/group"
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	appJob "github.com/kuro48/idol-api/internal/application/job"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
+	appSubmission "github.com/kuro48/idol-api/internal/application/submission"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
+	"github.com/kuro48/idol-api/internal/infrastructure/email"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
@@ -51,6 +54,7 @@ import (
 	usecaseGroup "github.com/kuro48/idol-api/internal/usecase/group"
 	usecaseIdol "github.com/kuro48/idol-api/internal/usecase/idol"
 	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
+	usecaseSubmission "github.com/kuro48/idol-api/internal/usecase/submission"
 	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
 
 	_ "github.com/kuro48/idol-api/docs" // Swagger docs
@@ -94,6 +98,9 @@ func main() {
 	exportLogRepo := mongodb.NewExportLogRepository(db.Database)
 	analyticsRepo := mongodb.NewAnalyticsRepository(db.Database)
 	jobRepo := mongodb.NewJobRepository(db.Database)
+	submissionRepo := mongodb.NewSubmissionRepository(db.Database)
+	apikeyRepo := mongodb.NewAPIKeyRepository(db.Database)
+	usageRepo := mongodb.NewUsageRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -137,6 +144,21 @@ func main() {
 	} else {
 		slog.Info("Removalインデックス作成完了", "collection", "removal_requests")
 	}
+	if err := submissionRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Submissionインデックス作成失敗（続行）", "error", err, "collection", "submissions")
+	} else {
+		slog.Info("Submissionインデックス作成完了", "collection", "submissions")
+	}
+	if err := apikeyRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("APIKeyインデックス作成失敗（続行）", "error", err, "collection", "api_keys")
+	} else {
+		slog.Info("APIKeyインデックス作成完了", "collection", "api_keys")
+	}
+	if err := usageRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Usageインデックス作成失敗（続行）", "error", err, "collection", "api_key_usage")
+	} else {
+		slog.Info("Usageインデックス作成完了", "collection", "api_key_usage")
+	}
 	if err := webhookSubRepo.EnsureIndexes(ctx); err != nil {
 		slog.Warn("WebhookSubインデックス作成失敗（続行）", "error", err, "collection", "webhook_subscriptions")
 	} else {
@@ -155,15 +177,17 @@ func main() {
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
-	jobAppService := appJob.NewApplicationService(jobRepo)
-	idolAppService := appIdol.NewApplicationService(idolRepo)
+	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
+	idolAppService := appIdol.NewApplicationService(idolRepo, webhookAppService)
 	removalAppService := appRemoval.NewApplicationService(removalRepo)
-	groupAppService := appGroup.NewApplicationService(groupRepo)
+	groupAppService := appGroup.NewApplicationService(groupRepo, webhookAppService)
 	agencyAppService := appAgency.NewApplicationService(agencyRepo)
 	eventAppService := appEvent.NewApplicationService(eventRepo)
+	jobAppService := appJob.NewApplicationService(jobRepo, idolAppService)
 	tagAppService := appTag.NewApplicationService(tagRepo)
-	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
 	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
+	submissionAppService := appSubmission.NewApplicationService(submissionRepo)
+	apikeyAppService := appAPIKey.NewApplicationService(apikeyRepo)
 
 	// 起動時に RUNNING 状態で止まっているジョブを PENDING に戻す
 	if err := jobAppService.RecoverStuckJobs(ctx); err != nil {
@@ -180,14 +204,33 @@ func main() {
 	agencyAppPort := adapters.NewAgencyAppAdapterForUsecase(agencyAppService)
 	eventAppPort := adapters.NewEventAppAdapter(eventAppService)
 	tagAppPort := adapters.NewTagAppAdapter(tagAppService)
+	submissionAppPort := adapters.NewSubmissionAppAdapter(submissionAppService)
+	submissionTargetPort := adapters.NewSubmissionTargetAppAdapter(idolAppService, groupAppService, agencyAppService, eventAppService)
+
+	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
+	var emailNotifier usecaseSubmission.EmailNotifier
+	if cfg.SMTPHost != "" {
+		emailNotifier = email.NewSMTPNotifier(email.SMTPConfig{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			Username: cfg.SMTPUsername,
+			Password: cfg.SMTPPassword,
+			From:     cfg.SMTPFrom,
+			FromName: cfg.SMTPFromName,
+		})
+		slog.Info("メール通知が有効です", "smtp_host", cfg.SMTPHost, "smtp_port", cfg.SMTPPort)
+	} else {
+		slog.Info("メール通知は無効です（SMTP_HOST 未設定）")
+	}
 
 	// ユースケース層
 	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPortForIdol)
-	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort)
+	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort, webhookAppService)
 	groupUsecase := usecaseGroup.NewUsecase(groupAppPort)
 	agencyUsecase := usecaseAgency.NewUsecase(agencyAppPort)
 	eventUsecase := usecaseEvent.NewUsecase(eventAppPort)
 	tagUsecase := usecaseTag.NewUsecase(tagAppPort)
+	submissionUsecase := usecaseSubmission.NewUsecase(submissionAppPort, submissionTargetPort, emailNotifier)
 
 	// プレゼンテーション層: ハンドラー
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsAppService)
@@ -201,6 +244,13 @@ func main() {
 	termHandler := handlers.NewTermHandler("./static")
 	webhookHandler := handlers.NewWebhookHandler(adapters.NewWebhookAppAdapter(webhookAppService))
 	exportHandler := handlers.NewExportHandler(exportAppService)
+	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
+	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
+	healthHandler := handlers.NewHealthHandler(db)
+
+	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
+	// OptionalAuth: キーあり → 検証+使用量カウント、キーなし → 匿名通過
+	planAuth := middleware.NewPlanAuth(apikeyRepo, usageRepo)
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
 	router := gin.New()
@@ -227,6 +277,7 @@ func main() {
 	router.Use(middleware.ErrorHandler())                              // エラーハンドリング
 	router.Use(middleware.AuditContext())                              // 監査コンテキスト（作成者・ソース追跡）
 	router.Use(middleware.UsageTrackerMiddleware(analyticsAppService)) // API利用トラッキング
+	router.Use(middleware.RequestBodyLimit(5 << 20))                   // 5 MiB
 
 	// CORS設定（CORS_ALLOWED_ORIGINS 環境変数で制御）
 	corsOrigins := strings.Split(cfg.CORSAllowedOrigins, ",")
@@ -248,24 +299,11 @@ func main() {
 
 	// ヘルスチェックエンドポイント
 	// liveness: プロセスが生きているかのみ確認（依存先チェックなし）
-	router.GET("/health/live", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	router.GET("/health/live", healthHandler.Live)
 	// readiness: MongoDB疎通確認（依存先が利用可能か確認）
-	router.GET("/health/ready", func(c *gin.Context) {
-		if err := db.Ping(c.Request.Context()); err != nil {
-			c.JSON(503, gin.H{"status": "unavailable", "error": "database unreachable"})
-			return
-		}
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	router.GET("/health/ready", healthHandler.Ready)
 	// 後方互換のため /health も維持
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "ok",
-			"message": "Idol API is running with DDD architecture",
-		})
-	})
+	router.GET("/health", healthHandler.Health)
 
 	// Swagger UI（本番環境では無効化）
 	if cfg.GinMode != gin.ReleaseMode {
@@ -282,8 +320,8 @@ func main() {
 
 	v1 := router.Group("/api/v1")
 	{
-		// アイドル: 読み取りは公開、書き込みは write スコープ必須
-		idols := v1.Group("/idols")
+		// アイドル: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		idols := v1.Group("/idols", planAuth.OptionalAuth())
 		{
 			idols.GET("", idolHandler.ListIdols)                       // 一覧取得（公開）
 			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得（公開）
@@ -315,6 +353,14 @@ func main() {
 		{
 			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                         // アイドル復元
 			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates) // 重複候補取得
+		}
+
+		// APIキー管理（admin スコープ必須）
+		adminAPIKeys := v1.Group("/admin/apikeys", adminAuth)
+		{
+			adminAPIKeys.POST("", apikeyHandler.CreateAPIKey)       // APIキー作成
+			adminAPIKeys.GET("", apikeyHandler.ListAPIKeys)         // APIキー一覧（?email=）
+			adminAPIKeys.DELETE("/:id", apikeyHandler.RevokeAPIKey) // APIキー無効化
 		}
 
 		// API利用分析（admin スコープ必須）
@@ -349,8 +395,8 @@ func main() {
 			adminExport.GET("/logs", exportHandler.ListExportLogs) // 実行履歴
 		}
 
-		// グループ: 読み取りは公開、書き込みは write スコープ必須
-		groups := v1.Group("/groups")
+		// グループ: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		groups := v1.Group("/groups", planAuth.OptionalAuth())
 		{
 			groups.GET("", groupHandler.ListGroup)
 			groups.GET("/:id", groupHandler.GetGroup)
@@ -362,8 +408,8 @@ func main() {
 			groupsWrite.DELETE("/:id", groupHandler.DeleteGroup)
 		}
 
-		// 事務所: 読み取りは公開、書き込みは write スコープ必須
-		agencies := v1.Group("/agencies")
+		// 事務所: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		agencies := v1.Group("/agencies", planAuth.OptionalAuth())
 		{
 			agencies.GET("", agencyHandler.ListAgencies)
 			agencies.GET("/:id", agencyHandler.GetAgency)
@@ -381,8 +427,8 @@ func main() {
 			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
 		}
 
-		// イベント: 読み取りは公開、書き込みは write スコープ必須
-		events := v1.Group("/events")
+		// イベント: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		events := v1.Group("/events", planAuth.OptionalAuth())
 		{
 			events.GET("", eventHandler.ListEvents)                 // イベント一覧取得（検索機能付き）
 			events.GET("/upcoming", eventHandler.GetUpcomingEvents) // 今後のイベント取得
@@ -397,8 +443,22 @@ func main() {
 			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
 		}
 
-		// タグ: 読み取りは公開、書き込みは write スコープ必須
-		tags := v1.Group("/tags")
+		// 投稿審査: 作成・取得は公開、審査は admin スコープ必須
+		submissions := v1.Group("/submissions")
+		{
+			submissions.POST("", submissionHandler.CreateSubmission)           // 投稿作成（公開）
+			submissions.GET("/:id", submissionHandler.GetSubmission)           // 投稿詳細取得（公開）
+			submissions.PUT("/:id/revise", submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（公開）
+		}
+		adminSubmissions := v1.Group("/submissions", adminAuth)
+		{
+			adminSubmissions.GET("", submissionHandler.ListAllSubmissions)             // 全投稿一覧
+			adminSubmissions.GET("/pending", submissionHandler.ListPendingSubmissions) // 審査待ち一覧
+			adminSubmissions.PUT("/:id/status", submissionHandler.UpdateStatus)        // ステータス更新
+		}
+
+		// タグ: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		tags := v1.Group("/tags", planAuth.OptionalAuth())
 		{
 			tags.GET("", tagHandler.ListTags)   // タグ一覧取得
 			tags.GET("/:id", tagHandler.GetTag) // タグ詳細取得
@@ -414,8 +474,12 @@ func main() {
 	// サーバー起動（グレースフルシャットダウン対応）
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: router,
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	slog.Info("サーバーを起動します", "address", addr, "architecture", "DDD")

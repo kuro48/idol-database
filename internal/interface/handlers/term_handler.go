@@ -29,6 +29,13 @@ type TermResponse struct {
 }
 
 // ShowTermsOfService は利用規約を返す
+// @Summary      利用規約取得
+// @Description  利用規約を Markdown 文字列で返す
+// @Tags         terms
+// @Produce      json
+// @Success      200 {object} TermResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /terms/service [get]
 func (h *TermHandler) ShowTermsOfService(c *gin.Context) {
 	content, err := h.readTermFile("terms_of_service.md")
 	if err != nil {
@@ -44,6 +51,13 @@ func (h *TermHandler) ShowTermsOfService(c *gin.Context) {
 }
 
 // ShowPrivacyPolicy はプライバシーポリシーを返す
+// @Summary      プライバシーポリシー取得
+// @Description  プライバシーポリシーを Markdown 文字列で返す
+// @Tags         terms
+// @Produce      json
+// @Success      200 {object} TermResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /terms/privacy [get]
 func (h *TermHandler) ShowPrivacyPolicy(c *gin.Context) {
 	content, err := h.readTermFile("privacy_policy.md")
 	if err != nil {

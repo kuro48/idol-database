@@ -6,11 +6,12 @@ import (
 	groupDomain "github.com/kuro48/idol-api/internal/domain/group"
 	idolDomain "github.com/kuro48/idol-api/internal/domain/idol"
 	domain "github.com/kuro48/idol-api/internal/domain/removal"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 )
 
 // RemovalAppPort は removal.Usecase が removal application サービスに要求する契約
 type RemovalAppPort interface {
-	CreateRemovalRequest(ctx context.Context, input RemovalCreateInput) (*domain.RemovalRequest, error)
+	CreateRemovalRequest(ctx context.Context, input RemovalCreateInput) (*RemovalCreateResult, error)
 	GetRemovalRequest(ctx context.Context, id string) (*domain.RemovalRequest, error)
 	ListAllRemovalRequests(ctx context.Context) ([]*domain.RemovalRequest, error)
 	ListPendingRemovalRequests(ctx context.Context) ([]*domain.RemovalRequest, error)
@@ -29,6 +30,11 @@ type RemovalGroupPort interface {
 	DeleteGroup(ctx context.Context, id string) error
 }
 
+// RemovalWebhookPublisher は削除申請イベントを通知する契約
+type RemovalWebhookPublisher interface {
+	Publish(ctx context.Context, event domainWebhook.EventType, payload interface{}) error
+}
+
 // RemovalCreateInput は削除申請作成の入力
 type RemovalCreateInput struct {
 	TargetType  string
@@ -38,4 +44,10 @@ type RemovalCreateInput struct {
 	ContactInfo string
 	Evidence    string
 	Description string
+}
+
+// RemovalCreateResult はアプリケーション層の作成結果
+type RemovalCreateResult struct {
+	Request     *domain.RemovalRequest
+	AccessToken string
 }

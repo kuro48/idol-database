@@ -2,21 +2,24 @@ package removal
 
 import (
 	"time"
+
+	"github.com/kuro48/idol-api/internal/shared/token"
 )
 
 // RemovalRequest は削除申請のエンティティ（Aggregate Root）
 type RemovalRequest struct {
-	id          RemovalID
-	targetID    string
-	targetType  TargetType
-	requester   Requester
-	reason      RemovalReason
-	contactInfo ContactInfo
-	evidence    EvidenceURL
-	description RemovalReason
-	status      RemovalStatus
-	createdAt   time.Time
-	updatedAt   time.Time
+	id              RemovalID
+	targetID        string
+	targetType      TargetType
+	requester       Requester
+	reason          RemovalReason
+	contactInfo     ContactInfo
+	accessTokenHash string
+	evidence        EvidenceURL
+	description     RemovalReason
+	status          RemovalStatus
+	createdAt       time.Time
+	updatedAt       time.Time
 }
 
 // NewRemovalRequest は新しい削除申請を作成する
@@ -26,6 +29,7 @@ func NewRemovalRequest(
 	requester Requester,
 	reason RemovalReason,
 	contactInfo ContactInfo,
+	accessTokenHash string,
 	evidence EvidenceURL,
 	description RemovalReason,
 ) *RemovalRequest {
@@ -33,16 +37,17 @@ func NewRemovalRequest(
 
 	return &RemovalRequest{
 		// IDは空（保存時に生成される）
-		targetID:    targetID,
-		targetType:  targetType,
-		requester:   requester,
-		reason:      reason,
-		contactInfo: contactInfo,
-		evidence:    evidence,
-		description: description,
-		status:      StatusPending, // 初期状態は保留中
-		createdAt:   now,
-		updatedAt:   now,
+		targetID:        targetID,
+		targetType:      targetType,
+		requester:       requester,
+		reason:          reason,
+		contactInfo:     contactInfo,
+		accessTokenHash: accessTokenHash,
+		evidence:        evidence,
+		description:     description,
+		status:          StatusPending, // 初期状態は保留中
+		createdAt:       now,
+		updatedAt:       now,
 	}
 }
 
@@ -54,6 +59,7 @@ func Reconstruct(
 	requester Requester,
 	reason RemovalReason,
 	contactInfo ContactInfo,
+	accessTokenHash string,
 	evidence EvidenceURL,
 	description RemovalReason,
 	status RemovalStatus,
@@ -61,17 +67,18 @@ func Reconstruct(
 	updatedAt time.Time,
 ) *RemovalRequest {
 	return &RemovalRequest{
-		id:          id,
-		targetID:    targetID,
-		targetType:  targetType,
-		requester:   requester,
-		reason:      reason,
-		contactInfo: contactInfo,
-		evidence:    evidence,
-		description: description,
-		status:      status,
-		createdAt:   createdAt,
-		updatedAt:   updatedAt,
+		id:              id,
+		targetID:        targetID,
+		targetType:      targetType,
+		requester:       requester,
+		reason:          reason,
+		contactInfo:     contactInfo,
+		accessTokenHash: accessTokenHash,
+		evidence:        evidence,
+		description:     description,
+		status:          status,
+		createdAt:       createdAt,
+		updatedAt:       updatedAt,
 	}
 }
 
@@ -105,6 +112,11 @@ func (r *RemovalRequest) ContactInfo() ContactInfo {
 	return r.contactInfo
 }
 
+// AccessTokenHash は公開アクセストークンのハッシュを返す
+func (r *RemovalRequest) AccessTokenHash() string {
+	return r.accessTokenHash
+}
+
 // Evidence は証拠資料URLを返す
 func (r *RemovalRequest) Evidence() EvidenceURL {
 	return r.evidence
@@ -133,6 +145,11 @@ func (r *RemovalRequest) UpdatedAt() time.Time {
 // SetID はIDを設定する（永続化後に使用）
 func (r *RemovalRequest) SetID(id RemovalID) {
 	r.id = id
+}
+
+// VerifyAccessToken は公開アクセストークンを検証する
+func (r *RemovalRequest) VerifyAccessToken(rawToken string) bool {
+	return token.Verify(rawToken, r.accessTokenHash)
 }
 
 // Approve は削除申請を承認する
