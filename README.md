@@ -21,8 +21,6 @@ internal/
 
 **依存方向**: `interface → usecase → application → domain ← infrastructure`
 
-詳細: [`docs/clean-architecture/`](docs/clean-architecture/)
-
 ## 技術スタック
 
 - **言語**: Go 1.24+
@@ -92,14 +90,4 @@ go fmt ./...
 go mod tidy
 ```
 
-新機能追加の手順は [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) を参照。
-
-## ドキュメント
-
-| ドキュメント | 内容 |
-|------------|------|
-| [Clean Architecture](docs/clean-architecture/) | レイヤー定義・境界ルール・ADR |
-| [Development Guide](docs/DEVELOPMENT_GUIDE.md) | 開発手順・規約 |
-| [Docker Guide](docs/docker-guide.md) | Docker 環境構築 |
-| [Deployment](docs/deployment.md) | デプロイ手順 |
-| [Legal Guidelines](docs/legal-guidelines.md) | 法的対応方針 |
+API 仕様以外の補助資料は削除し、運用上参照する HTTP 仕様は Swagger に集約しています。
