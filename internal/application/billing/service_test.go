@@ -49,18 +49,21 @@ func (f *fakeStripeClient) CreatePortalSession(_ context.Context, input CreatePo
 type fakeFulfillmentRepo struct {
 	bySession map[string]*domainbilling.CheckoutFulfillment
 	latest    map[string]*domainbilling.CheckoutFulfillment
+	byCustomer map[string]*domainbilling.CheckoutFulfillment
 }
 
 func newFakeFulfillmentRepo() *fakeFulfillmentRepo {
 	return &fakeFulfillmentRepo{
-		bySession: make(map[string]*domainbilling.CheckoutFulfillment),
-		latest:    make(map[string]*domainbilling.CheckoutFulfillment),
+		bySession:  make(map[string]*domainbilling.CheckoutFulfillment),
+		latest:     make(map[string]*domainbilling.CheckoutFulfillment),
+		byCustomer: make(map[string]*domainbilling.CheckoutFulfillment),
 	}
 }
 
 func (f *fakeFulfillmentRepo) Save(_ context.Context, fulfillment *domainbilling.CheckoutFulfillment) error {
 	f.bySession[fulfillment.SessionID()] = fulfillment
 	f.latest[fulfillment.Email()] = fulfillment
+	f.byCustomer[fulfillment.CustomerID()] = fulfillment
 	return nil
 }
 
@@ -72,16 +75,22 @@ func (f *fakeFulfillmentRepo) FindLatestByEmail(_ context.Context, email string)
 	return f.latest[email], nil
 }
 
+func (f *fakeFulfillmentRepo) FindLatestByCustomerID(_ context.Context, customerID string) (*domainbilling.CheckoutFulfillment, error) {
+	return f.byCustomer[customerID], nil
+}
+
 func (f *fakeFulfillmentRepo) Update(_ context.Context, fulfillment *domainbilling.CheckoutFulfillment) error {
 	f.bySession[fulfillment.SessionID()] = fulfillment
 	f.latest[fulfillment.Email()] = fulfillment
+	f.byCustomer[fulfillment.CustomerID()] = fulfillment
 	return nil
 }
 
 type fakeAPIKeyIssuer struct {
-	calls  int
-	rawKey string
-	key    *domainapikey.APIKey
+	calls      int
+	rawKey     string
+	key        *domainapikey.APIKey
+	updatedKey *domainapikey.APIKey
 }
 
 func (f *fakeAPIKeyIssuer) CreateOrGetKeyWithRawKey(_ context.Context, input appAPIKey.CreateKeyInput, rawKey string) (*appAPIKey.CreateKeyOutput, error) {
@@ -105,6 +114,26 @@ func (f *fakeAPIKeyIssuer) CreateOrGetKeyWithRawKey(_ context.Context, input app
 		f.key = key
 	}
 	return &appAPIKey.CreateKeyOutput{RawKey: rawKey, Key: f.key}, nil
+}
+
+func (f *fakeAPIKeyIssuer) UpdateKeyPlanAndStatus(_ context.Context, id string, planType string, active bool) (*domainapikey.APIKey, error) {
+	key, err := domainapikey.Reconstruct(
+		id,
+		f.key.Prefix(),
+		f.key.KeyHash(),
+		f.key.MaskedKey(),
+		f.key.Email(),
+		f.key.Name(),
+		plan.Type(planType),
+		active,
+		f.key.CreatedAt(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	f.key = key
+	f.updatedKey = key
+	return key, nil
 }
 
 type fakeNotifier struct {
@@ -256,6 +285,124 @@ func TestHandleStripeWebhook_ReturnsErrorWhenSignatureInvalid(t *testing.T) {
 
 	err := service.HandleStripeWebhook(context.Background(), []byte("{}"), "bad")
 	require.Error(t, err)
+}
+
+func TestHandleStripeWebhook_DeactivatesKeyOnSubscriptionDeleted(t *testing.T) {
+	t.Parallel()
+
+	stripeClient := &fakeStripeClient{
+		webhookEvent: &WebhookEvent{
+			Type: WebhookEventTypeSubscriptionDeleted,
+			Subscription: &SubscriptionUpdated{
+				CustomerID: "cus_123",
+				PlanType:   plan.TypeBusiness,
+				Status:     "canceled",
+			},
+		},
+	}
+	repo := newFakeFulfillmentRepo()
+	fulfillment := domainbilling.NewCheckoutFulfillment("cs_test_123", "cus_123", "user@example.com", "Example App", plan.TypeBusiness, "507f1f77bcf86cd799439013")
+	require.NoError(t, repo.Save(context.Background(), fulfillment))
+	issuer := &fakeAPIKeyIssuer{}
+	issuer.key, _ = domainapikey.Reconstruct("507f1f77bcf86cd799439013", "ik_live_12345678", "hash", "ik_live_1234****5678", "user@example.com", "Example App", plan.TypeBusiness, true, mustTime())
+
+	service := NewService(
+		stripeClient,
+		repo,
+		issuer,
+		&fakeNotifier{},
+		Config{KeySeedSecret: "seed"},
+	)
+
+	err := service.HandleStripeWebhook(context.Background(), []byte("{}"), "sig")
+	require.NoError(t, err)
+	require.NotNil(t, issuer.updatedKey)
+	assert.False(t, issuer.updatedKey.IsActive())
+	assert.Equal(t, plan.TypeBusiness, issuer.updatedKey.PlanType())
+}
+
+func TestHandleStripeWebhook_SyncsPlanOnSubscriptionUpdated(t *testing.T) {
+	t.Parallel()
+
+	stripeClient := &fakeStripeClient{
+		webhookEvent: &WebhookEvent{
+			Type: WebhookEventTypeSubscriptionUpdated,
+			Subscription: &SubscriptionUpdated{
+				CustomerID: "cus_123",
+				PlanType:   plan.TypeBusiness,
+				Status:     "active",
+			},
+		},
+	}
+	repo := newFakeFulfillmentRepo()
+	fulfillment := domainbilling.NewCheckoutFulfillment("cs_test_123", "cus_123", "user@example.com", "Example App", plan.TypeDeveloper, "507f1f77bcf86cd799439013")
+	require.NoError(t, repo.Save(context.Background(), fulfillment))
+	issuer := &fakeAPIKeyIssuer{}
+	issuer.key, _ = domainapikey.Reconstruct("507f1f77bcf86cd799439013", "ik_live_12345678", "hash", "ik_live_1234****5678", "user@example.com", "Example App", plan.TypeDeveloper, true, mustTime())
+
+	service := NewService(
+		stripeClient,
+		repo,
+		issuer,
+		&fakeNotifier{},
+		Config{KeySeedSecret: "seed"},
+	)
+
+	err := service.HandleStripeWebhook(context.Background(), []byte("{}"), "sig")
+	require.NoError(t, err)
+	require.NotNil(t, issuer.updatedKey)
+	assert.True(t, issuer.updatedKey.IsActive())
+	assert.Equal(t, plan.TypeBusiness, issuer.updatedKey.PlanType())
+
+	updatedFulfillment, err := repo.FindLatestByCustomerID(context.Background(), "cus_123")
+	require.NoError(t, err)
+	require.NotNil(t, updatedFulfillment)
+	assert.Equal(t, plan.TypeBusiness, updatedFulfillment.PlanType())
+}
+
+func TestHandleStripeWebhook_DeactivatesAndReactivatesKeyOnInvoiceEvents(t *testing.T) {
+	t.Parallel()
+
+	repo := newFakeFulfillmentRepo()
+	fulfillment := domainbilling.NewCheckoutFulfillment("cs_test_123", "cus_123", "user@example.com", "Example App", plan.TypeDeveloper, "507f1f77bcf86cd799439013")
+	require.NoError(t, repo.Save(context.Background(), fulfillment))
+	issuer := &fakeAPIKeyIssuer{}
+	issuer.key, _ = domainapikey.Reconstruct("507f1f77bcf86cd799439013", "ik_live_12345678", "hash", "ik_live_1234****5678", "user@example.com", "Example App", plan.TypeDeveloper, true, mustTime())
+
+	service := NewService(
+		&fakeStripeClient{
+			webhookEvent: &WebhookEvent{
+				Type: WebhookEventTypeInvoicePaymentFailed,
+				Invoice: &InvoiceUpdated{
+					CustomerID: "cus_123",
+					Paid:       false,
+				},
+			},
+		},
+		repo,
+		issuer,
+		&fakeNotifier{},
+		Config{KeySeedSecret: "seed"},
+	)
+
+	err := service.HandleStripeWebhook(context.Background(), []byte("{}"), "sig")
+	require.NoError(t, err)
+	require.NotNil(t, issuer.updatedKey)
+	assert.False(t, issuer.updatedKey.IsActive())
+
+	service.stripeClient = &fakeStripeClient{
+		webhookEvent: &WebhookEvent{
+			Type: WebhookEventTypeInvoicePaid,
+			Invoice: &InvoiceUpdated{
+				CustomerID: "cus_123",
+				Paid:       true,
+			},
+		},
+	}
+	err = service.HandleStripeWebhook(context.Background(), []byte("{}"), "sig")
+	require.NoError(t, err)
+	assert.True(t, issuer.updatedKey.IsActive())
+	assert.Equal(t, plan.TypeDeveloper, issuer.updatedKey.PlanType())
 }
 
 func mustTime() (tm time.Time) {
