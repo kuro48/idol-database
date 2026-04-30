@@ -129,6 +129,24 @@ func (u *Usecase) ListPendingRemovalRequests(ctx context.Context) ([]*RemovalReq
 	return toDTOs(requests), nil
 }
 
+// ListOverdueRemovalRequests は SLA 超過の保留中削除申請を取得する
+func (u *Usecase) ListOverdueRemovalRequests(ctx context.Context) ([]*RemovalRequestDTO, error) {
+	requests, err := u.removalApp.ListPendingRemovalRequests(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	overdue := make([]*domain.RemovalRequest, 0, len(requests))
+	for _, request := range requests {
+		if request.CreatedAt().Add(removalSLAWindow).Before(now) {
+			overdue = append(overdue, request)
+		}
+	}
+
+	return toDTOs(overdue), nil
+}
+
 // UpdateStatus はステータスを更新する
 func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*RemovalRequestDTO, error) {
 	// 削除申請の取得

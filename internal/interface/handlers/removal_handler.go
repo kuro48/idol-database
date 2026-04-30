@@ -162,6 +162,29 @@ func (h *RemovalHandler) ListPendingRemovalRequests(c *gin.Context) {
 	})
 }
 
+// ListOverdueRemovalRequests は SLA 超過の削除申請を取得する（管理者用）
+// @Summary      SLA超過削除申請一覧取得
+// @Description  SLA を超過した保留中の削除申請を取得する（管理者用）
+// @Tags         removal-requests
+// @Produce      json
+// @Success      200 {object} RemovalRequestListResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /removal-requests/overdue [get]
+func (h *RemovalHandler) ListOverdueRemovalRequests(c *gin.Context) {
+	dtos, err := h.removalService.ListOverdueRemovalRequests(c.Request.Context())
+	if err != nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "SLA超過削除申請の取得に失敗しました",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"removal_requests": dtos,
+		"count":            len(dtos),
+	})
+}
+
 // UpdateStatus はステータスを更新する（管理者用）
 // @Summary      削除申請ステータス更新
 // @Description  削除申請のステータスを更新する（管理者用）
