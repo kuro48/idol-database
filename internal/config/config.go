@@ -29,6 +29,7 @@ type Config struct {
 	// Stripe 決済設定（STRIPE_SECRET_KEY が空の場合は決済機能を無効化）
 	StripeSecretKey      string // sk_live_... または sk_test_...
 	StripeWebhookSecret  string // whsec_...（Webhook署名検証用）
+	StripeKeySeedSecret  string // 決済完了時のAPIキー決定生成用シークレット
 	StripePriceDeveloper string // Developer プランの Stripe Price ID
 	StripePriceBusiness  string // Business プランの Stripe Price ID
 }
@@ -60,15 +61,15 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		MongoDBURI:         getEnv("MONGODB_URI", "mongodb://localhost:27017"),
-		MongoDBDatabase:    getEnv("MONGODB_DATABASE", "idol_database"),
-		ServerPort:         getEnv("SERVER_PORT", "8081"),
-		GinMode:            getEnv("GIN_MODE", "debug"),
-		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
-		WriteAPIKey:        getEnv("WRITE_API_KEY", ""),
-		AdminAPIKey:        getEnv("ADMIN_API_KEY", ""),
-		TrustedProxies:     getEnv("TRUSTED_PROXIES", ""),
-		WebhookTimeout:     time.Duration(webhookTimeoutSec) * time.Second,
+		MongoDBURI:           getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+		MongoDBDatabase:      getEnv("MONGODB_DATABASE", "idol_database"),
+		ServerPort:           getEnv("SERVER_PORT", "8081"),
+		GinMode:              getEnv("GIN_MODE", "debug"),
+		CORSAllowedOrigins:   getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
+		WriteAPIKey:          getEnv("WRITE_API_KEY", ""),
+		AdminAPIKey:          getEnv("ADMIN_API_KEY", ""),
+		TrustedProxies:       getEnv("TRUSTED_PROXIES", ""),
+		WebhookTimeout:       time.Duration(webhookTimeoutSec) * time.Second,
 		SMTPHost:             getEnv("SMTP_HOST", ""),
 		SMTPPort:             smtpPort,
 		SMTPUsername:         getEnv("SMTP_USERNAME", ""),
@@ -77,6 +78,7 @@ func Load() (*Config, error) {
 		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Idol API"),
 		StripeSecretKey:      getEnv("STRIPE_SECRET_KEY", ""),
 		StripeWebhookSecret:  getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		StripeKeySeedSecret:  getEnv("STRIPE_KEY_SEED_SECRET", ""),
 		StripePriceDeveloper: getEnv("STRIPE_PRICE_DEVELOPER", ""),
 		StripePriceBusiness:  getEnv("STRIPE_PRICE_BUSINESS", ""),
 	}
@@ -140,6 +142,22 @@ func (c *Config) Validate() error {
 		return &ValidationError{
 			Field:   "ADMIN_API_KEY",
 			Message: "本番環境では ADMIN_API_KEY の設定が必須です",
+		}
+	}
+
+	// Stripe を有効にする場合は必須項目を揃える
+	if c.StripeSecretKey != "" {
+		if c.StripeWebhookSecret == "" {
+			return &ValidationError{Field: "STRIPE_WEBHOOK_SECRET", Message: "Stripe決済を有効化する場合は Webhook secret が必須です"}
+		}
+		if c.StripeKeySeedSecret == "" {
+			return &ValidationError{Field: "STRIPE_KEY_SEED_SECRET", Message: "Stripe決済を有効化する場合は APIキー生成シークレットが必須です"}
+		}
+		if c.StripePriceDeveloper == "" {
+			return &ValidationError{Field: "STRIPE_PRICE_DEVELOPER", Message: "Developer プランの Stripe Price ID は必須です"}
+		}
+		if c.StripePriceBusiness == "" {
+			return &ValidationError{Field: "STRIPE_PRICE_BUSINESS", Message: "Business プランの Stripe Price ID は必須です"}
 		}
 	}
 

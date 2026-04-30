@@ -20,6 +20,8 @@ const (
 	CtxKeyWriteEnabled = "write_enabled"
 	// CtxKeyAPIKeyPrefix はGinコンテキストに格納するAPIキープレフィックスのキー
 	CtxKeyAPIKeyPrefix = "api_key_prefix"
+	// CtxKeyAPIKeyEmail はGinコンテキストに格納するAPIキー所有者メールアドレスのキー
+	CtxKeyAPIKeyEmail = "api_key_email"
 
 	// planAuthTimeout はDB問い合わせのタイムアウト
 	planAuthTimeout = 3 * time.Second
@@ -92,6 +94,7 @@ func (m *PlanAuthMiddleware) OptionalAuth() gin.HandlerFunc {
 		c.Set(CtxKeyPlanType, string(apiKey.PlanType()))
 		c.Set(CtxKeyWriteEnabled, limits.WriteEnabled)
 		c.Set(CtxKeyAPIKeyPrefix, apiKey.Prefix())
+		c.Set(CtxKeyAPIKeyEmail, apiKey.Email())
 		c.Next()
 	}
 }
@@ -149,6 +152,7 @@ func (m *PlanAuthMiddleware) Auth() gin.HandlerFunc {
 		c.Set(CtxKeyPlanType, string(apiKey.PlanType()))
 		c.Set(CtxKeyWriteEnabled, limits.WriteEnabled)
 		c.Set(CtxKeyAPIKeyPrefix, apiKey.Prefix())
+		c.Set(CtxKeyAPIKeyEmail, apiKey.Email())
 		c.Next()
 	}
 }

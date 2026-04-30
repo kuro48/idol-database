@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	appBilling "github.com/kuro48/idol-api/internal/application/billing"
 	"github.com/kuro48/idol-api/internal/usecase/submission"
 )
 
@@ -57,6 +58,21 @@ func (n *SMTPNotifier) NotifyStatusChanged(ctx context.Context, notification sub
 		"to", notification.To,
 		"submission_id", notification.SubmissionID,
 		"status", notification.Status,
+	)
+	return nil
+}
+
+// NotifyAPIKeyIssued は課金完了後の API キーをメール通知する。
+func (n *SMTPNotifier) NotifyAPIKeyIssued(ctx context.Context, notification appBilling.APIKeyIssuedNotification) error {
+	subject, body := buildAPIKeyIssuedMessage(notification)
+
+	if err := n.send(notification.To, subject, body); err != nil {
+		return fmt.Errorf("メール送信エラー: %w", err)
+	}
+
+	slog.Info("APIキー通知送信完了",
+		"to", notification.To,
+		"plan_type", notification.PlanType,
 	)
 	return nil
 }
@@ -257,4 +273,22 @@ func targetTypeLabel(t string) string {
 	default:
 		return t
 	}
+}
+
+func buildAPIKeyIssuedMessage(n appBilling.APIKeyIssuedNotification) (subject, body string) {
+	subject = fmt.Sprintf("【Idol API】%sプランのAPIキーを発行しました", strings.Title(n.PlanType))
+	body = fmt.Sprintf(`%s 様
+
+Idol API の %s プラン購入が完了しました。
+以下の API キーを発行しました。この値は安全に保管してください。
+
+APIキー:
+%s
+
+キーの再確認はできません。必要に応じて管理画面またはサポート経由で再発行してください。
+
+---
+Idol API
+`, n.Name, n.PlanType, n.RawKey)
+	return subject, body
 }

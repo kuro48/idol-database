@@ -33,6 +33,7 @@ import (
 	appAgency "github.com/kuro48/idol-api/internal/application/agency"
 	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
 	appAPIKey "github.com/kuro48/idol-api/internal/application/apikey"
+	appBilling "github.com/kuro48/idol-api/internal/application/billing"
 	appEvent "github.com/kuro48/idol-api/internal/application/event"
 	appExport "github.com/kuro48/idol-api/internal/application/export"
 	appGroup "github.com/kuro48/idol-api/internal/application/group"
@@ -43,9 +44,11 @@ import (
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
+	"github.com/kuro48/idol-api/internal/domain/plan"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/email"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
+	infraStripe "github.com/kuro48/idol-api/internal/infrastructure/stripe"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 	"github.com/kuro48/idol-api/internal/shared/logger"
@@ -101,6 +104,7 @@ func main() {
 	submissionRepo := mongodb.NewSubmissionRepository(db.Database)
 	apikeyRepo := mongodb.NewAPIKeyRepository(db.Database)
 	usageRepo := mongodb.NewUsageRepository(db.Database)
+	billingRepo := mongodb.NewBillingFulfillmentRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -174,6 +178,11 @@ func main() {
 	} else {
 		slog.Info("ExportLogインデックス作成完了", "collection", "export_logs")
 	}
+	if err := billingRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("BillingFulfillmentインデックス作成失敗（続行）", "error", err, "collection", "billing_fulfillments")
+	} else {
+		slog.Info("BillingFulfillmentインデックス作成完了", "collection", "billing_fulfillments")
+	}
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
@@ -208,9 +217,10 @@ func main() {
 	submissionTargetPort := adapters.NewSubmissionTargetAppAdapter(idolAppService, groupAppService, agencyAppService, eventAppService)
 
 	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
+	var smtpNotifier *email.SMTPNotifier
 	var emailNotifier usecaseSubmission.EmailNotifier
 	if cfg.SMTPHost != "" {
-		emailNotifier = email.NewSMTPNotifier(email.SMTPConfig{
+		smtpNotifier = email.NewSMTPNotifier(email.SMTPConfig{
 			Host:     cfg.SMTPHost,
 			Port:     cfg.SMTPPort,
 			Username: cfg.SMTPUsername,
@@ -218,6 +228,7 @@ func main() {
 			From:     cfg.SMTPFrom,
 			FromName: cfg.SMTPFromName,
 		})
+		emailNotifier = smtpNotifier
 		slog.Info("メール通知が有効です", "smtp_host", cfg.SMTPHost, "smtp_port", cfg.SMTPPort)
 	} else {
 		slog.Info("メール通知は無効です（SMTP_HOST 未設定）")
@@ -247,6 +258,27 @@ func main() {
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 	healthHandler := handlers.NewHealthHandler(db)
+	var billingHandler *handlers.BillingHandler
+	if cfg.StripeSecretKey != "" && smtpNotifier != nil {
+		billingService := appBilling.NewService(
+			infraStripe.NewClient(cfg.StripeSecretKey, cfg.StripeWebhookSecret),
+			billingRepo,
+			apikeyAppService,
+			smtpNotifier,
+			appBilling.Config{
+				StripeSigningSecret: cfg.StripeWebhookSecret,
+				KeySeedSecret:       cfg.StripeKeySeedSecret,
+				PriceIDs: map[plan.Type]string{
+					plan.TypeDeveloper: cfg.StripePriceDeveloper,
+					plan.TypeBusiness:  cfg.StripePriceBusiness,
+				},
+			},
+		)
+		billingHandler = handlers.NewBillingHandler(billingService)
+		slog.Info("Stripe課金導線が有効です")
+	} else {
+		slog.Info("Stripe課金導線は無効です", "stripe_enabled", cfg.StripeSecretKey != "", "smtp_enabled", smtpNotifier != nil)
+	}
 
 	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
 	// OptionalAuth: キーあり → 検証+使用量カウント、キーなし → 匿名通過
@@ -393,6 +425,19 @@ func main() {
 		{
 			adminExport.GET("/idols", exportHandler.ExportIdols)   // アイドルエクスポート
 			adminExport.GET("/logs", exportHandler.ListExportLogs) // 実行履歴
+		}
+
+		if billingHandler != nil {
+			billing := v1.Group("/billing")
+			{
+				billing.POST("/checkout-sessions", billingHandler.CreateCheckoutSession)
+				billing.POST("/webhooks/stripe", billingHandler.HandleStripeWebhook)
+			}
+
+			billingAuth := v1.Group("/billing", planAuth.Auth())
+			{
+				billingAuth.POST("/portal-sessions", billingHandler.CreatePortalSession)
+			}
 		}
 
 		// グループ: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
