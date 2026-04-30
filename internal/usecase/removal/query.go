@@ -21,6 +21,8 @@ type RemovalRequestDTO struct {
 	Status        string    `json:"status"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+	SLADueAt      time.Time `json:"sla_due_at"`
+	SLAOverdue    bool      `json:"sla_overdue"`
 }
 
 // PublicRemovalRequestDTO は公開用削除申請DTO（contact_info等の機微情報を除外）

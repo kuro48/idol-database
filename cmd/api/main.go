@@ -236,7 +236,7 @@ func main() {
 
 	// ユースケース層
 	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPortForIdol)
-	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort, webhookAppService)
+	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort, smtpNotifier, webhookAppService)
 	groupUsecase := usecaseGroup.NewUsecase(groupAppPort)
 	agencyUsecase := usecaseAgency.NewUsecase(agencyAppPort)
 	eventUsecase := usecaseEvent.NewUsecase(eventAppPort)

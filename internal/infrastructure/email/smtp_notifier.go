@@ -11,6 +11,7 @@ import (
 	"time"
 
 	appBilling "github.com/kuro48/idol-api/internal/application/billing"
+	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
 	"github.com/kuro48/idol-api/internal/usecase/submission"
 )
 
@@ -74,6 +75,28 @@ func (n *SMTPNotifier) NotifyAPIKeyIssued(ctx context.Context, notification appB
 		"to", notification.To,
 		"plan_type", notification.PlanType,
 	)
+	return nil
+}
+
+// NotifyReceived は削除申請の受付完了をメール通知する。
+func (n *SMTPNotifier) NotifyReceived(ctx context.Context, notification usecaseRemoval.ReceivedNotification) error {
+	subject, body := buildRemovalReceivedMessage(notification)
+	if err := n.send(notification.To, subject, body); err != nil {
+		return fmt.Errorf("メール送信エラー: %w", err)
+	}
+
+	slog.Info("削除申請受付通知送信完了", "to", notification.To, "request_id", notification.RequestID)
+	return nil
+}
+
+// NotifyResolved は削除申請の処理完了をメール通知する。
+func (n *SMTPNotifier) NotifyResolved(ctx context.Context, notification usecaseRemoval.ResolvedNotification) error {
+	subject, body := buildRemovalResolvedMessage(notification)
+	if err := n.send(notification.To, subject, body); err != nil {
+		return fmt.Errorf("メール送信エラー: %w", err)
+	}
+
+	slog.Info("削除申請完了通知送信完了", "to", notification.To, "request_id", notification.RequestID, "status", notification.Status)
 	return nil
 }
 
@@ -290,5 +313,45 @@ APIキー:
 ---
 Idol API
 `, n.Name, n.PlanType, n.RawKey)
+	return subject, body
+}
+
+func buildRemovalReceivedMessage(n usecaseRemoval.ReceivedNotification) (subject, body string) {
+	subject = fmt.Sprintf("【Idol API】削除申請を受け付けました（%s）", targetTypeLabel(n.TargetType))
+	body = fmt.Sprintf(`削除申請を受け付けました。
+
+申請ID: %s
+対象種別: %s
+受付日時: %s
+
+申請内容の確認や進捗確認には以下のアクセストークンを使用してください。
+%s
+
+---
+Idol API
+`, n.RequestID, targetTypeLabel(n.TargetType), n.CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC"), n.AccessToken)
+	return subject, body
+}
+
+func buildRemovalResolvedMessage(n usecaseRemoval.ResolvedNotification) (subject, body string) {
+	statusLabel := n.Status
+	switch n.Status {
+	case "approved":
+		statusLabel = "承認"
+	case "rejected":
+		statusLabel = "却下"
+	}
+
+	subject = fmt.Sprintf("【Idol API】削除申請の処理が完了しました（%s）", targetTypeLabel(n.TargetType))
+	body = fmt.Sprintf(`削除申請の処理が完了しました。
+
+申請ID: %s
+対象種別: %s
+処理結果: %s
+更新日時: %s
+
+---
+Idol API
+`, n.RequestID, targetTypeLabel(n.TargetType), statusLabel, n.UpdatedAt.UTC().Format("2006-01-02 15:04:05 UTC"))
 	return subject, body
 }

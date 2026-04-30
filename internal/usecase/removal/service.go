@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	domain "github.com/kuro48/idol-api/internal/domain/removal"
 	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
@@ -14,15 +15,19 @@ type Usecase struct {
 	removalApp RemovalAppPort
 	idolApp    RemovalIdolPort
 	groupApp   RemovalGroupPort
+	notifier   RemovalNotifier
 	publisher  RemovalWebhookPublisher
 }
 
+const removalSLAWindow = 72 * time.Hour
+
 // NewUsecase はユースケースを作成する
-func NewUsecase(removalApp RemovalAppPort, idolApp RemovalIdolPort, groupApp RemovalGroupPort, publisher RemovalWebhookPublisher) *Usecase {
+func NewUsecase(removalApp RemovalAppPort, idolApp RemovalIdolPort, groupApp RemovalGroupPort, notifier RemovalNotifier, publisher RemovalWebhookPublisher) *Usecase {
 	return &Usecase{
 		removalApp: removalApp,
 		idolApp:    idolApp,
 		groupApp:   groupApp,
+		notifier:   notifier,
 		publisher:  publisher,
 	}
 }
@@ -61,6 +66,7 @@ func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalReq
 	}
 
 	dto := toDTO(result.Request)
+	u.notifyReceived(ctx, result.Request, result.AccessToken)
 	return &CreateRemovalRequestResult{
 		RemovalRequest: &dto,
 		AccessToken:    result.AccessToken,
@@ -175,11 +181,15 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*R
 	}
 
 	dto := toDTO(request)
+	u.notifyResolved(ctx, request)
 	return &dto, nil
 }
 
 // toDTO はエンティティをDTOに変換する
 func toDTO(request *domain.RemovalRequest) RemovalRequestDTO {
+	slaDueAt := request.CreatedAt().Add(removalSLAWindow)
+	slaOverdue := request.IsPending() && time.Now().After(slaDueAt)
+
 	return RemovalRequestDTO{
 		ID:            request.ID().Value(),
 		TargetID:      request.TargetID(),
@@ -192,6 +202,8 @@ func toDTO(request *domain.RemovalRequest) RemovalRequestDTO {
 		Status:        string(request.Status()),
 		CreatedAt:     request.CreatedAt(),
 		UpdatedAt:     request.UpdatedAt(),
+		SLADueAt:      slaDueAt,
+		SLAOverdue:    slaOverdue,
 	}
 }
 
@@ -211,5 +223,35 @@ func (u *Usecase) publishWebhook(ctx context.Context, event domainWebhook.EventT
 	}
 	if err := u.publisher.Publish(ctx, event, payload); err != nil {
 		slog.Error("削除申請Webhook配信キュー投入に失敗しました", "event", event, "error", err)
+	}
+}
+
+func (u *Usecase) notifyReceived(ctx context.Context, request *domain.RemovalRequest, accessToken string) {
+	if u.notifier == nil {
+		return
+	}
+	if err := u.notifier.NotifyReceived(ctx, ReceivedNotification{
+		To:          request.ContactInfo().Value(),
+		RequestID:   request.ID().Value(),
+		TargetType:  string(request.TargetType()),
+		AccessToken: accessToken,
+		CreatedAt:   request.CreatedAt(),
+	}); err != nil {
+		slog.Error("削除申請受付通知に失敗しました", "request_id", request.ID().Value(), "error", err)
+	}
+}
+
+func (u *Usecase) notifyResolved(ctx context.Context, request *domain.RemovalRequest) {
+	if u.notifier == nil {
+		return
+	}
+	if err := u.notifier.NotifyResolved(ctx, ResolvedNotification{
+		To:         request.ContactInfo().Value(),
+		RequestID:  request.ID().Value(),
+		TargetType: string(request.TargetType()),
+		Status:     string(request.Status()),
+		UpdatedAt:  request.UpdatedAt(),
+	}); err != nil {
+		slog.Error("削除申請完了通知に失敗しました", "request_id", request.ID().Value(), "status", request.Status(), "error", err)
 	}
 }

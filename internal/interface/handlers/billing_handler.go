@@ -40,6 +40,15 @@ type createPortalSessionRequest struct {
 	ReturnURL string `json:"return_url" binding:"required,url"`
 }
 
+type createCheckoutSessionResponse struct {
+	ID  string `json:"id"`
+	URL string `json:"url"`
+}
+
+type createPortalSessionResponse struct {
+	URL string `json:"url"`
+}
+
 // CreateCheckoutSession は Stripe Checkout Session を作成する。
 // @Summary     Checkout Session 作成
 // @Description Developer または Business プラン購入用の Stripe Checkout Session を作成する
@@ -47,7 +56,7 @@ type createPortalSessionRequest struct {
 // @Accept      json
 // @Produce     json
 // @Param       request body createCheckoutSessionRequest true "Checkout Session 作成リクエスト"
-// @Success     201 {object} appBilling.CreateCheckoutSessionResult
+// @Success     201 {object} createCheckoutSessionResponse
 // @Failure     400 {object} middleware.ErrorResponse
 // @Failure     500 {object} middleware.ErrorResponse
 // @Router      /billing/checkout-sessions [post]
@@ -81,7 +90,7 @@ func (h *BillingHandler) CreateCheckoutSession(c *gin.Context) {
 // @Produce     json
 // @Param       Authorization header string true "Bearer API Key"
 // @Param       request body createPortalSessionRequest true "Portal Session 作成リクエスト"
-// @Success     201 {object} appBilling.CreatePortalSessionResult
+// @Success     201 {object} createPortalSessionResponse
 // @Failure     400 {object} middleware.ErrorResponse
 // @Failure     401 {object} middleware.ErrorResponse
 // @Failure     500 {object} middleware.ErrorResponse

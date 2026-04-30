@@ -82,7 +82,7 @@ func TestUpdateStatus_ApprovedPublishesWebhook(t *testing.T) {
 	removalApp := &removalAppStub{request: request}
 	idolApp := &removalIdolStub{}
 	publisher := &removalWebhookPublisherStub{}
-	uc := NewUsecase(removalApp, idolApp, &removalGroupStub{}, publisher)
+	uc := NewUsecase(removalApp, idolApp, &removalGroupStub{}, nil, publisher)
 
 	dto, err := uc.UpdateStatus(context.Background(), UpdateStatusCommand{
 		ID:     request.ID().Value(),
