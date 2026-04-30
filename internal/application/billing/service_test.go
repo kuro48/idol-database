@@ -149,7 +149,7 @@ func TestCreateCheckoutSession_UsesStripePriceID(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, stripeClient.checkoutInput)
 	assert.Equal(t, "price_dev_123", stripeClient.checkoutInput.PriceID)
-	assert.Equal(t, plan.TypeDeveloper, stripeClient.checkoutInput.PlanType)
+	assert.Equal(t, string(plan.TypeDeveloper), stripeClient.checkoutInput.PlanType)
 	assert.Equal(t, "user@example.com", stripeClient.checkoutInput.Email)
 	assert.Equal(t, "https://checkout.stripe.test/session", result.URL)
 }
