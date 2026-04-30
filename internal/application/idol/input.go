@@ -7,6 +7,7 @@ type CreateInput struct {
 	Birthdate *string
 	AgencyID  *string
 	Aliases   []string
+	TagIDs    []string
 }
 
 // UpdateInput はアイドル更新の入力

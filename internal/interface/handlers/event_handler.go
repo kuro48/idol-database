@@ -13,6 +13,11 @@ type EventHandler struct {
 	usecase event.EventUseCase
 }
 
+// AddPerformerRequest はパフォーマー追加リクエスト。
+type AddPerformerRequest struct {
+	PerformerID string `json:"performer_id" binding:"required"`
+}
+
 // NewEventHandler はイベントハンドラーを作成する
 func NewEventHandler(usecase event.EventUseCase) *EventHandler {
 	return &EventHandler{
@@ -129,6 +134,18 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 }
 
 // UpdateEvent はイベントを更新する
+// @Summary      イベント更新
+// @Description  既存のイベントを更新する
+// @Tags         events
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "イベントID"
+// @Param        event body event.UpdateEventCommand true "イベント更新リクエスト"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /events/{id} [put]
 func (h *EventHandler) UpdateEvent(c *gin.Context) {
 	id, ok := getPathID(c)
 	if !ok {
@@ -156,6 +173,15 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 }
 
 // DeleteEvent はイベントを削除する
+// @Summary      イベント削除
+// @Description  既存のイベントを削除する
+// @Tags         events
+// @Param        id path string true "イベントID"
+// @Success      204
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /events/{id} [delete]
 func (h *EventHandler) DeleteEvent(c *gin.Context) {
 	id, ok := getPathID(c)
 	if !ok {
@@ -177,15 +203,25 @@ func (h *EventHandler) DeleteEvent(c *gin.Context) {
 }
 
 // AddPerformer はイベントにパフォーマーを追加する
+// @Summary      イベントへパフォーマー追加
+// @Description  イベントにパフォーマーを追加する
+// @Tags         events
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "イベントID"
+// @Param        request body AddPerformerRequest true "パフォーマー追加リクエスト"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /events/{id}/performers [post]
 func (h *EventHandler) AddPerformer(c *gin.Context) {
 	eventID, ok := getPathID(c)
 	if !ok {
 		return
 	}
 
-	var req struct {
-		PerformerID string `json:"performer_id" binding:"required"`
-	}
+	var req AddPerformerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
 		return
@@ -209,6 +245,17 @@ func (h *EventHandler) AddPerformer(c *gin.Context) {
 }
 
 // RemovePerformer はイベントからパフォーマーを削除する
+// @Summary      イベントからパフォーマー削除
+// @Description  イベントからパフォーマーを削除する
+// @Tags         events
+// @Produce      json
+// @Param        id path string true "イベントID"
+// @Param        performer_id path string true "パフォーマーID"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /events/{id}/performers/{performer_id} [delete]
 func (h *EventHandler) RemovePerformer(c *gin.Context) {
 	eventID := c.Param("id")
 	performerID := c.Param("performer_id")
@@ -236,6 +283,13 @@ func (h *EventHandler) RemovePerformer(c *gin.Context) {
 }
 
 // GetUpcomingEvents は今後開催されるイベントを取得する
+// @Summary      今後のイベント取得
+// @Description  今後開催されるイベントを取得する
+// @Tags         events
+// @Produce      json
+// @Success      200 {array} event.EventDTO
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /events/upcoming [get]
 func (h *EventHandler) GetUpcomingEvents(c *gin.Context) {
 	limit := 20 // デフォルト値
 

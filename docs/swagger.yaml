@@ -1,5 +1,86 @@
 basePath: /api/v1
 definitions:
+  agency.AgencyDTO:
+    properties:
+      country:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      founded_date:
+        description: YYYY-MM-DD
+        type: string
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      name_en:
+        type: string
+      official_website:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  agency.AgencySearchResult:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/agency.AgencyDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/agency.PaginationMeta'
+    type: object
+  agency.CreateAgencyCommand:
+    properties:
+      country:
+        type: string
+      description:
+        type: string
+      founded_date:
+        description: YYYY-MM-DD
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      name_en:
+        type: string
+      official_website:
+        type: string
+    required:
+    - country
+    - name
+    type: object
+  agency.PaginationMeta:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  agency.UpdateAgencyCommand:
+    properties:
+      description:
+        type: string
+      founded_date:
+        description: YYYY-MM-DD
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      name_en:
+        type: string
+      official_website:
+        type: string
+    type: object
   event.CreateEventCommand:
     properties:
       description:
@@ -103,6 +184,67 @@ definitions:
       meta:
         $ref: '#/definitions/event.PaginationMeta'
     type: object
+  event.UpdateEventCommand:
+    properties:
+      description:
+        type: string
+      end_date_time:
+        description: RFC3339形式
+        type: string
+      official_url:
+        type: string
+      start_date_time:
+        description: RFC3339形式
+        type: string
+      ticket_url:
+        type: string
+      title:
+        type: string
+      venue_id:
+        type: string
+    type: object
+  group.GroupDTO:
+    properties:
+      created_at:
+        type: string
+      disband_date:
+        type: string
+      formation_date:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  group.GroupSearchResult:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/group.GroupDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/group.PaginationMeta'
+    type: object
+  group.PaginationMeta:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  handlers.AddPerformerRequest:
+    properties:
+      performer_id:
+        type: string
+    required:
+    - performer_id
+    type: object
   handlers.BulkCreateIdolsRequest:
     properties:
       idols:
@@ -156,6 +298,19 @@ definitions:
     required:
     - items
     type: object
+  handlers.CreateGroupRequest:
+    properties:
+      disband_date:
+        type: string
+      formation_date:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
   handlers.CreateIdolRequest:
     properties:
       agency_id:
@@ -173,6 +328,66 @@ definitions:
     required:
     - name
     type: object
+  handlers.CreateRemovalRequestDTO:
+    properties:
+      contact_info:
+        type: string
+      description:
+        maxLength: 1000
+        minLength: 10
+        type: string
+      evidence:
+        type: string
+      reason:
+        maxLength: 1000
+        minLength: 10
+        type: string
+      requester_type:
+        enum:
+        - idol_themself
+        - agency
+        - third_party
+        type: string
+      target_id:
+        type: string
+      target_type:
+        enum:
+        - idol
+        - group
+        type: string
+    required:
+    - contact_info
+    - description
+    - reason
+    - requester_type
+    - target_id
+    - target_type
+    type: object
+  handlers.CreateSubmissionRequest:
+    properties:
+      contributor_email:
+        type: string
+      payload:
+        additionalProperties: true
+        type: object
+      source_urls:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      target_type:
+        enum:
+        - idol
+        - group
+        - agency
+        - event
+        type: string
+    required:
+    - contributor_email
+    - payload
+    - source_urls
+    - target_type
+    type: object
   handlers.CreateSubscriptionRequest:
     properties:
       events:
@@ -185,6 +400,15 @@ definitions:
     required:
     - events
     - url
+    type: object
+  handlers.HealthResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
     type: object
   handlers.JobStatusDTO:
     properties:
@@ -207,6 +431,38 @@ definitions:
       status:
         type: string
     type: object
+  handlers.RemovalRequestListResponse:
+    properties:
+      count:
+        type: integer
+      removal_requests:
+        items:
+          $ref: '#/definitions/removal.RemovalRequestDTO'
+        type: array
+    type: object
+  handlers.ReviseSubmissionRequest:
+    properties:
+      payload:
+        additionalProperties: true
+        type: object
+      source_urls:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - payload
+    - source_urls
+    type: object
+  handlers.SubmissionListResponse:
+    properties:
+      count:
+        type: integer
+      submissions:
+        items:
+          $ref: '#/definitions/submission.SubmissionDTO'
+        type: array
+    type: object
   handlers.SubscriptionResponse:
     properties:
       active:
@@ -227,6 +483,15 @@ definitions:
       url:
         type: string
     type: object
+  handlers.TermResponse:
+    properties:
+      content:
+        type: string
+      format:
+        type: string
+      type:
+        type: string
+    type: object
   handlers.UpdateExternalIDsRequest:
     properties:
       external_ids:
@@ -235,6 +500,17 @@ definitions:
         type: object
     required:
     - external_ids
+    type: object
+  handlers.UpdateGroupRequest:
+    properties:
+      disband_date:
+        type: string
+      formation_date:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
     type: object
   handlers.UpdateIdolRequest:
     properties:
@@ -249,6 +525,87 @@ definitions:
       name:
         maxLength: 100
         minLength: 1
+        type: string
+    type: object
+  handlers.UpdateStatusDTO:
+    properties:
+      status:
+        enum:
+        - pending
+        - approved
+        - rejected
+        type: string
+    required:
+    - status
+    type: object
+  handlers.UpdateStatusRequest:
+    properties:
+      reviewed_by:
+        type: string
+      revision_note:
+        type: string
+      status:
+        enum:
+        - approved
+        - rejected
+        - needs_revision
+        type: string
+    required:
+    - reviewed_by
+    - status
+    type: object
+  handlers.apiKeyResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      masked_key:
+        type: string
+      name:
+        type: string
+      plan_type:
+        type: string
+    type: object
+  handlers.createAPIKeyRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      plan_type:
+        enum:
+        - free
+        - developer
+        - business
+        type: string
+    required:
+    - email
+    - name
+    - plan_type
+    type: object
+  handlers.createAPIKeyResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      masked_key:
+        type: string
+      name:
+        type: string
+      plan_type:
+        type: string
+      raw_key:
         type: string
     type: object
   idol.BulkError:
@@ -377,6 +734,111 @@ definitions:
         type: string
       details: {}
       message:
+        type: string
+    type: object
+  removal.CreateRemovalRequestResult:
+    properties:
+      access_token:
+        type: string
+      removal_request:
+        $ref: '#/definitions/removal.RemovalRequestDTO'
+    type: object
+  removal.PublicRemovalRequestDTO:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      evidence:
+        type: string
+      id:
+        type: string
+      reason:
+        type: string
+      requester_type:
+        type: string
+      status:
+        type: string
+      target_id:
+        type: string
+      target_type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  removal.RemovalRequestDTO:
+    properties:
+      contact_info:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      evidence:
+        type: string
+      id:
+        type: string
+      reason:
+        type: string
+      requester_type:
+        type: string
+      status:
+        type: string
+      target_id:
+        type: string
+      target_type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  submission.PublicSubmissionDTO:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      payload:
+        type: string
+      revision_note:
+        type: string
+      source_urls:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      target_type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  submission.SubmissionDTO:
+    properties:
+      contributor_email:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      payload:
+        type: string
+      reviewed_at:
+        type: string
+      reviewed_by:
+        type: string
+      revision_note:
+        type: string
+      sns_user_id:
+        type: string
+      source_urls:
+        items:
+          type: string
+        type: array
+      status:
+        type: string
+      target_type:
+        type: string
+      updated_at:
         type: string
     type: object
   tag.CreateTagCommand:
@@ -508,6 +970,74 @@ paths:
           schema:
             $ref: '#/definitions/middleware.ErrorResponse'
       summary: API利用サマリー取得
+      tags:
+      - admin
+  /admin/apikeys:
+    get:
+      parameters:
+      - description: メールアドレス
+        in: query
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.apiKeyResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: APIキー一覧取得
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: APIキー作成リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createAPIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.createAPIKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: APIキーの作成
+      tags:
+      - admin
+  /admin/apikeys/{id}:
+    delete:
+      parameters:
+      - description: APIキーID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: APIキーの無効化
       tags:
       - admin
   /admin/export/idols:
@@ -708,6 +1238,192 @@ paths:
       summary: Webhook購読削除
       tags:
       - webhooks
+  /agencies:
+    get:
+      description: 条件を指定して事務所一覧を取得する
+      parameters:
+      - description: 名前（部分一致）
+        in: query
+        name: name
+        type: string
+      - description: 国コード
+        in: query
+        name: country
+        type: string
+      - default: created_at
+        description: ソート項目
+        enum:
+        - name
+        - founded_date
+        - created_at
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: ソート順
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/agency.AgencySearchResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 事務所一覧取得
+      tags:
+      - agencies
+    post:
+      consumes:
+      - application/json
+      description: 新しい事務所を作成する
+      parameters:
+      - description: 事務所作成リクエスト
+        in: body
+        name: agency
+        required: true
+        schema:
+          $ref: '#/definitions/agency.CreateAgencyCommand'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/agency.AgencyDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 事務所作成
+      tags:
+      - agencies
+  /agencies/{id}:
+    delete:
+      description: 既存の事務所を削除する
+      parameters:
+      - description: 事務所ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 事務所削除
+      tags:
+      - agencies
+    get:
+      description: IDを指定して事務所情報を取得する
+      parameters:
+      - description: 事務所ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - collectionFormat: csv
+        description: 関連データ読み込み
+        in: query
+        items:
+          type: string
+        name: include
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/agency.AgencyDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 事務所詳細取得
+      tags:
+      - agencies
+    put:
+      consumes:
+      - application/json
+      description: 既存の事務所を更新する
+      parameters:
+      - description: 事務所ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 事務所更新リクエスト
+        in: body
+        name: agency
+        required: true
+        schema:
+          $ref: '#/definitions/agency.UpdateAgencyCommand'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 事務所更新
+      tags:
+      - agencies
   /events:
     get:
       consumes:
@@ -821,6 +1537,32 @@ paths:
       tags:
       - events
   /events/{id}:
+    delete:
+      description: 既存のイベントを削除する
+      parameters:
+      - description: イベントID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: イベント削除
+      tags:
+      - events
     get:
       consumes:
       - application/json
@@ -849,6 +1591,362 @@ paths:
       summary: イベント詳細取得
       tags:
       - events
+    put:
+      consumes:
+      - application/json
+      description: 既存のイベントを更新する
+      parameters:
+      - description: イベントID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: イベント更新リクエスト
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/event.UpdateEventCommand'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: イベント更新
+      tags:
+      - events
+  /events/{id}/performers:
+    post:
+      consumes:
+      - application/json
+      description: イベントにパフォーマーを追加する
+      parameters:
+      - description: イベントID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: パフォーマー追加リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AddPerformerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: イベントへパフォーマー追加
+      tags:
+      - events
+  /events/{id}/performers/{performer_id}:
+    delete:
+      description: イベントからパフォーマーを削除する
+      parameters:
+      - description: イベントID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: パフォーマーID
+        in: path
+        name: performer_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: イベントからパフォーマー削除
+      tags:
+      - events
+  /events/upcoming:
+    get:
+      description: 今後開催されるイベントを取得する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/event.EventDTO'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 今後のイベント取得
+      tags:
+      - events
+  /groups:
+    get:
+      description: 条件を指定してグループ一覧を取得する
+      parameters:
+      - description: 名前（部分一致）
+        in: query
+        name: name
+        type: string
+      - default: created_at
+        description: ソート項目
+        enum:
+        - name
+        - formation_date
+        - created_at
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: ソート順
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/group.GroupSearchResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: グループ一覧取得
+      tags:
+      - groups
+    post:
+      consumes:
+      - application/json
+      description: 新しいグループを作成する
+      parameters:
+      - description: グループ作成リクエスト
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/group.GroupDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: グループ作成
+      tags:
+      - groups
+  /groups/{id}:
+    delete:
+      description: 既存のグループを削除する
+      parameters:
+      - description: グループID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: グループ削除
+      tags:
+      - groups
+    get:
+      description: IDを指定してグループ情報を取得する
+      parameters:
+      - description: グループID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/group.GroupDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: グループ詳細取得
+      tags:
+      - groups
+    put:
+      consumes:
+      - application/json
+      description: 既存のグループを更新する
+      parameters:
+      - description: グループID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: グループ更新リクエスト
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: グループ更新
+      tags:
+      - groups
+  /health:
+    get:
+      description: 後方互換のための総合ヘルスチェック
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+      summary: Health check
+      tags:
+      - health
+  /health/live:
+    get:
+      description: プロセスが起動しているかを確認する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+      summary: Liveness check
+      tags:
+      - health
+  /health/ready:
+    get:
+      description: 依存先が利用可能かを確認する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+      summary: Readiness check
+      tags:
+      - health
   /idols:
     get:
       consumes:
@@ -1238,6 +2336,354 @@ paths:
       summary: アイドル一括作成
       tags:
       - idols
+  /removal-requests:
+    get:
+      description: 全ての削除申請を取得する（管理者用）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RemovalRequestListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 削除申請一覧取得
+      tags:
+      - removal-requests
+    post:
+      consumes:
+      - application/json
+      description: 新しい削除申請を作成する
+      parameters:
+      - description: 削除申請作成リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateRemovalRequestDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/removal.CreateRemovalRequestResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 削除申請作成
+      tags:
+      - removal-requests
+  /removal-requests/{id}:
+    get:
+      description: 投稿者用アクセストークンで削除申請を取得する
+      parameters:
+      - description: 削除申請ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 投稿者用アクセストークン
+        in: header
+        name: X-Access-Token
+        type: string
+      - description: 投稿者用アクセストークン
+        in: query
+        name: access_token
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/removal.PublicRemovalRequestDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 削除申請取得
+      tags:
+      - removal-requests
+    put:
+      consumes:
+      - application/json
+      description: 削除申請のステータスを更新する（管理者用）
+      parameters:
+      - description: 削除申請ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ステータス更新リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateStatusDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/removal.RemovalRequestDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 削除申請ステータス更新
+      tags:
+      - removal-requests
+  /removal-requests/pending:
+    get:
+      description: 保留中の削除申請を取得する（管理者用）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RemovalRequestListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 保留中削除申請一覧取得
+      tags:
+      - removal-requests
+  /submissions:
+    get:
+      consumes:
+      - application/json
+      description: '全ての投稿審査を取得する（X-API-Key: admin スコープ必須）'
+      parameters:
+      - description: Admin API Key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SubmissionListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 投稿審査一覧取得（管理者）
+      tags:
+      - submissions
+    post:
+      consumes:
+      - application/json
+      description: 新しい投稿審査を作成する（公開エンドポイント）
+      parameters:
+      - description: 投稿審査作成リクエスト
+        in: body
+        name: submission
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateSubmissionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/submission.PublicSubmissionDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 投稿審査作成
+      tags:
+      - submissions
+  /submissions/{id}:
+    get:
+      consumes:
+      - application/json
+      description: IDを指定して投稿審査を取得する（公開情報のみ・メールアドレス等は除外）
+      parameters:
+      - description: 投稿審査ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/submission.PublicSubmissionDTO'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 投稿審査詳細取得
+      tags:
+      - submissions
+  /submissions/{id}/revise:
+    put:
+      consumes:
+      - application/json
+      description: needs_revision 状態の投稿審査を修正して再投稿する（公開エンドポイント）
+      parameters:
+      - description: 投稿審査ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 再投稿リクエスト
+        in: body
+        name: submission
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ReviseSubmissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/submission.PublicSubmissionDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 差し戻し後の再投稿
+      tags:
+      - submissions
+  /submissions/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: '投稿審査のステータスを approved / rejected / needs_revision に更新する（X-API-Key:
+        admin スコープ必須）'
+      parameters:
+      - description: Admin API Key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: 投稿審査ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ステータス更新リクエスト
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/submission.SubmissionDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 投稿審査ステータス更新（管理者）
+      tags:
+      - submissions
+  /submissions/pending:
+    get:
+      consumes:
+      - application/json
+      description: 'ステータスが pending の投稿審査のみを取得する（X-API-Key: admin スコープ必須）'
+      parameters:
+      - description: Admin API Key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SubmissionListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 審査待ち投稿審査一覧取得（管理者）
+      tags:
+      - submissions
   /tags:
     get:
       consumes:
@@ -1405,6 +2851,76 @@ paths:
       summary: タグ更新
       tags:
       - tags
+  /terms/privacy:
+    get:
+      description: プライバシーポリシーを Markdown 文字列で返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TermResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: プライバシーポリシー取得
+      tags:
+      - terms
+  /terms/service:
+    get:
+      description: 利用規約を Markdown 文字列で返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TermResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 利用規約取得
+      tags:
+      - terms
+  /webhooks/receive/{subscription_id}:
+    post:
+      consumes:
+      - application/json
+      description: 外部サービスからのWebhookを受信し、署名検証を行う
+      parameters:
+      - description: サブスクリプションID
+        in: path
+        name: subscription_id
+        required: true
+        type: string
+      - description: Webhook署名
+        in: header
+        name: X-Webhook-Signature
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: Webhook受信
+      tags:
+      - webhooks
 schemes:
 - http
 - https

@@ -6,6 +6,7 @@ import (
 	groupDomain "github.com/kuro48/idol-api/internal/domain/group"
 	idolDomain "github.com/kuro48/idol-api/internal/domain/idol"
 	domain "github.com/kuro48/idol-api/internal/domain/removal"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 )
 
 // RemovalAppPort は removal.Usecase が removal application サービスに要求する契約
@@ -27,6 +28,11 @@ type RemovalIdolPort interface {
 type RemovalGroupPort interface {
 	GetGroup(ctx context.Context, id string) (*groupDomain.Group, error)
 	DeleteGroup(ctx context.Context, id string) error
+}
+
+// RemovalWebhookPublisher は削除申請イベントを通知する契約
+type RemovalWebhookPublisher interface {
+	Publish(ctx context.Context, event domainWebhook.EventType, payload interface{}) error
 }
 
 // RemovalCreateInput は削除申請作成の入力
