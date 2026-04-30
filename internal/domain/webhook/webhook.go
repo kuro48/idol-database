@@ -14,6 +14,12 @@ const (
 	EventGroupCreated    EventType = "group.created"
 	EventGroupUpdated    EventType = "group.updated"
 	EventGroupDeleted    EventType = "group.deleted"
+	EventAgencyCreated   EventType = "agency.created"
+	EventAgencyUpdated   EventType = "agency.updated"
+	EventAgencyDeleted   EventType = "agency.deleted"
+	EventEventCreated    EventType = "event.created"
+	EventEventUpdated    EventType = "event.updated"
+	EventEventDeleted    EventType = "event.deleted"
 	EventRemovalApproved EventType = "removal.approved"
 )
 
@@ -22,6 +28,8 @@ func IsValidEventType(e EventType) bool {
 	switch e {
 	case EventIdolCreated, EventIdolUpdated, EventIdolDeleted,
 		EventGroupCreated, EventGroupUpdated, EventGroupDeleted,
+		EventAgencyCreated, EventAgencyUpdated, EventAgencyDeleted,
+		EventEventCreated, EventEventUpdated, EventEventDeleted,
 		EventRemovalApproved:
 		return true
 	default:

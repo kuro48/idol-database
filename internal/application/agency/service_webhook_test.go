@@ -92,7 +92,7 @@ func TestApplicationService_PublishesWebhookOnCreateUpdateDelete(t *testing.T) {
 
 	created, err := svc.CreateAgency(context.Background(), CreateInput{
 		Name:    "テスト事務所",
-		Country: "JP",
+		Country: "日本",
 	})
 	require.NoError(t, err)
 	require.Len(t, publisher.calls, 1)
