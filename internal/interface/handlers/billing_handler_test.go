@@ -17,6 +17,7 @@ import (
 
 type stubBillingService struct {
 	checkoutInput  *appBilling.CreateCheckoutSessionInput
+	freeInput      *appBilling.CreateFreeAPIKeyRequest
 	portalInput    *appBilling.CreatePortalSessionRequest
 	webhookPayload []byte
 	webhookSig     string
@@ -27,6 +28,18 @@ func (s *stubBillingService) CreateCheckoutSession(_ context.Context, input appB
 	return &appBilling.CreateCheckoutSessionResult{
 		ID:  "cs_test_123",
 		URL: "https://checkout.stripe.test/session",
+	}, nil
+}
+
+func (s *stubBillingService) CreateFreeAPIKey(_ context.Context, input appBilling.CreateFreeAPIKeyRequest) (*appBilling.CreateFreeAPIKeyResult, error) {
+	s.freeInput = &input
+	return &appBilling.CreateFreeAPIKeyResult{
+		ID:        "507f1f77bcf86cd799439014",
+		RawKey:    "ik_live_free000000000000000000000000000000000000000000",
+		MaskedKey: "ik_live_free****0000",
+		Email:     input.Email,
+		Name:      input.Name,
+		PlanType:  "free",
 	}, nil
 }
 
@@ -48,6 +61,7 @@ func setupBillingRouter(service handlers.BillingService) *gin.Engine {
 	router := gin.New()
 	h := handlers.NewBillingHandler(service)
 	router.POST("/billing/checkout-sessions", h.CreateCheckoutSession)
+	router.POST("/billing/free-apikeys", h.CreateFreeAPIKey)
 	router.POST("/billing/portal-sessions", func(c *gin.Context) {
 		c.Set(middleware.CtxKeyAPIKeyEmail, "paid@example.com")
 		h.CreatePortalSession(c)
@@ -98,6 +112,25 @@ func TestCreatePortalSession_UsesAuthenticatedEmail(t *testing.T) {
 	require.NotNil(t, service.portalInput)
 	assert.Equal(t, "paid@example.com", service.portalInput.Email)
 	assert.Equal(t, "https://example.com/account", service.portalInput.ReturnURL)
+}
+
+func TestCreateFreeAPIKey(t *testing.T) {
+	t.Parallel()
+
+	service := &stubBillingService{}
+	router := setupBillingRouter(service)
+
+	body := `{"email":"free@example.com","name":"Free App"}`
+	req := httptest.NewRequest(http.MethodPost, "/billing/free-apikeys", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+	require.NotNil(t, service.freeInput)
+	assert.Equal(t, "free@example.com", service.freeInput.Email)
+	assert.Equal(t, "Free App", service.freeInput.Name)
 }
 
 func TestHandleStripeWebhook_UsesRawBodyAndSignature(t *testing.T) {
