@@ -101,6 +101,31 @@ func (s *ApplicationService) RevokeKey(ctx context.Context, input RevokeKeyInput
 	return nil
 }
 
+// UpdateKeyPlanAndStatus は既存の API キーのプラン種別と有効状態を同期する。
+func (s *ApplicationService) UpdateKeyPlanAndStatus(ctx context.Context, id string, planType string, active bool) (*domainapikey.APIKey, error) {
+	key, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("APIキーの取得に失敗しました: %w", err)
+	}
+	if key == nil {
+		return nil, fmt.Errorf("APIキーが見つかりません: %s", id)
+	}
+
+	if err := key.ChangePlan(plan.Type(planType)); err != nil {
+		return nil, fmt.Errorf("APIキーのプラン更新に失敗しました: %w", err)
+	}
+	if active {
+		key.Activate()
+	} else {
+		key.Deactivate()
+	}
+
+	if err := s.repo.Update(ctx, key); err != nil {
+		return nil, fmt.Errorf("APIキーの更新に失敗しました: %w", err)
+	}
+	return key, nil
+}
+
 func (s *ApplicationService) findExistingByRawKey(ctx context.Context, rawKey string) (*domainapikey.APIKey, error) {
 	candidates, err := s.repo.FindByPrefix(ctx, domainapikey.PrefixOf(rawKey))
 	if err != nil {

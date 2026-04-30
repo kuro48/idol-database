@@ -27,11 +27,11 @@ var objectIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{24}$`)
 // APIKey はDB-backed APIキーエンティティ
 type APIKey struct {
 	id        string
-	prefix    string    // ルックアップ用プレフィックス（最初の16文字）
-	keyHash   string    // SHA-256(rawKey) の16進数文字列
-	maskedKey string    // 表示用（例: "ik_live_a1b2****cdef"）
-	email     string    // 所有者メールアドレス
-	name      string    // キーの説明（例: "My Production App"）
+	prefix    string // ルックアップ用プレフィックス（最初の16文字）
+	keyHash   string // SHA-256(rawKey) の16進数文字列
+	maskedKey string // 表示用（例: "ik_live_a1b2****cdef"）
+	email     string // 所有者メールアドレス
+	name      string // キーの説明（例: "My Production App"）
 	planType  plan.Type
 	isActive  bool
 	createdAt time.Time
@@ -142,6 +142,20 @@ func (k *APIKey) VerifyKey(rawKey string) bool {
 // Deactivate はAPIキーを無効化する
 func (k *APIKey) Deactivate() {
 	k.isActive = false
+}
+
+// Activate はAPIキーを有効化する
+func (k *APIKey) Activate() {
+	k.isActive = true
+}
+
+// ChangePlan はAPIキーのプラン種別を変更する
+func (k *APIKey) ChangePlan(planType plan.Type) error {
+	if !plan.IsValid(planType) {
+		return errors.New("無効なプラン種別です")
+	}
+	k.planType = planType
+	return nil
 }
 
 // Getters

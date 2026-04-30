@@ -85,10 +85,19 @@ func (c *Client) VerifyWebhookEvent(payload []byte, signature string) (*appBilli
 		Type string `json:"type"`
 		Data struct {
 			Object struct {
-				ID              string            `json:"id"`
-				Customer        string            `json:"customer"`
-				CustomerEmail   string            `json:"customer_email"`
-				Metadata        map[string]string `json:"metadata"`
+				ID            string            `json:"id"`
+				Customer      string            `json:"customer"`
+				CustomerEmail string            `json:"customer_email"`
+				Status        string            `json:"status"`
+				Paid          bool              `json:"paid"`
+				Metadata      map[string]string `json:"metadata"`
+				Items         *struct {
+					Data []struct {
+						Price struct {
+							ID string `json:"id"`
+						} `json:"price"`
+					} `json:"data"`
+				} `json:"items"`
 				CustomerDetails *struct {
 					Email string `json:"email"`
 					Name  string `json:"name"`
@@ -101,35 +110,52 @@ func (c *Client) VerifyWebhookEvent(payload []byte, signature string) (*appBilli
 	}
 
 	result := &appBilling.WebhookEvent{Type: event.Type}
-	if event.Type != appBilling.WebhookEventTypeCheckoutSessionCompleted {
-		return result, nil
-	}
-
-	metadata := event.Data.Object.Metadata
-	email := event.Data.Object.CustomerEmail
-	name := metadata["name"]
-	if event.Data.Object.CustomerDetails != nil {
-		if email == "" {
-			email = event.Data.Object.CustomerDetails.Email
+	switch event.Type {
+	case appBilling.WebhookEventTypeCheckoutSessionCompleted:
+		metadata := event.Data.Object.Metadata
+		email := event.Data.Object.CustomerEmail
+		name := metadata["name"]
+		if event.Data.Object.CustomerDetails != nil {
+			if email == "" {
+				email = event.Data.Object.CustomerDetails.Email
+			}
+			if name == "" {
+				name = event.Data.Object.CustomerDetails.Name
+			}
 		}
-		if name == "" {
-			name = event.Data.Object.CustomerDetails.Name
+		planType := plan.Type(metadata["plan_type"])
+		if !plan.IsValid(planType) || planType == plan.TypeFree {
+			return nil, fmt.Errorf("無効なプラン種別です")
 		}
-	}
-	planType := plan.Type(metadata["plan_type"])
-	if !plan.IsValid(planType) || planType == plan.TypeFree {
-		return nil, fmt.Errorf("無効なプラン種別です")
-	}
-	if event.Data.Object.ID == "" || event.Data.Object.Customer == "" || email == "" {
-		return nil, fmt.Errorf("Stripe Checkout Session の必須情報が不足しています")
-	}
+		if event.Data.Object.ID == "" || event.Data.Object.Customer == "" || email == "" {
+			return nil, fmt.Errorf("Stripe Checkout Session の必須情報が不足しています")
+		}
 
-	result.CheckoutSession = &appBilling.CheckoutSessionCompleted{
-		SessionID:  event.Data.Object.ID,
-		CustomerID: event.Data.Object.Customer,
-		Email:      email,
-		Name:       name,
-		PlanType:   planType,
+		result.CheckoutSession = &appBilling.CheckoutSessionCompleted{
+			SessionID:  event.Data.Object.ID,
+			CustomerID: event.Data.Object.Customer,
+			Email:      email,
+			Name:       name,
+			PlanType:   planType,
+		}
+	case appBilling.WebhookEventTypeSubscriptionUpdated, appBilling.WebhookEventTypeSubscriptionDeleted:
+		priceID, err := subscriptionPriceID(event.Data.Object.Items)
+		if err != nil {
+			return nil, err
+		}
+		result.Subscription = &appBilling.SubscriptionUpdated{
+			CustomerID: event.Data.Object.Customer,
+			PriceID:    priceID,
+			Status:     event.Data.Object.Status,
+		}
+	case appBilling.WebhookEventTypeInvoicePaymentFailed, appBilling.WebhookEventTypeInvoicePaid:
+		if event.Data.Object.Customer == "" {
+			return nil, fmt.Errorf("Stripe Invoice の customer が不足しています")
+		}
+		result.Invoice = &appBilling.InvoiceUpdated{
+			CustomerID: event.Data.Object.Customer,
+			Paid:       event.Data.Object.Paid,
+		}
 	}
 	return result, nil
 }
@@ -242,4 +268,21 @@ func (c *Client) doFormRequest(ctx context.Context, method, path string, values 
 		return nil, fmt.Errorf("Stripe API エラー: %s", strings.TrimSpace(string(body)))
 	}
 	return body, nil
+}
+
+func subscriptionPriceID(items *struct {
+	Data []struct {
+		Price struct {
+			ID string `json:"id"`
+		} `json:"price"`
+	} `json:"data"`
+}) (string, error) {
+	if items == nil || len(items.Data) == 0 {
+		return "", fmt.Errorf("Stripe Subscription に price 情報がありません")
+	}
+	priceID := items.Data[0].Price.ID
+	if priceID == "" {
+		return "", fmt.Errorf("Stripe Subscription の price ID が不足しています")
+	}
+	return priceID, nil
 }

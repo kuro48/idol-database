@@ -7,5 +7,6 @@ type FulfillmentRepository interface {
 	Save(ctx context.Context, fulfillment *CheckoutFulfillment) error
 	FindBySessionID(ctx context.Context, sessionID string) (*CheckoutFulfillment, error)
 	FindLatestByEmail(ctx context.Context, email string) (*CheckoutFulfillment, error)
+	FindLatestByCustomerID(ctx context.Context, customerID string) (*CheckoutFulfillment, error)
 	Update(ctx context.Context, fulfillment *CheckoutFulfillment) error
 }

@@ -47,8 +47,8 @@ func (f *fakeStripeClient) CreatePortalSession(_ context.Context, input CreatePo
 }
 
 type fakeFulfillmentRepo struct {
-	bySession map[string]*domainbilling.CheckoutFulfillment
-	latest    map[string]*domainbilling.CheckoutFulfillment
+	bySession  map[string]*domainbilling.CheckoutFulfillment
+	latest     map[string]*domainbilling.CheckoutFulfillment
 	byCustomer map[string]*domainbilling.CheckoutFulfillment
 }
 
@@ -295,7 +295,7 @@ func TestHandleStripeWebhook_DeactivatesKeyOnSubscriptionDeleted(t *testing.T) {
 			Type: WebhookEventTypeSubscriptionDeleted,
 			Subscription: &SubscriptionUpdated{
 				CustomerID: "cus_123",
-				PlanType:   plan.TypeBusiness,
+				PriceID:    "price_biz_123",
 				Status:     "canceled",
 			},
 		},
@@ -311,7 +311,7 @@ func TestHandleStripeWebhook_DeactivatesKeyOnSubscriptionDeleted(t *testing.T) {
 		repo,
 		issuer,
 		&fakeNotifier{},
-		Config{KeySeedSecret: "seed"},
+		Config{KeySeedSecret: "seed", PriceIDs: map[plan.Type]string{plan.TypeBusiness: "price_biz_123"}},
 	)
 
 	err := service.HandleStripeWebhook(context.Background(), []byte("{}"), "sig")
@@ -329,7 +329,7 @@ func TestHandleStripeWebhook_SyncsPlanOnSubscriptionUpdated(t *testing.T) {
 			Type: WebhookEventTypeSubscriptionUpdated,
 			Subscription: &SubscriptionUpdated{
 				CustomerID: "cus_123",
-				PlanType:   plan.TypeBusiness,
+				PriceID:    "price_biz_123",
 				Status:     "active",
 			},
 		},
@@ -345,7 +345,7 @@ func TestHandleStripeWebhook_SyncsPlanOnSubscriptionUpdated(t *testing.T) {
 		repo,
 		issuer,
 		&fakeNotifier{},
-		Config{KeySeedSecret: "seed"},
+		Config{KeySeedSecret: "seed", PriceIDs: map[plan.Type]string{plan.TypeBusiness: "price_biz_123"}},
 	)
 
 	err := service.HandleStripeWebhook(context.Background(), []byte("{}"), "sig")
