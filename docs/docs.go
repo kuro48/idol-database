@@ -748,6 +748,158 @@ const docTemplate = `{
                 }
             }
         },
+        "/billing/checkout-sessions": {
+            "post": {
+                "description": "Developer または Business プラン購入用の Stripe Checkout Session を作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "billing"
+                ],
+                "summary": "Checkout Session 作成",
+                "parameters": [
+                    {
+                        "description": "Checkout Session 作成リクエスト",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.createCheckoutSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.createCheckoutSessionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/billing/portal-sessions": {
+            "post": {
+                "description": "認証済み API キーに紐づく顧客の Stripe Billing Portal Session を作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "billing"
+                ],
+                "summary": "Billing Portal Session 作成",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer API Key",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Portal Session 作成リクエスト",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.createPortalSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.createPortalSessionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/billing/webhooks/stripe": {
+            "post": {
+                "description": "Stripe の checkout.session.completed Webhook を受信し API キー発行を行う",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "billing"
+                ],
+                "summary": "Stripe Webhook 受信",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Stripe webhook signature",
+                        "name": "Stripe-Signature",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "description": "条件を指定してイベント一覧を取得（検索・フィルタリング・ページネーション対応）",
@@ -3899,6 +4051,68 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.createCheckoutSessionRequest": {
+            "type": "object",
+            "required": [
+                "cancel_url",
+                "email",
+                "name",
+                "plan_type",
+                "success_url"
+            ],
+            "properties": {
+                "cancel_url": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "plan_type": {
+                    "type": "string",
+                    "enum": [
+                        "developer",
+                        "business"
+                    ]
+                },
+                "success_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createCheckoutSessionResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createPortalSessionRequest": {
+            "type": "object",
+            "required": [
+                "return_url"
+            ],
+            "properties": {
+                "return_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createPortalSessionResponse": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "idol.BulkError": {
             "type": "object",
             "properties": {
@@ -4163,6 +4377,12 @@ const docTemplate = `{
                 },
                 "requester_type": {
                     "type": "string"
+                },
+                "sla_due_at": {
+                    "type": "string"
+                },
+                "sla_overdue": {
+                    "type": "boolean"
                 },
                 "status": {
                     "type": "string"

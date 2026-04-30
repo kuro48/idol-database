@@ -608,6 +608,48 @@ definitions:
       raw_key:
         type: string
     type: object
+  handlers.createCheckoutSessionRequest:
+    properties:
+      cancel_url:
+        type: string
+      email:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      plan_type:
+        enum:
+        - developer
+        - business
+        type: string
+      success_url:
+        type: string
+    required:
+    - cancel_url
+    - email
+    - name
+    - plan_type
+    - success_url
+    type: object
+  handlers.createCheckoutSessionResponse:
+    properties:
+      id:
+        type: string
+      url:
+        type: string
+    type: object
+  handlers.createPortalSessionRequest:
+    properties:
+      return_url:
+        type: string
+    required:
+    - return_url
+    type: object
+  handlers.createPortalSessionResponse:
+    properties:
+      url:
+        type: string
+    type: object
   idol.BulkError:
     properties:
       index:
@@ -782,6 +824,10 @@ definitions:
         type: string
       requester_type:
         type: string
+      sla_due_at:
+        type: string
+      sla_overdue:
+        type: boolean
       status:
         type: string
       target_id:
@@ -1424,6 +1470,106 @@ paths:
       summary: 事務所更新
       tags:
       - agencies
+  /billing/checkout-sessions:
+    post:
+      consumes:
+      - application/json
+      description: Developer または Business プラン購入用の Stripe Checkout Session を作成する
+      parameters:
+      - description: Checkout Session 作成リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createCheckoutSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.createCheckoutSessionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: Checkout Session 作成
+      tags:
+      - billing
+  /billing/portal-sessions:
+    post:
+      consumes:
+      - application/json
+      description: 認証済み API キーに紐づく顧客の Stripe Billing Portal Session を作成する
+      parameters:
+      - description: Bearer API Key
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Portal Session 作成リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createPortalSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.createPortalSessionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: Billing Portal Session 作成
+      tags:
+      - billing
+  /billing/webhooks/stripe:
+    post:
+      consumes:
+      - application/json
+      description: Stripe の checkout.session.completed Webhook を受信し API キー発行を行う
+      parameters:
+      - description: Stripe webhook signature
+        in: header
+        name: Stripe-Signature
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: Stripe Webhook 受信
+      tags:
+      - billing
   /events:
     get:
       consumes:
