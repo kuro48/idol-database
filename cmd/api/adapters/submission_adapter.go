@@ -18,13 +18,20 @@ func NewSubmissionAppAdapter(svc *appSubmission.ApplicationService) ucSubmission
 	return &SubmissionAppAdapter{svc: svc}
 }
 
-func (a *SubmissionAppAdapter) CreateSubmission(ctx context.Context, input ucSubmission.SubmissionCreateInput) (*domainSubmission.Submission, error) {
-	return a.svc.CreateSubmission(ctx, appSubmission.CreateInput{
+func (a *SubmissionAppAdapter) CreateSubmission(ctx context.Context, input ucSubmission.SubmissionCreateInput) (*ucSubmission.SubmissionCreateResult, error) {
+	result, err := a.svc.CreateSubmission(ctx, appSubmission.CreateInput{
 		TargetType:       input.TargetType,
 		Payload:          input.Payload,
 		SourceURLs:       input.SourceURLs,
 		ContributorEmail: input.ContributorEmail,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return &ucSubmission.SubmissionCreateResult{
+		Submission:  result.Submission,
+		AccessToken: result.AccessToken,
+	}, nil
 }
 
 func (a *SubmissionAppAdapter) GetSubmission(ctx context.Context, id string) (*domainSubmission.Submission, error) {

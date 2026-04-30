@@ -5,10 +5,10 @@ import "context"
 // SubmissionUseCase は投稿審査のユースケース Input Port
 type SubmissionUseCase interface {
 	// CreateSubmission は新しい投稿審査を作成する
-	CreateSubmission(ctx context.Context, cmd CreateSubmissionCommand) (*PublicSubmissionDTO, error)
+	CreateSubmission(ctx context.Context, cmd CreateSubmissionCommand) (*CreateSubmissionResult, error)
 
 	// GetSubmissionPublic は投稿審査を公開情報のみで取得する（投稿者向け）
-	GetSubmissionPublic(ctx context.Context, id string) (*PublicSubmissionDTO, error)
+	GetSubmissionPublic(ctx context.Context, id string, accessToken string) (*PublicSubmissionDTO, error)
 
 	// ListAllSubmissions は全ての投稿審査を取得する（管理者向け）
 	ListAllSubmissions(ctx context.Context) ([]*SubmissionDTO, error)

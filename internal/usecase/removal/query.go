@@ -2,6 +2,12 @@ package removal
 
 import "time"
 
+// CreateRemovalRequestResult は作成時のみ返すアクセストークン付きレスポンス
+type CreateRemovalRequestResult struct {
+	RemovalRequest *RemovalRequestDTO `json:"removal_request"`
+	AccessToken    string             `json:"access_token"`
+}
+
 // RemovalRequestDTO は削除申請のデータ転送オブジェクト（管理者用）
 type RemovalRequestDTO struct {
 	ID            string    `json:"id"`

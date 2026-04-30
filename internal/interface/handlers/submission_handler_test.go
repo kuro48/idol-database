@@ -21,16 +21,16 @@ type MockSubmissionUseCase struct {
 	mock.Mock
 }
 
-func (m *MockSubmissionUseCase) CreateSubmission(ctx context.Context, cmd submission.CreateSubmissionCommand) (*submission.PublicSubmissionDTO, error) {
+func (m *MockSubmissionUseCase) CreateSubmission(ctx context.Context, cmd submission.CreateSubmissionCommand) (*submission.CreateSubmissionResult, error) {
 	args := m.Called(ctx, cmd)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*submission.PublicSubmissionDTO), args.Error(1)
+	return args.Get(0).(*submission.CreateSubmissionResult), args.Error(1)
 }
 
-func (m *MockSubmissionUseCase) GetSubmissionPublic(ctx context.Context, id string) (*submission.PublicSubmissionDTO, error) {
-	args := m.Called(ctx, id)
+func (m *MockSubmissionUseCase) GetSubmissionPublic(ctx context.Context, id string, accessToken string) (*submission.PublicSubmissionDTO, error) {
+	args := m.Called(ctx, id, accessToken)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -94,6 +94,13 @@ func newPublicDTO() *submission.PublicSubmissionDTO {
 	}
 }
 
+func newCreateSubmissionResult() *submission.CreateSubmissionResult {
+	return &submission.CreateSubmissionResult{
+		Submission:  newPublicDTO(),
+		AccessToken: "submission-token",
+	}
+}
+
 func newAdminDTO() *submission.SubmissionDTO {
 	return &submission.SubmissionDTO{
 		ID:               "sub-001",
@@ -111,7 +118,7 @@ func newAdminDTO() *submission.SubmissionDTO {
 
 func TestCreateSubmission_ValidInput(t *testing.T) {
 	mockUC := new(MockSubmissionUseCase)
-	mockUC.On("CreateSubmission", mock.Anything, mock.Anything).Return(newPublicDTO(), nil)
+	mockUC.On("CreateSubmission", mock.Anything, mock.Anything).Return(newCreateSubmissionResult(), nil)
 
 	router := setupSubmissionRouter(mockUC)
 	body := `{"target_type":"idol","payload":{"name":"テスト"},"source_urls":["https://example.com"],"contributor_email":"user@example.com"}`
@@ -185,10 +192,11 @@ func TestCreateSubmission_UsecaseError(t *testing.T) {
 
 func TestGetSubmission_Found(t *testing.T) {
 	mockUC := new(MockSubmissionUseCase)
-	mockUC.On("GetSubmissionPublic", mock.Anything, "sub-001").Return(newPublicDTO(), nil)
+	mockUC.On("GetSubmissionPublic", mock.Anything, "sub-001", "submission-token").Return(newPublicDTO(), nil)
 
 	router := setupSubmissionRouter(mockUC)
 	req := httptest.NewRequest(http.MethodGet, "/submissions/sub-001", nil)
+	req.Header.Set("X-Access-Token", "submission-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -198,16 +206,29 @@ func TestGetSubmission_Found(t *testing.T) {
 
 func TestGetSubmission_UsecaseError(t *testing.T) {
 	mockUC := new(MockSubmissionUseCase)
-	mockUC.On("GetSubmissionPublic", mock.Anything, "sub-999").Return(nil, errors.New("not found"))
+	mockUC.On("GetSubmissionPublic", mock.Anything, "sub-999", "submission-token").Return(nil, errors.New("not found"))
 
 	router := setupSubmissionRouter(mockUC)
 	req := httptest.NewRequest(http.MethodGet, "/submissions/sub-999", nil)
+	req.Header.Set("X-Access-Token", "submission-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	// "not found" を含むエラーは middleware.WriteError が 404 にマッピングする
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	mockUC.AssertExpectations(t)
+}
+
+func TestGetSubmission_MissingAccessToken(t *testing.T) {
+	mockUC := new(MockSubmissionUseCase)
+
+	router := setupSubmissionRouter(mockUC)
+	req := httptest.NewRequest(http.MethodGet, "/submissions/sub-001", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	mockUC.AssertNotCalled(t, "GetSubmissionPublic")
 }
 
 // --- ListAllSubmissions ---
@@ -368,12 +389,18 @@ func TestUpdateStatus_UsecaseError(t *testing.T) {
 
 func TestReviseSubmission_Success(t *testing.T) {
 	mockUC := new(MockSubmissionUseCase)
-	mockUC.On("ReviseSubmission", mock.Anything, mock.Anything).Return(newPublicDTO(), nil)
+	mockUC.On("ReviseSubmission", mock.Anything, submission.ReviseSubmissionCommand{
+		ID:          "sub-001",
+		AccessToken: "submission-token",
+		Payload:     map[string]interface{}{"name": "修正後"},
+		SourceURLs:  []string{"https://example.com/new"},
+	}).Return(newPublicDTO(), nil)
 
 	router := setupSubmissionRouter(mockUC)
 	body := `{"payload":{"name":"修正後"},"source_urls":["https://example.com/new"]}`
 	req := httptest.NewRequest(http.MethodPut, "/submissions/sub-001/revise", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Access-Token", "submission-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -388,6 +415,7 @@ func TestReviseSubmission_InvalidInput(t *testing.T) {
 	body := `{"source_urls":[]}`
 	req := httptest.NewRequest(http.MethodPut, "/submissions/sub-001/revise", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Access-Token", "submission-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -403,9 +431,24 @@ func TestReviseSubmission_UsecaseError(t *testing.T) {
 	body := `{"payload":{"name":"修正後"},"source_urls":["https://example.com/new"]}`
 	req := httptest.NewRequest(http.MethodPut, "/submissions/sub-001/revise", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Access-Token", "submission-token")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	mockUC.AssertExpectations(t)
+}
+
+func TestReviseSubmission_MissingAccessToken(t *testing.T) {
+	mockUC := new(MockSubmissionUseCase)
+	router := setupSubmissionRouter(mockUC)
+
+	body := `{"payload":{"name":"修正後"},"source_urls":["https://example.com/new"]}`
+	req := httptest.NewRequest(http.MethodPut, "/submissions/sub-001/revise", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	mockUC.AssertNotCalled(t, "ReviseSubmission")
 }

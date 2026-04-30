@@ -9,7 +9,7 @@ import (
 // SubmissionAppPort は Submission Usecase が application サービスに要求する契約
 type SubmissionAppPort interface {
 	// CreateSubmission は新しい投稿審査を作成する
-	CreateSubmission(ctx context.Context, input SubmissionCreateInput) (*domain.Submission, error)
+	CreateSubmission(ctx context.Context, input SubmissionCreateInput) (*SubmissionCreateResult, error)
 
 	// GetSubmission はIDで投稿審査を取得する
 	GetSubmission(ctx context.Context, id string) (*domain.Submission, error)
@@ -30,6 +30,12 @@ type SubmissionCreateInput struct {
 	Payload          string
 	SourceURLs       []string
 	ContributorEmail string
+}
+
+// SubmissionCreateResult はアプリケーション層の作成結果
+type SubmissionCreateResult struct {
+	Submission  *domain.Submission
+	AccessToken string
 }
 
 // EmailNotifier は審査結果メール送信の Output Port

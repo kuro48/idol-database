@@ -5,8 +5,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"github.com/kuro48/idol-api/internal/usecase/submission"
 )
@@ -85,7 +87,7 @@ func (n *SMTPNotifier) send(to, subject, body string) error {
 		return n.sendTLS(addr, auth, to, msg)
 	}
 
-	return smtp.SendMail(addr, auth, n.from, []string{to}, msg)
+	return n.sendStartTLS(addr, auth, to, msg)
 }
 
 // sendTLS は TLS 接続でメールを送信する（ポート465用）
@@ -127,6 +129,58 @@ func (n *SMTPNotifier) sendTLS(addr string, auth smtp.Auth, to string, msg []byt
 		return fmt.Errorf("メール本文書き込みエラー: %w", err)
 	}
 	return w.Close()
+}
+
+// sendStartTLS は STARTTLS を必須にしてメールを送信する。
+func (n *SMTPNotifier) sendStartTLS(addr string, auth smtp.Auth, to string, msg []byte) error {
+	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("SMTP接続エラー: %w", err)
+	}
+
+	client, err := smtp.NewClient(conn, n.host)
+	if err != nil {
+		return fmt.Errorf("SMTPクライアント作成エラー: %w", err)
+	}
+	defer client.Close()
+
+	ok, _ := client.Extension("STARTTLS")
+	if !ok {
+		return fmt.Errorf("SMTPサーバーがSTARTTLSに対応していません")
+	}
+
+	tlsCfg := &tls.Config{
+		ServerName: n.host,
+		MinVersion: tls.VersionTLS12,
+	}
+	if err := client.StartTLS(tlsCfg); err != nil {
+		return fmt.Errorf("STARTTLSエラー: %w", err)
+	}
+
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("SMTP認証エラー: %w", err)
+		}
+	}
+
+	if err := client.Mail(n.from); err != nil {
+		return fmt.Errorf("MAIL FROMエラー: %w", err)
+	}
+	if err := client.Rcpt(to); err != nil {
+		return fmt.Errorf("RCPT TOエラー: %w", err)
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("DATA開始エラー: %w", err)
+	}
+	if _, err := w.Write(msg); err != nil {
+		return fmt.Errorf("メール本文書き込みエラー: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	return client.Quit()
 }
 
 // buildMessage はステータスに応じた件名と本文を返す

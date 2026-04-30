@@ -5,7 +5,13 @@ import (
 	"fmt"
 
 	"github.com/kuro48/idol-api/internal/domain/removal"
+	"github.com/kuro48/idol-api/internal/shared/token"
 )
+
+type CreateResult struct {
+	Request     *removal.RemovalRequest
+	AccessToken string
+}
 
 // ApplicationService は削除申請のアプリケーションサービス
 type ApplicationService struct {
@@ -20,7 +26,7 @@ func NewApplicationService(removalRepo removal.Repository) *ApplicationService {
 }
 
 // CreateRemovalRequest は新しい削除申請を作成する
-func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, input CreateInput) (*removal.RemovalRequest, error) {
+func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, input CreateInput) (*CreateResult, error) {
 	// ターゲットタイプの検証
 	targetType, err := removal.NewTargetType(input.TargetType)
 	if err != nil {
@@ -57,6 +63,11 @@ func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, input Cre
 		return nil, fmt.Errorf("詳細説明が無効です: %w", err)
 	}
 
+	accessToken, err := token.Generate()
+	if err != nil {
+		return nil, fmt.Errorf("公開アクセストークンの生成に失敗しました: %w", err)
+	}
+
 	// 削除申請エンティティの作成
 	request := removal.NewRemovalRequest(
 		input.TargetID,
@@ -64,6 +75,7 @@ func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, input Cre
 		requester,
 		reason,
 		contactInfo,
+		token.Hash(accessToken),
 		evidence,
 		description,
 	)
@@ -73,7 +85,10 @@ func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, input Cre
 		return nil, fmt.Errorf("削除申請の保存に失敗しました: %w", err)
 	}
 
-	return request, nil
+	return &CreateResult{
+		Request:     request,
+		AccessToken: accessToken,
+	}, nil
 }
 
 // GetRemovalRequest は削除申請を取得する

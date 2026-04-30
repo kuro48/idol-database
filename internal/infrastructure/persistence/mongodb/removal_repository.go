@@ -25,17 +25,18 @@ func NewRemovalRepository(db *mongo.Database) *RemovalRepository {
 
 // removalDocument はMongoDBに保存するドキュメント構造
 type removalDocument struct {
-	ID          bson.ObjectID `bson:"_id,omitempty"`
-	TargetID    string        `bson:"target_id"`
-	TargetType  string        `bson:"target_type"`
-	Requester   string        `bson:"requester"`
-	Reason      string        `bson:"reason"`
-	ContactInfo string        `bson:"contact_info"`
-	Evidence    string        `bson:"evidence,omitempty"`
-	Description string        `bson:"description"`
-	Status      string        `bson:"status"`
-	CreatedAt   time.Time     `bson:"created_at"`
-	UpdatedAt   time.Time     `bson:"updated_at"`
+	ID              bson.ObjectID `bson:"_id,omitempty"`
+	TargetID        string        `bson:"target_id"`
+	TargetType      string        `bson:"target_type"`
+	Requester       string        `bson:"requester"`
+	Reason          string        `bson:"reason"`
+	ContactInfo     string        `bson:"contact_info"`
+	AccessTokenHash string        `bson:"access_token_hash,omitempty"`
+	Evidence        string        `bson:"evidence,omitempty"`
+	Description     string        `bson:"description"`
+	Status          string        `bson:"status"`
+	CreatedAt       time.Time     `bson:"created_at"`
+	UpdatedAt       time.Time     `bson:"updated_at"`
 }
 
 // toRemovalDocument はドメインモデルをMongoDBドキュメントに変換する
@@ -51,17 +52,18 @@ func toRemovalDocument(r *removal.RemovalRequest) (*removalDocument, error) {
 	}
 
 	return &removalDocument{
-		ID:          objectID,
-		TargetID:    r.TargetID(),
-		TargetType:  string(r.TargetType()),
-		Requester:   string(r.Requester().Type()),
-		Reason:      r.Reason().Value(),
-		ContactInfo: r.ContactInfo().Value(),
-		Evidence:    r.Evidence().Value(),
-		Description: r.Description().Value(),
-		Status:      string(r.Status()),
-		CreatedAt:   r.CreatedAt(),
-		UpdatedAt:   r.UpdatedAt(),
+		ID:              objectID,
+		TargetID:        r.TargetID(),
+		TargetType:      string(r.TargetType()),
+		Requester:       string(r.Requester().Type()),
+		Reason:          r.Reason().Value(),
+		ContactInfo:     r.ContactInfo().Value(),
+		AccessTokenHash: r.AccessTokenHash(),
+		Evidence:        r.Evidence().Value(),
+		Description:     r.Description().Value(),
+		Status:          string(r.Status()),
+		CreatedAt:       r.CreatedAt(),
+		UpdatedAt:       r.UpdatedAt(),
 	}, nil
 }
 
@@ -114,6 +116,7 @@ func toRemovalDomain(doc *removalDocument) (*removal.RemovalRequest, error) {
 		requester,
 		reason,
 		contactInfo,
+		doc.AccessTokenHash,
 		evidence,
 		description,
 		status,

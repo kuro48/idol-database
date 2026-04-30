@@ -22,8 +22,8 @@ func NewRemovalAppAdapter(svc *appRemoval.ApplicationService) ucRemoval.RemovalA
 	return &RemovalAppAdapter{svc: svc}
 }
 
-func (a *RemovalAppAdapter) CreateRemovalRequest(ctx context.Context, input ucRemoval.RemovalCreateInput) (*removalDomain.RemovalRequest, error) {
-	return a.svc.CreateRemovalRequest(ctx, appRemoval.CreateInput{
+func (a *RemovalAppAdapter) CreateRemovalRequest(ctx context.Context, input ucRemoval.RemovalCreateInput) (*ucRemoval.RemovalCreateResult, error) {
+	result, err := a.svc.CreateRemovalRequest(ctx, appRemoval.CreateInput{
 		TargetType:  input.TargetType,
 		TargetID:    input.TargetID,
 		Requester:   input.Requester,
@@ -32,6 +32,13 @@ func (a *RemovalAppAdapter) CreateRemovalRequest(ctx context.Context, input ucRe
 		Evidence:    input.Evidence,
 		Description: input.Description,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return &ucRemoval.RemovalCreateResult{
+		Request:     result.Request,
+		AccessToken: result.AccessToken,
+	}, nil
 }
 
 func (a *RemovalAppAdapter) GetRemovalRequest(ctx context.Context, id string) (*removalDomain.RemovalRequest, error) {

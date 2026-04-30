@@ -47,16 +47,16 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 	}
 
 	cmd := removal.CreateRemovalRequestCommand{
-		TargetType:  req.TargetType,
-		TargetID:    req.TargetID,
+		TargetType:    req.TargetType,
+		TargetID:      req.TargetID,
 		RequesterType: req.RequesterType,
-		Reason:      req.Reason,
-		ContactInfo: req.ContactInfo,
-		Evidence:    req.Evidence,
-		Description: req.Description,
+		Reason:        req.Reason,
+		ContactInfo:   req.ContactInfo,
+		Evidence:      req.Evidence,
+		Description:   req.Description,
 	}
 
-	dto, err := h.removalService.CreateRemovalRequest(c.Request.Context(), cmd)
+	result, err := h.removalService.CreateRemovalRequest(c.Request.Context(), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "削除申請",
@@ -65,7 +65,7 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto)
+	c.JSON(http.StatusCreated, result)
 }
 
 // GetRemovalRequest は削除申請を取得する
@@ -75,8 +75,12 @@ func (h *RemovalHandler) GetRemovalRequest(c *gin.Context) {
 	if !ok {
 		return
 	}
+	accessToken, ok := getAccessToken(c)
+	if !ok {
+		return
+	}
 
-	dto, err := h.removalService.GetRemovalRequestPublic(c.Request.Context(), id)
+	dto, err := h.removalService.GetRemovalRequestPublic(c.Request.Context(), id, accessToken)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "削除申請"})
 		return

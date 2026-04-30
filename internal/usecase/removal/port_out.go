@@ -10,7 +10,7 @@ import (
 
 // RemovalAppPort は removal.Usecase が removal application サービスに要求する契約
 type RemovalAppPort interface {
-	CreateRemovalRequest(ctx context.Context, input RemovalCreateInput) (*domain.RemovalRequest, error)
+	CreateRemovalRequest(ctx context.Context, input RemovalCreateInput) (*RemovalCreateResult, error)
 	GetRemovalRequest(ctx context.Context, id string) (*domain.RemovalRequest, error)
 	ListAllRemovalRequests(ctx context.Context) ([]*domain.RemovalRequest, error)
 	ListPendingRemovalRequests(ctx context.Context) ([]*domain.RemovalRequest, error)
@@ -38,4 +38,10 @@ type RemovalCreateInput struct {
 	ContactInfo string
 	Evidence    string
 	Description string
+}
+
+// RemovalCreateResult はアプリケーション層の作成結果
+type RemovalCreateResult struct {
+	Request     *domain.RemovalRequest
+	AccessToken string
 }

@@ -31,6 +31,7 @@ type submissionDocument struct {
 	Payload          string        `bson:"payload"`
 	SourceURLs       []string      `bson:"source_urls"`
 	ContributorEmail string        `bson:"contributor_email"`
+	AccessTokenHash  string        `bson:"access_token_hash,omitempty"`
 	SnsUserID        string        `bson:"sns_user_id,omitempty"`
 	Status           string        `bson:"status"`
 	RevisionNote     string        `bson:"revision_note,omitempty"`
@@ -62,6 +63,7 @@ func toSubmissionDocument(s *submission.Submission) (*submissionDocument, error)
 		Payload:          s.Payload(),
 		SourceURLs:       sourceURLs,
 		ContributorEmail: s.ContributorEmail().Value(),
+		AccessTokenHash:  s.AccessTokenHash(),
 		SnsUserID:        s.SnsUserID(),
 		Status:           string(s.Status()),
 		RevisionNote:     s.RevisionNote(),
@@ -109,6 +111,7 @@ func toSubmissionDomain(doc *submissionDocument) (*submission.Submission, error)
 		doc.Payload,
 		sourceURLs,
 		contributorEmail,
+		doc.AccessTokenHash,
 		doc.SnsUserID,
 		status,
 		doc.RevisionNote,

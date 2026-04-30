@@ -2,6 +2,12 @@ package submission
 
 import "time"
 
+// CreateSubmissionResult は作成時のみ返すアクセストークン付きレスポンス
+type CreateSubmissionResult struct {
+	Submission  *PublicSubmissionDTO `json:"submission"`
+	AccessToken string               `json:"access_token"`
+}
+
 // PublicSubmissionDTO は投稿者向け公開用DTO（メール等の機微情報を除外）
 type PublicSubmissionDTO struct {
 	ID           string    `json:"id"`
