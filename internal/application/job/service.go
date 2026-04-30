@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	appIdol "github.com/kuro48/idol-api/internal/application/idol"
+	domainIdol "github.com/kuro48/idol-api/internal/domain/idol"
 	domainJob "github.com/kuro48/idol-api/internal/domain/job"
 	"github.com/kuro48/idol-api/internal/shared/audit"
 )
@@ -17,13 +19,22 @@ const jobExecutionTimeout = 30 * time.Minute
 
 // ApplicationService は非同期ジョブのアプリケーションサービス
 type ApplicationService struct {
-	repo domainJob.Repository
-	wg   sync.WaitGroup
+	repo         domainJob.Repository
+	idolImporter IdolBulkImporter
+	wg           sync.WaitGroup
+}
+
+// IdolBulkImporter はバルクインポートでアイドルを作成する契約
+type IdolBulkImporter interface {
+	CreateIdol(ctx context.Context, input appIdol.CreateInput) (*domainIdol.Idol, error)
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
-func NewApplicationService(repo domainJob.Repository) *ApplicationService {
-	return &ApplicationService{repo: repo}
+func NewApplicationService(repo domainJob.Repository, idolImporter IdolBulkImporter) *ApplicationService {
+	return &ApplicationService{
+		repo:         repo,
+		idolImporter: idolImporter,
+	}
 }
 
 // Shutdown はインフライトのジョブがすべて完了するまで待機する
@@ -123,10 +134,18 @@ func (s *ApplicationService) executeBulkImport(jobID string, payload []byte) {
 		return
 	}
 
-	result := map[string]interface{}{
-		"processed": len(importPayload.Items),
-		"success":   len(importPayload.Items),
-		"errors":    []interface{}{},
+	result, err := s.processBulkImport(ctx, importPayload)
+	if err != nil {
+		errMsg := fmt.Sprintf("バルクインポートの実行エラー: %s", err.Error())
+		log.Error("バルクインポートの実行に失敗しました", "error", err)
+		if failErr := job.Fail(errMsg); failErr != nil {
+			log.Error("ジョブの失敗マークに失敗しました", "error", failErr)
+			return
+		}
+		if updateErr := s.repo.Update(ctx, job); updateErr != nil {
+			log.Error("ジョブの状態更新に失敗しました（failed）", "error", updateErr)
+		}
+		return
 	}
 
 	resultBytes, err := json.Marshal(result)
@@ -154,6 +173,57 @@ func (s *ApplicationService) executeBulkImport(jobID string, payload []byte) {
 	}
 
 	log.Info("ジョブが完了しました", "processed", len(importPayload.Items))
+}
+
+type bulkImportResult struct {
+	Processed int                     `json:"processed"`
+	Success   int                     `json:"success"`
+	Errors    []bulkImportResultError `json:"errors"`
+}
+
+type bulkImportResultError struct {
+	Index int    `json:"index"`
+	Name  string `json:"name"`
+	Error string `json:"error"`
+}
+
+func (s *ApplicationService) processBulkImport(ctx context.Context, payload BulkImportPayload) (*bulkImportResult, error) {
+	if s.idolImporter == nil {
+		return nil, fmt.Errorf("アイドルインポーターが未設定です")
+	}
+
+	result := &bulkImportResult{
+		Processed: len(payload.Items),
+		Errors:    make([]bulkImportResultError, 0),
+	}
+
+	for idx, item := range payload.Items {
+		_, err := s.idolImporter.CreateIdol(ctx, appIdol.CreateInput{
+			Name:      item.Name,
+			Birthdate: optionalString(item.Birthdate),
+			AgencyID:  optionalString(item.AgencyID),
+			Aliases:   item.Aliases,
+			TagIDs:    item.TagIDs,
+		})
+		if err != nil {
+			result.Errors = append(result.Errors, bulkImportResultError{
+				Index: idx,
+				Name:  item.Name,
+				Error: err.Error(),
+			})
+			continue
+		}
+		result.Success++
+	}
+
+	return result, nil
+}
+
+func optionalString(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
 }
 
 // GetJobStatus はジョブのドメインモデルを返す

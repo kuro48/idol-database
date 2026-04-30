@@ -177,14 +177,14 @@ func main() {
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
-	jobAppService := appJob.NewApplicationService(jobRepo)
-	idolAppService := appIdol.NewApplicationService(idolRepo)
+	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
+	idolAppService := appIdol.NewApplicationService(idolRepo, webhookAppService)
 	removalAppService := appRemoval.NewApplicationService(removalRepo)
-	groupAppService := appGroup.NewApplicationService(groupRepo)
+	groupAppService := appGroup.NewApplicationService(groupRepo, webhookAppService)
 	agencyAppService := appAgency.NewApplicationService(agencyRepo)
 	eventAppService := appEvent.NewApplicationService(eventRepo)
+	jobAppService := appJob.NewApplicationService(jobRepo, idolAppService)
 	tagAppService := appTag.NewApplicationService(tagRepo)
-	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
 	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
 	submissionAppService := appSubmission.NewApplicationService(submissionRepo)
 	apikeyAppService := appAPIKey.NewApplicationService(apikeyRepo)
@@ -205,6 +205,7 @@ func main() {
 	eventAppPort := adapters.NewEventAppAdapter(eventAppService)
 	tagAppPort := adapters.NewTagAppAdapter(tagAppService)
 	submissionAppPort := adapters.NewSubmissionAppAdapter(submissionAppService)
+	submissionTargetPort := adapters.NewSubmissionTargetAppAdapter(idolAppService, groupAppService, agencyAppService, eventAppService)
 
 	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
 	var emailNotifier usecaseSubmission.EmailNotifier
@@ -224,12 +225,12 @@ func main() {
 
 	// ユースケース層
 	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPortForIdol)
-	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort)
+	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort, webhookAppService)
 	groupUsecase := usecaseGroup.NewUsecase(groupAppPort)
 	agencyUsecase := usecaseAgency.NewUsecase(agencyAppPort)
 	eventUsecase := usecaseEvent.NewUsecase(eventAppPort)
 	tagUsecase := usecaseTag.NewUsecase(tagAppPort)
-	submissionUsecase := usecaseSubmission.NewUsecase(submissionAppPort, emailNotifier)
+	submissionUsecase := usecaseSubmission.NewUsecase(submissionAppPort, submissionTargetPort, emailNotifier)
 
 	// プレゼンテーション層: ハンドラー
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsAppService)
@@ -245,6 +246,7 @@ func main() {
 	exportHandler := handlers.NewExportHandler(exportAppService)
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
+	healthHandler := handlers.NewHealthHandler(db)
 
 	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
 	// OptionalAuth: キーあり → 検証+使用量カウント、キーなし → 匿名通過
@@ -297,24 +299,11 @@ func main() {
 
 	// ヘルスチェックエンドポイント
 	// liveness: プロセスが生きているかのみ確認（依存先チェックなし）
-	router.GET("/health/live", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	router.GET("/health/live", healthHandler.Live)
 	// readiness: MongoDB疎通確認（依存先が利用可能か確認）
-	router.GET("/health/ready", func(c *gin.Context) {
-		if err := db.Ping(c.Request.Context()); err != nil {
-			c.JSON(503, gin.H{"status": "unavailable", "error": "database unreachable"})
-			return
-		}
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	router.GET("/health/ready", healthHandler.Ready)
 	// 後方互換のため /health も維持
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "ok",
-			"message": "Idol API is running with DDD architecture",
-		})
-	})
+	router.GET("/health", healthHandler.Health)
 
 	// Swagger UI（本番環境では無効化）
 	if cfg.GinMode != gin.ReleaseMode {

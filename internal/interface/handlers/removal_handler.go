@@ -36,8 +36,24 @@ type UpdateStatusDTO struct {
 	Status string `json:"status" binding:"required,oneof=pending approved rejected"`
 }
 
+// RemovalRequestListResponse は削除申請一覧レスポンス
+type RemovalRequestListResponse struct {
+	RemovalRequests []*removal.RemovalRequestDTO `json:"removal_requests"`
+	Count           int                          `json:"count"`
+}
+
 // CreateRemovalRequest は削除申請を作成する
-// POST /api/v1/removal-requests
+// @Summary      削除申請作成
+// @Description  新しい削除申請を作成する
+// @Tags         removal-requests
+// @Accept       json
+// @Produce      json
+// @Param        request body CreateRemovalRequestDTO true "削除申請作成リクエスト"
+// @Success      201 {object} removal.CreateRemovalRequestResult
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /removal-requests [post]
 func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 	var req CreateRemovalRequestDTO
 
@@ -69,7 +85,18 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 }
 
 // GetRemovalRequest は削除申請を取得する
-// GET /api/v1/removal-requests/:id
+// @Summary      削除申請取得
+// @Description  投稿者用アクセストークンで削除申請を取得する
+// @Tags         removal-requests
+// @Produce      json
+// @Param        id path string true "削除申請ID"
+// @Param        X-Access-Token header string false "投稿者用アクセストークン"
+// @Param        access_token query string false "投稿者用アクセストークン"
+// @Success      200 {object} removal.PublicRemovalRequestDTO
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      401 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Router       /removal-requests/{id} [get]
 func (h *RemovalHandler) GetRemovalRequest(c *gin.Context) {
 	id, ok := getPathID(c)
 	if !ok {
@@ -90,7 +117,13 @@ func (h *RemovalHandler) GetRemovalRequest(c *gin.Context) {
 }
 
 // ListAllRemovalRequests は全ての削除申請を取得する（管理者用）
-// GET /api/v1/removal-requests
+// @Summary      削除申請一覧取得
+// @Description  全ての削除申請を取得する（管理者用）
+// @Tags         removal-requests
+// @Produce      json
+// @Success      200 {object} RemovalRequestListResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /removal-requests [get]
 func (h *RemovalHandler) ListAllRemovalRequests(c *gin.Context) {
 	dtos, err := h.removalService.ListAllRemovalRequests(c.Request.Context())
 	if err != nil {
@@ -107,7 +140,13 @@ func (h *RemovalHandler) ListAllRemovalRequests(c *gin.Context) {
 }
 
 // ListPendingRemovalRequests は保留中の削除申請を取得する（管理者用）
-// GET /api/v1/removal-requests/pending
+// @Summary      保留中削除申請一覧取得
+// @Description  保留中の削除申請を取得する（管理者用）
+// @Tags         removal-requests
+// @Produce      json
+// @Success      200 {object} RemovalRequestListResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /removal-requests/pending [get]
 func (h *RemovalHandler) ListPendingRemovalRequests(c *gin.Context) {
 	dtos, err := h.removalService.ListPendingRemovalRequests(c.Request.Context())
 	if err != nil {
@@ -124,7 +163,18 @@ func (h *RemovalHandler) ListPendingRemovalRequests(c *gin.Context) {
 }
 
 // UpdateStatus はステータスを更新する（管理者用）
-// PUT /api/v1/removal-requests/:id
+// @Summary      削除申請ステータス更新
+// @Description  削除申請のステータスを更新する（管理者用）
+// @Tags         removal-requests
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "削除申請ID"
+// @Param        request body UpdateStatusDTO true "ステータス更新リクエスト"
+// @Success      200 {object} removal.RemovalRequestDTO
+// @Failure      400 {object} middleware.ErrorResponse
+// @Failure      404 {object} middleware.ErrorResponse
+// @Failure      500 {object} middleware.ErrorResponse
+// @Router       /removal-requests/{id} [put]
 func (h *RemovalHandler) UpdateStatus(c *gin.Context) {
 	id, ok := getPathID(c)
 	if !ok {

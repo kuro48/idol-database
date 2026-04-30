@@ -3,19 +3,28 @@ package group
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/kuro48/idol-api/internal/domain/group"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 )
 
 type ApplicationService struct {
 	repository    group.Repository
 	domainService *group.DomainService
+	publisher     WebhookPublisher
 }
 
-func NewApplicationService(repository group.Repository) *ApplicationService {
+// WebhookPublisher はグループ変更イベントを通知する契約
+type WebhookPublisher interface {
+	Publish(ctx context.Context, event domainWebhook.EventType, payload interface{}) error
+}
+
+func NewApplicationService(repository group.Repository, publisher WebhookPublisher) *ApplicationService {
 	return &ApplicationService{
 		repository:    repository,
 		domainService: group.NewDomainService(repository),
+		publisher:     publisher,
 	}
 }
 
@@ -55,6 +64,8 @@ func (s *ApplicationService) CreateGroup(ctx context.Context, input CreateInput)
 	if err := s.repository.Save(ctx, newGroup); err != nil {
 		return nil, fmt.Errorf("グループの保存エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventGroupCreated, groupWebhookPayload(newGroup))
 
 	return newGroup, nil
 }
@@ -144,6 +155,8 @@ func (s *ApplicationService) UpdateGroup(ctx context.Context, input UpdateInput)
 		return fmt.Errorf("グループの更新エラー: %w", err)
 	}
 
+	s.publishWebhook(ctx, domainWebhook.EventGroupUpdated, groupWebhookPayload(existingGroup))
+
 	return nil
 }
 
@@ -156,6 +169,8 @@ func (s *ApplicationService) DeleteGroup(ctx context.Context, id string) error {
 	if err := s.repository.Delete(ctx, groupID); err != nil {
 		return fmt.Errorf("グループの削除エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventGroupDeleted, map[string]interface{}{"id": groupID.Value()})
 
 	return nil
 }
@@ -172,4 +187,27 @@ func (s *ApplicationService) RestoreGroup(ctx context.Context, id string) error 
 	}
 
 	return nil
+}
+
+func (s *ApplicationService) publishWebhook(ctx context.Context, event domainWebhook.EventType, payload interface{}) {
+	if s.publisher == nil {
+		return
+	}
+	if err := s.publisher.Publish(ctx, event, payload); err != nil {
+		slog.Error("グループWebhook配信キュー投入に失敗しました", "event", event, "error", err)
+	}
+}
+
+func groupWebhookPayload(entity *group.Group) map[string]interface{} {
+	payload := map[string]interface{}{
+		"id":   entity.ID().Value(),
+		"name": entity.Name().Value(),
+	}
+	if entity.FormationDate() != nil && !entity.FormationDate().IsEmpty() {
+		payload["formation_date"] = entity.FormationDate().String()
+	}
+	if entity.DisbandDate() != nil && !entity.DisbandDate().IsEmpty() {
+		payload["disband_date"] = entity.DisbandDate().String()
+	}
+	return payload
 }

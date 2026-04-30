@@ -12,13 +12,15 @@ import (
 // Usecase は投稿審査のユースケース実装
 type Usecase struct {
 	submissionApp SubmissionAppPort
+	targetPort    SubmissionTargetPort
 	emailNotifier EmailNotifier // nil の場合はメール通知をスキップ
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(submissionApp SubmissionAppPort, emailNotifier EmailNotifier) *Usecase {
+func NewUsecase(submissionApp SubmissionAppPort, targetPort SubmissionTargetPort, emailNotifier EmailNotifier) *Usecase {
 	return &Usecase{
 		submissionApp: submissionApp,
+		targetPort:    targetPort,
 		emailNotifier: emailNotifier,
 	}
 }
@@ -89,6 +91,12 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*S
 
 	switch cmd.Status {
 	case "approved":
+		if !sub.IsPending() {
+			return nil, fmt.Errorf("承認に失敗しました: %w", domain.NewDomainError("承認できるのは審査待ちの投稿のみです"))
+		}
+		if err := u.applyApprovedSubmission(ctx, sub); err != nil {
+			return nil, fmt.Errorf("承認対象データの反映に失敗しました: %w", err)
+		}
 		if err := sub.Approve(cmd.ReviewedBy); err != nil {
 			return nil, fmt.Errorf("承認に失敗しました: %w", err)
 		}
@@ -127,6 +135,49 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*S
 	}
 
 	return toAdminDTO(sub), nil
+}
+
+func (u *Usecase) applyApprovedSubmission(ctx context.Context, sub *domain.Submission) error {
+	if u.targetPort == nil {
+		return fmt.Errorf("承認対象データの作成先が未設定です")
+	}
+
+	switch sub.TargetType() {
+	case domain.SubmissionTypeIdol:
+		input, err := decodeSubmissionPayload[IdolCreateInput](sub.Payload())
+		if err != nil {
+			return err
+		}
+		return u.targetPort.CreateIdol(ctx, input)
+	case domain.SubmissionTypeGroup:
+		input, err := decodeSubmissionPayload[GroupCreateInput](sub.Payload())
+		if err != nil {
+			return err
+		}
+		return u.targetPort.CreateGroup(ctx, input)
+	case domain.SubmissionTypeAgency:
+		input, err := decodeSubmissionPayload[AgencyCreateInput](sub.Payload())
+		if err != nil {
+			return err
+		}
+		return u.targetPort.CreateAgency(ctx, input)
+	case domain.SubmissionTypeEvent:
+		input, err := decodeSubmissionPayload[EventCreateInput](sub.Payload())
+		if err != nil {
+			return err
+		}
+		return u.targetPort.CreateEvent(ctx, input)
+	default:
+		return fmt.Errorf("未対応の投稿タイプです: %s", sub.TargetType())
+	}
+}
+
+func decodeSubmissionPayload[T any](payload string) (T, error) {
+	var input T
+	if err := json.Unmarshal([]byte(payload), &input); err != nil {
+		return input, fmt.Errorf("投稿ペイロードの解析に失敗しました: %w", err)
+	}
+	return input, nil
 }
 
 // ReviseSubmission は差し戻し後の再投稿を行う（投稿者向け）

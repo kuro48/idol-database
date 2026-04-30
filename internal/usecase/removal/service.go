@@ -3,8 +3,10 @@ package removal
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	domain "github.com/kuro48/idol-api/internal/domain/removal"
+	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
 )
 
 // Usecase は削除申請のユースケース
@@ -12,14 +14,16 @@ type Usecase struct {
 	removalApp RemovalAppPort
 	idolApp    RemovalIdolPort
 	groupApp   RemovalGroupPort
+	publisher  RemovalWebhookPublisher
 }
 
 // NewUsecase はユースケースを作成する
-func NewUsecase(removalApp RemovalAppPort, idolApp RemovalIdolPort, groupApp RemovalGroupPort) *Usecase {
+func NewUsecase(removalApp RemovalAppPort, idolApp RemovalIdolPort, groupApp RemovalGroupPort, publisher RemovalWebhookPublisher) *Usecase {
 	return &Usecase{
 		removalApp: removalApp,
 		idolApp:    idolApp,
 		groupApp:   groupApp,
+		publisher:  publisher,
 	}
 }
 
@@ -150,6 +154,13 @@ func (u *Usecase) UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*R
 				return nil, fmt.Errorf("グループの削除に失敗しました: %w", err)
 			}
 		}
+
+		u.publishWebhook(ctx, domainWebhook.EventRemovalApproved, map[string]interface{}{
+			"id":          request.ID().Value(),
+			"target_id":   request.TargetID(),
+			"target_type": string(request.TargetType()),
+			"status":      string(request.Status()),
+		})
 	case "rejected":
 		if err := request.Reject(); err != nil {
 			return nil, fmt.Errorf("却下に失敗しました: %w", err)
@@ -192,4 +203,13 @@ func toDTOs(requests []*domain.RemovalRequest) []*RemovalRequestDTO {
 		dtos[i] = &dto
 	}
 	return dtos
+}
+
+func (u *Usecase) publishWebhook(ctx context.Context, event domainWebhook.EventType, payload interface{}) {
+	if u.publisher == nil {
+		return
+	}
+	if err := u.publisher.Publish(ctx, event, payload); err != nil {
+		slog.Error("削除申請Webhook配信キュー投入に失敗しました", "event", event, "error", err)
+	}
 }

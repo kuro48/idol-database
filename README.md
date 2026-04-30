@@ -28,7 +28,7 @@ internal/
 - **言語**: Go 1.24+
 - **フレームワーク**: Gin
 - **データベース**: MongoDB (go.mongodb.org/mongo-driver/v2)
-- **ドキュメント**: Swagger UI (`/swagger/index.html`, `GIN_MODE=debug/test` のみ)
+- **API ドキュメント**: Swaggo / Swagger UI
 
 ## セットアップ
 
@@ -62,132 +62,18 @@ WRITE_API_KEY=your-write-api-key
 ADMIN_API_KEY=your-admin-api-key
 ```
 
-## API エンドポイント
+## API ドキュメント
 
-Swagger UI: `http://localhost:8081/swagger/index.html` (`GIN_MODE=debug/test` のみ)
+API 仕様は Swaggo を唯一の正本として管理します。エンドポイント、認証、リクエスト/レスポンス、クエリ仕様は Swagger UI または生成物を参照してください。
 
-### 認証
+- Swagger UI: `http://localhost:8081/swagger/index.html` (`GIN_MODE=debug/test` のみ)
+- OpenAPI YAML: `docs/swagger.yaml`
+- OpenAPI JSON: `docs/swagger.json`
 
-| スコープ | ヘッダー | 用途 |
-|---------|---------|------|
-| 読み取り | なし | GET 系エンドポイント |
-| 書き込み | `Authorization: Bearer <WRITE_API_KEY>` | 作成・更新・削除 |
-| 管理者 | `Authorization: Bearer <ADMIN_API_KEY>` | 管理エンドポイント |
+生成を更新する場合:
 
-### ヘルスチェック
-
-```
-GET /health
-GET /health/live
-GET /health/ready
-```
-
-### アイドル
-
-```
-GET    /api/v1/idols                  # 検索・一覧（ページネーション付き）
-GET    /api/v1/idols/:id              # 詳細
-GET    /api/v1/idols/:id/external-ids # 外部IDマッピング取得
-POST   /api/v1/idols                  # 作成（write 権限）
-PUT    /api/v1/idols/:id              # 更新（write 権限）
-DELETE /api/v1/idols/:id              # 削除（write 権限）
-PUT    /api/v1/idols/:id/social-links # SNS リンク更新（write 権限）
-PUT    /api/v1/idols/:id/external-ids # 外部IDマッピング更新（write 権限）
-POST   /api/v1/idols/bulk             # 一括作成（write 権限）
-PUT    /api/v1/idols/:id/restore      # 復元（admin）
-GET    /api/v1/idols/:id/duplicate-candidates # 重複候補取得（admin）
-```
-
-アイドルは `name`・`aliases`（別名/旧名）・`birthdate`・`agency_id`・`tag_ids`・`social_links`・`external_ids` を持つ。別名でも検索可能。
-
-### グループ
-
-```
-GET    /api/v1/groups      # 一覧（ページネーション付き）
-GET    /api/v1/groups/:id  # 詳細
-POST   /api/v1/groups      # 作成（write 権限）
-PUT    /api/v1/groups/:id  # 更新（write 権限）
-DELETE /api/v1/groups/:id  # 削除（write 権限）
-```
-
-### 事務所
-
-```
-GET    /api/v1/agencies      # 一覧（ページネーション付き）
-GET    /api/v1/agencies/:id  # 詳細
-POST   /api/v1/agencies      # 作成（write 権限）
-PUT    /api/v1/agencies/:id  # 更新（write 権限）
-DELETE /api/v1/agencies/:id  # 削除（write 権限）
-```
-
-### タグ
-
-```
-GET    /api/v1/tags      # 検索・一覧
-GET    /api/v1/tags/:id  # 詳細
-POST   /api/v1/tags      # 作成（write 権限）
-PUT    /api/v1/tags/:id  # 更新（write 権限）
-DELETE /api/v1/tags/:id  # 削除（write 権限）
-```
-
-### イベント
-
-```
-GET    /api/v1/events                              # 検索・一覧
-GET    /api/v1/events/upcoming                     # 今後のイベント
-GET    /api/v1/events/:id                          # 詳細
-POST   /api/v1/events                              # 作成（write 権限）
-PUT    /api/v1/events/:id                          # 更新（write 権限）
-DELETE /api/v1/events/:id                          # 削除（write 権限）
-POST   /api/v1/events/:id/performers               # パフォーマー追加（write 権限）
-DELETE /api/v1/events/:id/performers/:performer_id # パフォーマー削除（write 権限）
-```
-
-### 削除申請
-
-```
-POST /api/v1/removal-requests        # 申請作成
-GET  /api/v1/removal-requests/:id    # 詳細
-GET  /api/v1/removal-requests        # 一覧（admin）
-GET  /api/v1/removal-requests/pending # 未処理一覧（admin）
-PUT  /api/v1/removal-requests/:id    # ステータス更新（admin）
-```
-
-### Webhook
-
-```
-POST   /api/v1/admin/webhooks                      # サブスクリプション作成（admin）
-GET    /api/v1/admin/webhooks                      # 一覧（admin）
-DELETE /api/v1/admin/webhooks/:id                  # 削除（admin）
-POST   /api/v1/webhooks/receive/:subscription_id   # Webhook 受信
-```
-
-### エクスポート（admin）
-
-```
-GET /api/v1/admin/export/idols  # 全アイドルデータをエクスポート（JSON/JSONL、レート制限あり）
-GET /api/v1/admin/export/logs   # エクスポート実行履歴
-```
-
-### 非同期ジョブ（admin）
-
-```
-POST /api/v1/admin/jobs/bulk-import  # バルクインポートジョブをキュー投入
-GET  /api/v1/admin/jobs/:id          # ジョブ状態・結果取得
-POST /api/v1/admin/jobs/:id/retry    # 失敗ジョブの再実行
-```
-
-### API 利用分析（admin）
-
-```
-GET /api/v1/admin/analytics/usage  # APIキー単位の利用統計（?days=7、最大 90 日）
-```
-
-### 利用規約
-
-```
-GET /api/v1/terms/service  # 利用規約
-GET /api/v1/terms/privacy  # プライバシーポリシー
+```bash
+go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/api/main.go -o docs
 ```
 
 ## 開発
@@ -214,10 +100,6 @@ go mod tidy
 |------------|------|
 | [Clean Architecture](docs/clean-architecture/) | レイヤー定義・境界ルール・ADR |
 | [Development Guide](docs/DEVELOPMENT_GUIDE.md) | 開発手順・規約 |
-| [Search API Spec](docs/search-api-spec.md) | 検索パラメーター仕様 |
-| [Error Codes](docs/error-codes.md) | エラーコード一覧 |
-| [API Versioning](docs/api-versioning-policy.md) | バージョニング方針 |
-| [Removal Flow](docs/removal-request-flow.md) | 削除申請フロー |
 | [Docker Guide](docs/docker-guide.md) | Docker 環境構築 |
 | [Deployment](docs/deployment.md) | デプロイ手順 |
 | [Legal Guidelines](docs/legal-guidelines.md) | 法的対応方針 |

@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	appJob "github.com/kuro48/idol-api/internal/application/job"
+	domainIdol "github.com/kuro48/idol-api/internal/domain/idol"
 	domainJob "github.com/kuro48/idol-api/internal/domain/job"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,6 +17,10 @@ import (
 
 // MockJobRepository はdomainJob.Repositoryのモック
 type MockJobRepository struct {
+	mock.Mock
+}
+
+type MockIdolBulkImporter struct {
 	mock.Mock
 }
 
@@ -47,6 +53,14 @@ func (m *MockJobRepository) FindByStatus(ctx context.Context, status domainJob.J
 	return args.Get(0).([]*domainJob.Job), args.Error(1)
 }
 
+func (m *MockIdolBulkImporter) CreateIdol(ctx context.Context, input appIdol.CreateInput) (*domainIdol.Idol, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domainIdol.Idol), args.Error(1)
+}
+
 // newRunningJob はテスト用の実行中ジョブを作成する
 func newRunningJob(id string) *domainJob.Job {
 	j := domainJob.NewJob(domainJob.JobTypeBulkImport, []byte(`{"items":[{"name":"テスト"}]}`), "user1")
@@ -65,13 +79,15 @@ func newPendingJob(id string) *domainJob.Job {
 func TestApplicationService_EnqueueBulkImport(t *testing.T) {
 	t.Run("ジョブを正常に作成してIDを返す", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		repo.On("Save", mock.Anything, mock.Anything).Return(nil)
 		// executeBulkImport 内のFindByID/Updateも許可
 		runningJob := newRunningJob("test-job-id")
 		repo.On("FindByID", mock.Anything, "test-job-id").Return(runningJob, nil).Maybe()
 		repo.On("Update", mock.Anything, mock.Anything).Return(nil).Maybe()
+		importer.On("CreateIdol", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		payload := []byte(`{"items":[{"name":"アイドル1"}]}`)
 		j, err := svc.EnqueueBulkImport(context.Background(), payload)
 
@@ -83,9 +99,10 @@ func TestApplicationService_EnqueueBulkImport(t *testing.T) {
 
 	t.Run("Save失敗時はエラーを返す", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		repo.On("Save", mock.Anything, mock.Anything).Return(errors.New("DB接続エラー"))
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		j, err := svc.EnqueueBulkImport(context.Background(), []byte(`{"items":[]}`))
 
 		assert.Error(t, err)
@@ -96,10 +113,11 @@ func TestApplicationService_EnqueueBulkImport(t *testing.T) {
 func TestApplicationService_GetJobStatus(t *testing.T) {
 	t.Run("存在するジョブのステータスを返す", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		j := newPendingJob("job-123")
 		repo.On("FindByID", mock.Anything, "job-123").Return(j, nil)
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		dto, err := svc.GetJobStatus(context.Background(), "job-123")
 
 		require.NoError(t, err)
@@ -111,9 +129,10 @@ func TestApplicationService_GetJobStatus(t *testing.T) {
 
 	t.Run("存在しないジョブはエラーを返す", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		repo.On("FindByID", mock.Anything, "not-found").Return(nil, errors.New("ジョブが見つかりません"))
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		dto, err := svc.GetJobStatus(context.Background(), "not-found")
 
 		assert.Error(t, err)
@@ -122,12 +141,13 @@ func TestApplicationService_GetJobStatus(t *testing.T) {
 
 	t.Run("completed状態のジョブはResultを含む", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		j := newPendingJob("job-456")
 		_ = j.Start()
 		_ = j.Complete([]byte(`{"processed":5,"success":5}`))
 		repo.On("FindByID", mock.Anything, "job-456").Return(j, nil)
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		dto, err := svc.GetJobStatus(context.Background(), "job-456")
 
 		require.NoError(t, err)
@@ -143,6 +163,7 @@ func TestApplicationService_GetJobStatus(t *testing.T) {
 func TestApplicationService_RetryJob(t *testing.T) {
 	t.Run("失敗したジョブをリトライできる", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		failedJob := newPendingJob("job-789")
 		_ = failedJob.Start()
 		_ = failedJob.Fail("エラーが発生しました")
@@ -151,8 +172,9 @@ func TestApplicationService_RetryJob(t *testing.T) {
 		repo.On("Update", mock.Anything, mock.Anything).Return(nil)
 		// executeBulkImport 内での呼び出し（非同期）も許可
 		repo.On("FindByID", mock.Anything, "job-789").Return(newRunningJob("job-789"), nil).Maybe()
+		importer.On("CreateIdol", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		j, err := svc.RetryJob(context.Background(), "job-789")
 
 		require.NoError(t, err)
@@ -166,10 +188,11 @@ func TestApplicationService_RetryJob(t *testing.T) {
 
 	t.Run("pending状態のジョブはリトライできない", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		pendingJob := newPendingJob("job-abc")
 		repo.On("FindByID", mock.Anything, "job-abc").Return(pendingJob, nil)
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		j, err := svc.RetryJob(context.Background(), "job-abc")
 
 		assert.Error(t, err)
@@ -178,9 +201,10 @@ func TestApplicationService_RetryJob(t *testing.T) {
 
 	t.Run("ジョブが見つからない場合はエラーを返す", func(t *testing.T) {
 		repo := new(MockJobRepository)
+		importer := new(MockIdolBulkImporter)
 		repo.On("FindByID", mock.Anything, "not-found").Return(nil, errors.New("ジョブが見つかりません"))
 
-		svc := appJob.NewApplicationService(repo)
+		svc := appJob.NewApplicationService(repo, importer)
 		j, err := svc.RetryJob(context.Background(), "not-found")
 
 		assert.Error(t, err)
