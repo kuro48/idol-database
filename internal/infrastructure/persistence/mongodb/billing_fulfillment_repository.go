@@ -48,6 +48,10 @@ func (r *BillingFulfillmentRepository) EnsureIndexes(ctx context.Context) error 
 			Keys:    bson.D{{Key: "email", Value: 1}, {Key: "created_at", Value: -1}},
 			Options: options.Index().SetName("idx_billing_email_created_at"),
 		},
+		{
+			Keys:    bson.D{{Key: "customer_id", Value: 1}, {Key: "created_at", Value: -1}},
+			Options: options.Index().SetName("idx_billing_customer_created_at"),
+		},
 	}
 	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
 	return err
@@ -81,6 +85,23 @@ func (r *BillingFulfillmentRepository) FindLatestByEmail(ctx context.Context, em
 	err := r.collection.FindOne(
 		ctx,
 		bson.M{"email": email},
+		options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}}),
+	).Decode(&doc)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("billing fulfillment の取得に失敗しました: %w", err)
+	}
+	return toBillingFulfillmentDomain(&doc)
+}
+
+// FindLatestByCustomerID は customer ID に紐づく最新 fulfillment を取得する。
+func (r *BillingFulfillmentRepository) FindLatestByCustomerID(ctx context.Context, customerID string) (*domainbilling.CheckoutFulfillment, error) {
+	var doc billingFulfillmentDocument
+	err := r.collection.FindOne(
+		ctx,
+		bson.M{"customer_id": customerID},
 		options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}}),
 	).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {

@@ -13,6 +13,10 @@ import (
 const (
 	// WebhookEventTypeCheckoutSessionCompleted は Checkout 完了イベント。
 	WebhookEventTypeCheckoutSessionCompleted = "checkout.session.completed"
+	WebhookEventTypeSubscriptionUpdated      = "customer.subscription.updated"
+	WebhookEventTypeSubscriptionDeleted      = "customer.subscription.deleted"
+	WebhookEventTypeInvoicePaymentFailed     = "invoice.payment_failed"
+	WebhookEventTypeInvoicePaid              = "invoice.paid"
 )
 
 // Config は billing サービスの設定。
@@ -39,8 +43,23 @@ type CheckoutSessionCompleted struct {
 
 // WebhookEvent は Stripe Webhook の最小表現。
 type WebhookEvent struct {
-	Type             string
-	CheckoutSession  *CheckoutSessionCompleted
+	Type            string
+	CheckoutSession *CheckoutSessionCompleted
+	Subscription    *SubscriptionUpdated
+	Invoice         *InvoiceUpdated
+}
+
+// SubscriptionUpdated は subscription 更新時の最小情報。
+type SubscriptionUpdated struct {
+	CustomerID string
+	PriceID    string
+	Status     string
+}
+
+// InvoiceUpdated は invoice 更新時の最小情報。
+type InvoiceUpdated struct {
+	CustomerID string
+	Paid       bool
 }
 
 // PortalSession は Stripe Customer Portal Session の最小表現。
@@ -99,6 +118,7 @@ type StripeClient interface {
 // APIKeyIssuer は決済後に API キーを発行する契約。
 type APIKeyIssuer interface {
 	CreateOrGetKeyWithRawKey(ctx context.Context, input appAPIKey.CreateKeyInput, rawKey string) (*appAPIKey.CreateKeyOutput, error)
+	UpdateKeyPlanAndStatus(ctx context.Context, id string, planType string, active bool) (*domainapikey.APIKey, error)
 }
 
 // Notifier は API キー発行通知を送る契約。
@@ -160,11 +180,67 @@ func (s *Service) HandleStripeWebhook(ctx context.Context, payload []byte, signa
 	if err != nil {
 		return err
 	}
-	if event == nil || event.Type != WebhookEventTypeCheckoutSessionCompleted || event.CheckoutSession == nil {
+	if event == nil {
 		return nil
 	}
 
-	completed := event.CheckoutSession
+	switch event.Type {
+	case WebhookEventTypeCheckoutSessionCompleted:
+		if event.CheckoutSession == nil {
+			return nil
+		}
+		return s.handleCheckoutSessionCompleted(ctx, event.CheckoutSession)
+	case WebhookEventTypeSubscriptionUpdated:
+		if event.Subscription == nil {
+			return nil
+		}
+		return s.syncSubscriptionState(ctx, event.Subscription)
+	case WebhookEventTypeSubscriptionDeleted:
+		if event.Subscription == nil {
+			return nil
+		}
+		return s.syncSubscriptionState(ctx, &SubscriptionUpdated{
+			CustomerID: event.Subscription.CustomerID,
+			PriceID:    event.Subscription.PriceID,
+			Status:     "canceled",
+		})
+	case WebhookEventTypeInvoicePaymentFailed:
+		if event.Invoice == nil {
+			return nil
+		}
+		return s.syncKeyStatusByCustomer(ctx, event.Invoice.CustomerID, false)
+	case WebhookEventTypeInvoicePaid:
+		if event.Invoice == nil {
+			return nil
+		}
+		return s.syncKeyStatusByCustomer(ctx, event.Invoice.CustomerID, true)
+	}
+
+	return nil
+}
+
+// CreatePortalSession は Billing Portal Session を作成する。
+func (s *Service) CreatePortalSession(ctx context.Context, input CreatePortalSessionRequest) (*CreatePortalSessionResult, error) {
+	fulfillment, err := s.repo.FindLatestByEmail(ctx, input.Email)
+	if err != nil {
+		return nil, err
+	}
+	if fulfillment == nil {
+		return nil, fmt.Errorf("課金済みの顧客情報が見つかりません")
+	}
+
+	session, err := s.stripeClient.CreatePortalSession(ctx, CreatePortalSessionInput{
+		CustomerID: fulfillment.CustomerID(),
+		ReturnURL:  input.ReturnURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &CreatePortalSessionResult{URL: session.URL}, nil
+}
+
+func (s *Service) handleCheckoutSessionCompleted(ctx context.Context, completed *CheckoutSessionCompleted) error {
 	fulfillment, err := s.repo.FindBySessionID(ctx, completed.SessionID)
 	if err != nil {
 		return err
@@ -225,23 +301,58 @@ func (s *Service) HandleStripeWebhook(ctx context.Context, payload []byte, signa
 	return nil
 }
 
-// CreatePortalSession は Billing Portal Session を作成する。
-func (s *Service) CreatePortalSession(ctx context.Context, input CreatePortalSessionRequest) (*CreatePortalSessionResult, error) {
-	fulfillment, err := s.repo.FindLatestByEmail(ctx, input.Email)
+func (s *Service) syncSubscriptionState(ctx context.Context, subscription *SubscriptionUpdated) error {
+	fulfillment, err := s.repo.FindLatestByCustomerID(ctx, subscription.CustomerID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if fulfillment == nil {
-		return nil, fmt.Errorf("課金済みの顧客情報が見つかりません")
+		return nil
 	}
 
-	session, err := s.stripeClient.CreatePortalSession(ctx, CreatePortalSessionInput{
-		CustomerID: fulfillment.CustomerID(),
-		ReturnURL:  input.ReturnURL,
-	})
+	planType, err := s.planTypeFromPriceID(subscription.PriceID)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	active := isActiveSubscriptionStatus(subscription.Status)
+	if _, err := s.apiKeyIssuer.UpdateKeyPlanAndStatus(ctx, fulfillment.APIKeyID(), string(planType), active); err != nil {
+		return err
+	}
+	if fulfillment.PlanType() != planType {
+		fulfillment.UpdatePlanType(planType)
+		if err := s.repo.Update(ctx, fulfillment); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	return &CreatePortalSessionResult{URL: session.URL}, nil
+func (s *Service) syncKeyStatusByCustomer(ctx context.Context, customerID string, active bool) error {
+	fulfillment, err := s.repo.FindLatestByCustomerID(ctx, customerID)
+	if err != nil {
+		return err
+	}
+	if fulfillment == nil {
+		return nil
+	}
+	_, err = s.apiKeyIssuer.UpdateKeyPlanAndStatus(ctx, fulfillment.APIKeyID(), string(fulfillment.PlanType()), active)
+	return err
+}
+
+func (s *Service) planTypeFromPriceID(priceID string) (plan.Type, error) {
+	for planType, configuredPriceID := range s.cfg.PriceIDs {
+		if configuredPriceID == priceID {
+			return planType, nil
+		}
+	}
+	return "", fmt.Errorf("プランに対応する Stripe Price ID が見つかりません")
+}
+
+func isActiveSubscriptionStatus(status string) bool {
+	switch status {
+	case "active", "trialing":
+		return true
+	default:
+		return false
+	}
 }

@@ -51,14 +51,14 @@ func ReconstructCheckoutFulfillment(
 	}
 }
 
-func (f *CheckoutFulfillment) SessionID() string  { return f.sessionID }
-func (f *CheckoutFulfillment) CustomerID() string { return f.customerID }
-func (f *CheckoutFulfillment) Email() string      { return f.email }
-func (f *CheckoutFulfillment) Name() string       { return f.name }
-func (f *CheckoutFulfillment) PlanType() plan.Type { return f.planType }
-func (f *CheckoutFulfillment) APIKeyID() string   { return f.apiKeyID }
+func (f *CheckoutFulfillment) SessionID() string      { return f.sessionID }
+func (f *CheckoutFulfillment) CustomerID() string     { return f.customerID }
+func (f *CheckoutFulfillment) Email() string          { return f.email }
+func (f *CheckoutFulfillment) Name() string           { return f.name }
+func (f *CheckoutFulfillment) PlanType() plan.Type    { return f.planType }
+func (f *CheckoutFulfillment) APIKeyID() string       { return f.apiKeyID }
 func (f *CheckoutFulfillment) NotifiedAt() *time.Time { return f.notifiedAt }
-func (f *CheckoutFulfillment) CreatedAt() time.Time { return f.createdAt }
+func (f *CheckoutFulfillment) CreatedAt() time.Time   { return f.createdAt }
 
 // Notified は API キー通知済みかを返す。
 func (f *CheckoutFulfillment) Notified() bool {
@@ -69,4 +69,9 @@ func (f *CheckoutFulfillment) Notified() bool {
 func (f *CheckoutFulfillment) MarkNotified() {
 	now := time.Now()
 	f.notifiedAt = &now
+}
+
+// UpdatePlanType は現在の契約プランを同期する。
+func (f *CheckoutFulfillment) UpdatePlanType(planType plan.Type) {
+	f.planType = planType
 }
