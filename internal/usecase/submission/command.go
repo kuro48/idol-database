@@ -18,7 +18,8 @@ type UpdateStatusCommand struct {
 
 // ReviseSubmissionCommand は再投稿コマンド
 type ReviseSubmissionCommand struct {
-	ID         string
-	Payload    map[string]interface{}
-	SourceURLs []string
+	ID          string
+	AccessToken string
+	Payload     map[string]interface{}
+	SourceURLs  []string
 }

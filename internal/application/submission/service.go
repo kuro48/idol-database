@@ -5,7 +5,13 @@ import (
 	"fmt"
 
 	"github.com/kuro48/idol-api/internal/domain/submission"
+	"github.com/kuro48/idol-api/internal/shared/token"
 )
+
+type CreateResult struct {
+	Submission  *submission.Submission
+	AccessToken string
+}
 
 // ApplicationService は投稿審査のアプリケーションサービス
 type ApplicationService struct {
@@ -20,7 +26,7 @@ func NewApplicationService(submissionRepo submission.Repository) *ApplicationSer
 }
 
 // CreateSubmission は新しい投稿審査を作成する
-func (s *ApplicationService) CreateSubmission(ctx context.Context, input CreateInput) (*submission.Submission, error) {
+func (s *ApplicationService) CreateSubmission(ctx context.Context, input CreateInput) (*CreateResult, error) {
 	// 投稿タイプのバリデーション
 	targetType, err := submission.NewSubmissionType(input.TargetType)
 	if err != nil {
@@ -43,12 +49,18 @@ func (s *ApplicationService) CreateSubmission(ctx context.Context, input CreateI
 		return nil, fmt.Errorf("無効な投稿者メールアドレスです: %w", err)
 	}
 
+	accessToken, err := token.Generate()
+	if err != nil {
+		return nil, fmt.Errorf("公開アクセストークンの生成に失敗しました: %w", err)
+	}
+
 	// 投稿審査エンティティの作成
 	sub := submission.NewSubmission(
 		targetType,
 		input.Payload,
 		sourceURLs,
 		contributorEmail,
+		token.Hash(accessToken),
 	)
 
 	// 保存
@@ -56,7 +68,10 @@ func (s *ApplicationService) CreateSubmission(ctx context.Context, input CreateI
 		return nil, fmt.Errorf("投稿審査の保存に失敗しました: %w", err)
 	}
 
-	return sub, nil
+	return &CreateResult{
+		Submission:  sub,
+		AccessToken: accessToken,
+	}, nil
 }
 
 // GetSubmission は投稿審査を取得する

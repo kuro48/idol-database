@@ -4,9 +4,9 @@ import "context"
 
 // RemovalUseCase は削除申請のユースケース Input Port
 type RemovalUseCase interface {
-	CreateRemovalRequest(ctx context.Context, cmd CreateRemovalRequestCommand) (*RemovalRequestDTO, error)
+	CreateRemovalRequest(ctx context.Context, cmd CreateRemovalRequestCommand) (*CreateRemovalRequestResult, error)
 	GetRemovalRequest(ctx context.Context, id string) (*RemovalRequestDTO, error)
-	GetRemovalRequestPublic(ctx context.Context, id string) (*PublicRemovalRequestDTO, error)
+	GetRemovalRequestPublic(ctx context.Context, id string, accessToken string) (*PublicRemovalRequestDTO, error)
 	ListAllRemovalRequests(ctx context.Context) ([]*RemovalRequestDTO, error)
 	ListPendingRemovalRequests(ctx context.Context) ([]*RemovalRequestDTO, error)
 	UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*RemovalRequestDTO, error)

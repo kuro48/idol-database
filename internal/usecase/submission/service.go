@@ -24,14 +24,14 @@ func NewUsecase(submissionApp SubmissionAppPort, emailNotifier EmailNotifier) *U
 }
 
 // CreateSubmission は新しい投稿審査を作成する
-func (u *Usecase) CreateSubmission(ctx context.Context, cmd CreateSubmissionCommand) (*PublicSubmissionDTO, error) {
+func (u *Usecase) CreateSubmission(ctx context.Context, cmd CreateSubmissionCommand) (*CreateSubmissionResult, error) {
 	// Payload を JSON 文字列化
 	payloadJSON, err := json.Marshal(cmd.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("ペイロードのJSON変換に失敗しました: %w", err)
 	}
 
-	sub, err := u.submissionApp.CreateSubmission(ctx, SubmissionCreateInput{
+	result, err := u.submissionApp.CreateSubmission(ctx, SubmissionCreateInput{
 		TargetType:       cmd.TargetType,
 		Payload:          string(payloadJSON),
 		SourceURLs:       cmd.SourceURLs,
@@ -41,14 +41,20 @@ func (u *Usecase) CreateSubmission(ctx context.Context, cmd CreateSubmissionComm
 		return nil, err
 	}
 
-	return toPublicDTO(sub), nil
+	return &CreateSubmissionResult{
+		Submission:  toPublicDTO(result.Submission),
+		AccessToken: result.AccessToken,
+	}, nil
 }
 
 // GetSubmissionPublic は投稿審査を公開情報のみで取得する（投稿者向け）
-func (u *Usecase) GetSubmissionPublic(ctx context.Context, id string) (*PublicSubmissionDTO, error) {
+func (u *Usecase) GetSubmissionPublic(ctx context.Context, id string, accessToken string) (*PublicSubmissionDTO, error) {
 	sub, err := u.submissionApp.GetSubmission(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if !sub.VerifyAccessToken(accessToken) {
+		return nil, fmt.Errorf("投稿審査のアクセストークンが無効です")
 	}
 
 	return toPublicDTO(sub), nil
@@ -129,6 +135,9 @@ func (u *Usecase) ReviseSubmission(ctx context.Context, cmd ReviseSubmissionComm
 	if err != nil {
 		return nil, err
 	}
+	if !sub.VerifyAccessToken(cmd.AccessToken) {
+		return nil, fmt.Errorf("投稿審査のアクセストークンが無効です")
+	}
 
 	// Payload を JSON 文字列化
 	payloadJSON, err := json.Marshal(cmd.Payload)
@@ -157,6 +166,7 @@ func (u *Usecase) ReviseSubmission(ctx context.Context, cmd ReviseSubmissionComm
 		string(payloadJSON),
 		sourceURLObjs,
 		sub.ContributorEmail(),
+		sub.AccessTokenHash(),
 		sub.SnsUserID(),
 		sub.Status(),
 		sub.RevisionNote(),

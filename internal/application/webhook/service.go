@@ -25,10 +25,11 @@ const deliveryTimeout = 30 * time.Second
 
 // ApplicationService はWebhookアプリケーションサービス
 type ApplicationService struct {
-	subRepo      webhook.SubscriptionRepository
-	deliveryRepo webhook.DeliveryRepository
-	httpClient   *http.Client
-	wg           sync.WaitGroup
+	subRepo        webhook.SubscriptionRepository
+	deliveryRepo   webhook.DeliveryRepository
+	httpClient     *http.Client
+	resolveIPAddrs func(ctx context.Context, host string) ([]net.IPAddr, error)
+	wg             sync.WaitGroup
 }
 
 // NewApplicationService はアプリケーションサービスを作成する
@@ -38,19 +39,13 @@ func NewApplicationService(subRepo webhook.SubscriptionRepository, deliveryRepo 
 
 // NewApplicationServiceWithTimeout はタイムアウトを指定してアプリケーションサービスを作成する
 func NewApplicationServiceWithTimeout(subRepo webhook.SubscriptionRepository, deliveryRepo webhook.DeliveryRepository, timeout time.Duration) *ApplicationService {
-	return &ApplicationService{
-		subRepo:      subRepo,
-		deliveryRepo: deliveryRepo,
-		httpClient: &http.Client{
-			Timeout: timeout,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= 3 {
-					return fmt.Errorf("リダイレクト回数の上限（3回）に達しました")
-				}
-				return validateWebhookURL(req.URL.String())
-			},
-		},
+	svc := &ApplicationService{
+		subRepo:        subRepo,
+		deliveryRepo:   deliveryRepo,
+		resolveIPAddrs: net.DefaultResolver.LookupIPAddr,
 	}
+	svc.httpClient = newWebhookHTTPClient(timeout, svc.resolveIPAddrs)
+	return svc
 }
 
 // Shutdown はインフライトのWebhook配信がすべて完了するまで待機する
@@ -67,7 +62,7 @@ type CreateSubscriptionInput struct {
 
 // CreateSubscription はWebhook購読を作成する
 func (s *ApplicationService) CreateSubscription(ctx context.Context, input CreateSubscriptionInput) (*webhook.Subscription, error) {
-	if err := validateWebhookURL(input.URL); err != nil {
+	if err := validateWebhookURL(context.Background(), input.URL, s.resolveIPAddrs); err != nil {
 		return nil, err
 	}
 
@@ -85,6 +80,50 @@ func (s *ApplicationService) CreateSubscription(ctx context.Context, input Creat
 		return nil, fmt.Errorf("Webhook購読の保存エラー: %w", err)
 	}
 	return sub, nil
+}
+
+func newWebhookHTTPClient(timeout time.Duration, resolveIPAddrs func(ctx context.Context, host string) ([]net.IPAddr, error)) *http.Client {
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(address)
+			if err != nil {
+				return nil, fmt.Errorf("Webhook送信先アドレスが不正です: %w", err)
+			}
+
+			targets, err := resolveAllowedWebhookDialTargets(ctx, host, port, resolveIPAddrs)
+			if err != nil {
+				return nil, err
+			}
+
+			var lastErr error
+			dialer := &net.Dialer{Timeout: timeout}
+			for _, target := range targets {
+				conn, dialErr := dialer.DialContext(ctx, network, target)
+				if dialErr == nil {
+					return conn, nil
+				}
+				lastErr = dialErr
+			}
+
+			if lastErr == nil {
+				lastErr = fmt.Errorf("Webhook送信先に到達できません")
+			}
+			return nil, lastErr
+		},
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: timeout,
+	}
+
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 3 {
+				return fmt.Errorf("リダイレクト回数の上限（3回）に達しました")
+			}
+			return validateWebhookURL(req.Context(), req.URL.String(), resolveIPAddrs)
+		},
+	}
 }
 
 // DeleteSubscription はWebhook購読を削除する
@@ -214,7 +253,7 @@ func (s *ApplicationService) deliver(ctx context.Context, sub *webhook.Subscript
 }
 
 // validateWebhookURL はWebhookURLのSSRF対策バリデーションを行う
-func validateWebhookURL(rawURL string) error {
+func validateWebhookURL(ctx context.Context, rawURL string, resolveIPAddrs func(ctx context.Context, host string) ([]net.IPAddr, error)) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("無効なURL形式です: %w", err)
@@ -234,25 +273,54 @@ func validateWebhookURL(rawURL string) error {
 		return fmt.Errorf("URLにホスト名が必要です")
 	}
 
-	// ループバックアドレスの拒否（IPv4 / IPv6）
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" {
-		return fmt.Errorf("ループバックアドレスへのWebhookは許可されていません")
+	_, err = resolveAllowedWebhookDialTargets(ctx, host, parsed.Port(), resolveIPAddrs)
+	return err
+}
+
+func resolveAllowedWebhookDialTargets(ctx context.Context, host, port string, resolveIPAddrs func(ctx context.Context, host string) ([]net.IPAddr, error)) ([]string, error) {
+	if host == "localhost" {
+		return nil, fmt.Errorf("ループバックアドレスへのWebhookは許可されていません")
 	}
 
-	// DNS解決してIPチェック
-	addrs, err := net.LookupHost(host)
-	if err == nil {
-		for _, addr := range addrs {
-			ip := net.ParseIP(addr)
-			if ip == nil {
-				continue
-			}
-			if ip.IsLoopback() || ip.IsLinkLocalUnicast() || isPrivateIP(ip) {
-				return fmt.Errorf("プライベート/ループバックIPアドレスへのWebhookは許可されていません")
-			}
+	if port == "" {
+		port = "443"
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		if err := validateWebhookIP(ip); err != nil {
+			return nil, err
 		}
+		return []string{net.JoinHostPort(ip.String(), port)}, nil
 	}
 
+	resolveCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	addrs, err := resolveIPAddrs(resolveCtx, host)
+	if err != nil {
+		return nil, fmt.Errorf("Webhook送信先のDNS解決に失敗しました: %w", err)
+	}
+
+	targets := make([]string, 0, len(addrs))
+	for _, addr := range addrs {
+		if err := validateWebhookIP(addr.IP); err != nil {
+			return nil, err
+		}
+		targets = append(targets, net.JoinHostPort(addr.IP.String(), port))
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("Webhook送信先のIPアドレスが解決できませんでした")
+	}
+	return targets, nil
+}
+
+func validateWebhookIP(ip net.IP) error {
+	if ip == nil {
+		return fmt.Errorf("Webhook送信先のIPアドレスが不正です")
+	}
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || isPrivateIP(ip) {
+		return fmt.Errorf("プライベート/ループバックIPアドレスへのWebhookは許可されていません")
+	}
 	return nil
 }
 

@@ -31,6 +31,7 @@ func newPendingSubmission(t *testing.T) *submission.Submission {
 		`{"name":"テスト"}`,
 		newValidSourceURLs(t),
 		newValidEmail(t),
+		"access-token-hash",
 	)
 }
 
@@ -48,6 +49,7 @@ func TestNewSubmission(t *testing.T) {
 	assert.Empty(t, s.RevisionNote())
 	assert.False(t, s.CreatedAt().IsZero())
 	assert.False(t, s.UpdatedAt().IsZero())
+	assert.Equal(t, "access-token-hash", s.AccessTokenHash())
 }
 
 // --- Approve ---

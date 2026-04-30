@@ -2,6 +2,8 @@ package submission
 
 import (
 	"time"
+
+	"github.com/kuro48/idol-api/internal/shared/token"
 )
 
 // Submission は投稿審査のエンティティ（Aggregate Root）
@@ -11,7 +13,8 @@ type Submission struct {
 	payload          string // JSON文字列（投稿内容）
 	sourceURLs       []SourceURL
 	contributorEmail ContributorEmail
-	snsUserID        string     // nullable（空文字で未設定）
+	accessTokenHash  string
+	snsUserID        string // nullable（空文字で未設定）
 	status           SubmissionStatus
 	revisionNote     string     // 差し戻し理由（空文字で未設定）
 	reviewedBy       string     // 審査者ID（空文字で未設定）
@@ -26,6 +29,7 @@ func NewSubmission(
 	payload string,
 	sourceURLs []SourceURL,
 	contributorEmail ContributorEmail,
+	accessTokenHash string,
 ) *Submission {
 	now := time.Now()
 
@@ -35,6 +39,7 @@ func NewSubmission(
 		payload:          payload,
 		sourceURLs:       sourceURLs,
 		contributorEmail: contributorEmail,
+		accessTokenHash:  accessTokenHash,
 		snsUserID:        "",
 		status:           StatusPending, // 初期状態は審査待ち
 		revisionNote:     "",
@@ -52,6 +57,7 @@ func Reconstruct(
 	payload string,
 	sourceURLs []SourceURL,
 	contributorEmail ContributorEmail,
+	accessTokenHash string,
 	snsUserID string,
 	status SubmissionStatus,
 	revisionNote string,
@@ -66,6 +72,7 @@ func Reconstruct(
 		payload:          payload,
 		sourceURLs:       sourceURLs,
 		contributorEmail: contributorEmail,
+		accessTokenHash:  accessTokenHash,
 		snsUserID:        snsUserID,
 		status:           status,
 		revisionNote:     revisionNote,
@@ -99,6 +106,11 @@ func (s *Submission) SourceURLs() []SourceURL {
 // ContributorEmail は投稿者メールアドレスを返す
 func (s *Submission) ContributorEmail() ContributorEmail {
 	return s.contributorEmail
+}
+
+// AccessTokenHash は公開アクセストークンのハッシュを返す
+func (s *Submission) AccessTokenHash() string {
+	return s.accessTokenHash
 }
 
 // SnsUserID はSNSユーザーIDを返す（未設定の場合は空文字）
@@ -139,6 +151,11 @@ func (s *Submission) UpdatedAt() time.Time {
 // SetID はIDを設定する（永続化後に使用）
 func (s *Submission) SetID(id SubmissionID) {
 	s.id = id
+}
+
+// VerifyAccessToken は公開アクセストークンを検証する
+func (s *Submission) VerifyAccessToken(rawToken string) bool {
+	return token.Verify(rawToken, s.accessTokenHash)
 }
 
 // Approve は投稿審査を承認する（pending のみ可）

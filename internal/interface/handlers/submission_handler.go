@@ -72,7 +72,7 @@ func (h *SubmissionHandler) CreateSubmission(c *gin.Context) {
 		ContributorEmail: req.ContributorEmail,
 	}
 
-	dto, err := h.submissionUsecase.CreateSubmission(c.Request.Context(), cmd)
+	result, err := h.submissionUsecase.CreateSubmission(c.Request.Context(), cmd)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Resource: "投稿審査",
@@ -81,7 +81,7 @@ func (h *SubmissionHandler) CreateSubmission(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto)
+	c.JSON(http.StatusCreated, result)
 }
 
 // GetSubmission は投稿審査を取得する（投稿者向け公開情報のみ）
@@ -100,8 +100,12 @@ func (h *SubmissionHandler) GetSubmission(c *gin.Context) {
 	if !ok {
 		return
 	}
+	accessToken, ok := getAccessToken(c)
+	if !ok {
+		return
+	}
 
-	dto, err := h.submissionUsecase.GetSubmissionPublic(c.Request.Context(), id)
+	dto, err := h.submissionUsecase.GetSubmissionPublic(c.Request.Context(), id, accessToken)
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "投稿審査"})
 		return
@@ -231,6 +235,10 @@ func (h *SubmissionHandler) ReviseSubmission(c *gin.Context) {
 	if !ok {
 		return
 	}
+	accessToken, ok := getAccessToken(c)
+	if !ok {
+		return
+	}
 
 	var req ReviseSubmissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -239,9 +247,10 @@ func (h *SubmissionHandler) ReviseSubmission(c *gin.Context) {
 	}
 
 	cmd := submission.ReviseSubmissionCommand{
-		ID:         id,
-		Payload:    req.Payload,
-		SourceURLs: req.SourceURLs,
+		ID:          id,
+		AccessToken: accessToken,
+		Payload:     req.Payload,
+		SourceURLs:  req.SourceURLs,
 	}
 
 	dto, err := h.submissionUsecase.ReviseSubmission(c.Request.Context(), cmd)
