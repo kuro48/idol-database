@@ -95,6 +95,22 @@ type CreateCheckoutSessionResult struct {
 	URL string `json:"url"`
 }
 
+// CreateFreeAPIKeyRequest は free プランの API キー発行入力。
+type CreateFreeAPIKeyRequest struct {
+	Email string
+	Name  string
+}
+
+// CreateFreeAPIKeyResult は free プランの API キー発行結果。
+type CreateFreeAPIKeyResult struct {
+	ID        string `json:"id"`
+	RawKey    string `json:"raw_key"`
+	MaskedKey string `json:"masked_key"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	PlanType  string `json:"plan_type"`
+}
+
 // CreatePortalSessionResult は Portal Session 作成結果。
 type CreatePortalSessionResult struct {
 	URL string `json:"url"`
@@ -119,6 +135,8 @@ type StripeClient interface {
 type APIKeyIssuer interface {
 	CreateOrGetKeyWithRawKey(ctx context.Context, input appAPIKey.CreateKeyInput, rawKey string) (*appAPIKey.CreateKeyOutput, error)
 	UpdateKeyPlanAndStatus(ctx context.Context, id string, planType string, active bool) (*domainapikey.APIKey, error)
+	CreateKey(ctx context.Context, input appAPIKey.CreateKeyInput) (*appAPIKey.CreateKeyOutput, error)
+	ListKeysByEmail(ctx context.Context, email string) ([]*domainapikey.APIKey, error)
 }
 
 // Notifier は API キー発行通知を送る契約。
@@ -172,6 +190,37 @@ func (s *Service) CreateCheckoutSession(ctx context.Context, input CreateCheckou
 	}
 
 	return &CreateCheckoutSessionResult{ID: session.ID, URL: session.URL}, nil
+}
+
+// CreateFreeAPIKey は self-serve で free プランの API キーを発行する。
+func (s *Service) CreateFreeAPIKey(ctx context.Context, input CreateFreeAPIKeyRequest) (*CreateFreeAPIKeyResult, error) {
+	keys, err := s.apiKeyIssuer.ListKeysByEmail(ctx, input.Email)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range keys {
+		if key.IsActive() && key.PlanType() == plan.TypeFree {
+			return nil, fmt.Errorf("既に有効な free プランのAPIキーが存在します")
+		}
+	}
+
+	output, err := s.apiKeyIssuer.CreateKey(ctx, appAPIKey.CreateKeyInput{
+		Email:    input.Email,
+		Name:     input.Name,
+		PlanType: string(plan.TypeFree),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &CreateFreeAPIKeyResult{
+		ID:        output.Key.ID(),
+		RawKey:    output.RawKey,
+		MaskedKey: output.Key.MaskedKey(),
+		Email:     output.Key.Email(),
+		Name:      output.Key.Name(),
+		PlanType:  string(output.Key.PlanType()),
+	}, nil
 }
 
 // HandleStripeWebhook は Stripe Webhook を処理する。

@@ -258,9 +258,23 @@ func main() {
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 	healthHandler := handlers.NewHealthHandler(db)
+	billingService := appBilling.NewService(
+		nil,
+		billingRepo,
+		apikeyAppService,
+		smtpNotifier,
+		appBilling.Config{
+			StripeSigningSecret: cfg.StripeWebhookSecret,
+			KeySeedSecret:       cfg.StripeKeySeedSecret,
+			PriceIDs: map[plan.Type]string{
+				plan.TypeDeveloper: cfg.StripePriceDeveloper,
+				plan.TypeBusiness:  cfg.StripePriceBusiness,
+			},
+		},
+	)
 	var billingHandler *handlers.BillingHandler
 	if cfg.StripeSecretKey != "" && smtpNotifier != nil {
-		billingService := appBilling.NewService(
+		billingService = appBilling.NewService(
 			infraStripe.NewClient(cfg.StripeSecretKey, cfg.StripeWebhookSecret),
 			billingRepo,
 			apikeyAppService,
@@ -274,11 +288,11 @@ func main() {
 				},
 			},
 		)
-		billingHandler = handlers.NewBillingHandler(billingService)
 		slog.Info("Stripe課金導線が有効です")
 	} else {
 		slog.Info("Stripe課金導線は無効です", "stripe_enabled", cfg.StripeSecretKey != "", "smtp_enabled", smtpNotifier != nil)
 	}
+	billingHandler = handlers.NewBillingHandler(billingService)
 
 	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
 	// OptionalAuth: キーあり → 検証+使用量カウント、キーなし → 匿名通過
@@ -428,6 +442,13 @@ func main() {
 		}
 
 		if billingHandler != nil {
+			billing := v1.Group("/billing")
+			{
+				billing.POST("/free-apikeys", billingHandler.CreateFreeAPIKey)
+			}
+		}
+
+		if billingHandler != nil && cfg.StripeSecretKey != "" && smtpNotifier != nil {
 			billing := v1.Group("/billing")
 			{
 				billing.POST("/checkout-sessions", billingHandler.CreateCheckoutSession)

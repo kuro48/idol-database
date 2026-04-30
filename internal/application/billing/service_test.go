@@ -91,7 +91,7 @@ type fakeAPIKeyIssuer struct {
 	rawKey     string
 	key        *domainapikey.APIKey
 	updatedKey *domainapikey.APIKey
-	listKeys    []*domainapikey.APIKey
+	listKeys   []*domainapikey.APIKey
 }
 
 func (f *fakeAPIKeyIssuer) CreateOrGetKeyWithRawKey(_ context.Context, input appAPIKey.CreateKeyInput, rawKey string) (*appAPIKey.CreateKeyOutput, error) {
