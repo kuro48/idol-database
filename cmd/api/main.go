@@ -393,6 +393,7 @@ func main() {
 		{
 			adminRemoval.GET("", removalHandler.ListAllRemovalRequests)             // 全削除申請取得
 			adminRemoval.GET("/pending", removalHandler.ListPendingRemovalRequests) // 保留中取得
+			adminRemoval.GET("/overdue", removalHandler.ListOverdueRemovalRequests) // SLA超過取得
 			adminRemoval.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新
 		}
 		idolsAdmin := v1.Group("/idols", adminAuth)

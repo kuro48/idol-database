@@ -2395,6 +2395,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/removal-requests/overdue": {
+            "get": {
+                "description": "SLA を超過した保留中の削除申請を取得する（管理者用）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "removal-requests"
+                ],
+                "summary": "SLA超過削除申請一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RemovalRequestListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/removal-requests/pending": {
             "get": {
                 "description": "保留中の削除申請を取得する（管理者用）",

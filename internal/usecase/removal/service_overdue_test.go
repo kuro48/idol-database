@@ -38,13 +38,17 @@ func (s *overdueRemovalAppStub) UpdateRemovalRequest(context.Context, *domainRem
 
 type noopRemovalIdolStub struct{}
 
-func (s *noopRemovalIdolStub) GetIdol(context.Context, string) (*domainIdol.Idol, error) { return nil, nil }
-func (s *noopRemovalIdolStub) DeleteIdol(context.Context, string) error                    { return nil }
+func (s *noopRemovalIdolStub) GetIdol(context.Context, string) (*domainIdol.Idol, error) {
+	return nil, nil
+}
+func (s *noopRemovalIdolStub) DeleteIdol(context.Context, string) error { return nil }
 
 type noopRemovalGroupStub struct{}
 
-func (s *noopRemovalGroupStub) GetGroup(context.Context, string) (*domainGroup.Group, error) { return nil, nil }
-func (s *noopRemovalGroupStub) DeleteGroup(context.Context, string) error                      { return nil }
+func (s *noopRemovalGroupStub) GetGroup(context.Context, string) (*domainGroup.Group, error) {
+	return nil, nil
+}
+func (s *noopRemovalGroupStub) DeleteGroup(context.Context, string) error { return nil }
 
 func TestListOverdueRemovalRequests_ReturnsOnlyOverduePending(t *testing.T) {
 	t.Parallel()
