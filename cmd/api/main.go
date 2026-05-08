@@ -378,6 +378,10 @@ func main() {
 	if cfg.OIDCIssuer != "" {
 		v, err := infraAuth.NewOIDCVerifier(ctx, cfg.OIDCIssuer, cfg.OIDCAudience)
 		if err != nil {
+			if cfg.GinMode == gin.ReleaseMode {
+				slog.Error("OIDC 初期化失敗", "error", err)
+				os.Exit(1)
+			}
 			slog.Warn("OIDC 初期化失敗（APIキー認証のみで継続）", "error", err)
 		} else {
 			oidcVerifier = v
