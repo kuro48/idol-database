@@ -22,7 +22,7 @@ RUN apk --no-cache add ca-certificates \
 WORKDIR /app
 
 COPY --from=builder /app/main .
-COPY --from=builder /app/static/terms ./static/terms
+COPY --from=builder /app/static ./static
 
 RUN chown -R appuser:appgroup /app
 

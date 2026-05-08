@@ -32,3 +32,21 @@ func TestFreeAPIKeyRouteIsDisabled(t *testing.T) {
 		t.Fatal("一般公開では未認証のfree APIキー自己発行ルートを公開してはいけません")
 	}
 }
+
+func TestFrontendShellRoutesAreServed(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("main.go を読み込めません: %v", err)
+	}
+
+	required := []string{
+		`router.GET("/app"`,
+		`router.GET("/admin"`,
+		`router.Static("/assets"`,
+	}
+	for _, route := range required {
+		if !strings.Contains(string(source), route) {
+			t.Fatalf("フロントエンド配信ルートが不足しています: %s", route)
+		}
+	}
+}
