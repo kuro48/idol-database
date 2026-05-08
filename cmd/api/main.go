@@ -599,6 +599,13 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	// バックグラウンドワーカー用キャンセル可能コンテキスト
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+
+	// 失敗した Webhook 配信を 5 分ごとにリトライ
+	webhookAppService.StartRetryWorker(workerCtx, 5*time.Minute)
+
 	slog.Info("サーバーを起動します", "address", addr, "architecture", "DDD")
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -612,6 +619,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	slog.Info("シャットダウン開始...")
+
+	// バックグラウンドワーカーを停止
+	workerCancel()
 
 	// インフライトの非同期処理が完了するまで待機
 	webhookAppService.Shutdown()
