@@ -53,6 +53,27 @@ func (s *ApplicationService) Shutdown() {
 	s.wg.Wait()
 }
 
+// StartRetryWorker は失敗したWebhook配信を定期的にリトライするバックグラウンドワーカーを起動する。
+// ctx がキャンセルされるとワーカーは停止し、Shutdown() の待機対象に含まれる。
+func (s *ApplicationService) StartRetryWorker(ctx context.Context, interval time.Duration) {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := s.RetryPendingDeliveries(ctx); err != nil {
+					slog.Error("Webhookリトライワーカーエラー", "error", err)
+				}
+			}
+		}
+	}()
+}
+
 // CreateSubscriptionInput はWebhook購読作成入力
 type CreateSubscriptionInput struct {
 	URL       string
