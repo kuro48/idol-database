@@ -45,7 +45,9 @@ import (
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
+	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
 	"github.com/kuro48/idol-api/internal/domain/plan"
+	infraAuth "github.com/kuro48/idol-api/internal/infrastructure/auth"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
 	"github.com/kuro48/idol-api/internal/infrastructure/email"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
@@ -353,8 +355,9 @@ func main() {
 	// セキュリティヘッダー設定
 	router.Use(middleware.SecurityHeaders())
 
-	// レート制限設定（10リクエスト/秒、バースト20）
-	rateLimiter := middleware.NewRateLimiter(10, 20)
+	// レート制限設定（RATE_LIMIT_RPS / RATE_LIMIT_BURST で調整可能）
+	// 注意: インメモリ実装のため水平スケール時は値を 1/レプリカ数 に下げるか、ロードバランサー側でも制限すること
+	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
 	router.Use(rateLimiter.Limit())
 
 	// ヘルスチェックエンドポイント
@@ -370,13 +373,27 @@ func main() {
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
+	// OIDC 認証の初期化（OIDC_ISSUER が設定されている場合のみ有効）
+	var oidcVerifier domainAuth.TokenVerifier
+	if cfg.OIDCIssuer != "" {
+		v, err := infraAuth.NewOIDCVerifier(ctx, cfg.OIDCIssuer, cfg.OIDCAudience)
+		if err != nil {
+			slog.Warn("OIDC 初期化失敗（APIキー認証のみで継続）", "error", err)
+		} else {
+			oidcVerifier = v
+			slog.Info("OIDC 認証が有効です", "issuer", cfg.OIDCIssuer, "audience", cfg.OIDCAudience)
+		}
+	} else {
+		slog.Info("OIDC 認証は無効です（OIDC_ISSUER 未設定）")
+	}
+
 	// APIキー設定
 	apiKeyCfg := middleware.APIKeyConfig{
 		WriteAPIKey: cfg.WriteAPIKey,
 		AdminAPIKey: cfg.AdminAPIKey,
 	}
-	writeAuth := middleware.WriteAuth(apiKeyCfg)
-	adminAuth := middleware.AdminAuth(cfg.AdminAPIKey)
+	writeAuth := middleware.OIDCWriteAuth(oidcVerifier, apiKeyCfg)
+	adminAuth := middleware.OIDCAdminAuth(oidcVerifier, cfg.AdminAPIKey)
 
 	v1 := router.Group("/api/v1")
 	{
