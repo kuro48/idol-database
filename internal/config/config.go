@@ -23,6 +23,9 @@ type Config struct {
 	WebhookTimeout     time.Duration // WebhookHTTPクライアントのタイムアウト（WEBHOOK_TIMEOUT_SECONDS で変更可能、デフォルト: 10秒）
 	RateLimitRPS       float64       // 1秒あたりのリクエスト数上限（RATE_LIMIT_RPS、デフォルト: 10）
 	RateLimitBurst     int           // バースト許容数（RATE_LIMIT_BURST、デフォルト: 20）
+	// 公開POST系（投稿・削除申請・外部Webhook受信）に追加適用する低レート制限
+	PublicMutationRateLimitRPS   float64 // PUBLIC_MUTATION_RATE_LIMIT_RPS、デフォルト: 0.2
+	PublicMutationRateLimitBurst int     // PUBLIC_MUTATION_RATE_LIMIT_BURST、デフォルト: 3
 	// OIDC 認証設定（idol-auth / Ory Hydra、空の場合は OIDC 無効・API キー認証のみ）
 	OIDCIssuer   string // Hydra 公開 URL（OIDC_ISSUER、例: https://auth.example.com）
 	OIDCAudience string // リソースサーバー識別子（OIDC_AUDIENCE、例: https://api.idol.example.com）
@@ -77,31 +80,43 @@ func Load() (*Config, error) {
 		rateLimitBurst = 20
 	}
 
+	publicMutationRateLimitRPS, err := strconv.ParseFloat(getEnv("PUBLIC_MUTATION_RATE_LIMIT_RPS", "0.2"), 64)
+	if err != nil || publicMutationRateLimitRPS <= 0 {
+		publicMutationRateLimitRPS = 0.2
+	}
+
+	publicMutationRateLimitBurst, err := strconv.Atoi(getEnv("PUBLIC_MUTATION_RATE_LIMIT_BURST", "3"))
+	if err != nil || publicMutationRateLimitBurst <= 0 {
+		publicMutationRateLimitBurst = 3
+	}
+
 	cfg := &Config{
-		MongoDBURI:           getEnv("MONGODB_URI", "mongodb://localhost:27017"),
-		MongoDBDatabase:      getEnv("MONGODB_DATABASE", "idol_database"),
-		ServerPort:           getEnv("SERVER_PORT", "8081"),
-		GinMode:              getEnv("GIN_MODE", "debug"),
-		CORSAllowedOrigins:   getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
-		WriteAPIKey:          getEnv("WRITE_API_KEY", ""),
-		AdminAPIKey:          getEnv("ADMIN_API_KEY", ""),
-		TrustedProxies:       getEnv("TRUSTED_PROXIES", ""),
-		WebhookTimeout:       time.Duration(webhookTimeoutSec) * time.Second,
-		RateLimitRPS:         rateLimitRPS,
-		RateLimitBurst:       rateLimitBurst,
-		OIDCIssuer:           getEnv("OIDC_ISSUER", ""),
-		OIDCAudience:         getEnv("OIDC_AUDIENCE", ""),
-		SMTPHost:             getEnv("SMTP_HOST", ""),
-		SMTPPort:             smtpPort,
-		SMTPUsername:         getEnv("SMTP_USERNAME", ""),
-		SMTPPassword:         getEnv("SMTP_PASSWORD", ""),
-		SMTPFrom:             getEnv("SMTP_FROM", ""),
-		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Idol API"),
-		StripeSecretKey:      getEnv("STRIPE_SECRET_KEY", ""),
-		StripeWebhookSecret:  getEnv("STRIPE_WEBHOOK_SECRET", ""),
-		StripeKeySeedSecret:  getEnv("STRIPE_KEY_SEED_SECRET", ""),
-		StripePriceDeveloper: getEnv("STRIPE_PRICE_DEVELOPER", ""),
-		StripePriceBusiness:  getEnv("STRIPE_PRICE_BUSINESS", ""),
+		MongoDBURI:                   getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+		MongoDBDatabase:              getEnv("MONGODB_DATABASE", "idol_database"),
+		ServerPort:                   getEnv("SERVER_PORT", "8081"),
+		GinMode:                      getEnv("GIN_MODE", "debug"),
+		CORSAllowedOrigins:           getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
+		WriteAPIKey:                  getEnv("WRITE_API_KEY", ""),
+		AdminAPIKey:                  getEnv("ADMIN_API_KEY", ""),
+		TrustedProxies:               getEnv("TRUSTED_PROXIES", ""),
+		WebhookTimeout:               time.Duration(webhookTimeoutSec) * time.Second,
+		RateLimitRPS:                 rateLimitRPS,
+		RateLimitBurst:               rateLimitBurst,
+		PublicMutationRateLimitRPS:   publicMutationRateLimitRPS,
+		PublicMutationRateLimitBurst: publicMutationRateLimitBurst,
+		OIDCIssuer:                   getEnv("OIDC_ISSUER", ""),
+		OIDCAudience:                 getEnv("OIDC_AUDIENCE", ""),
+		SMTPHost:                     getEnv("SMTP_HOST", ""),
+		SMTPPort:                     smtpPort,
+		SMTPUsername:                 getEnv("SMTP_USERNAME", ""),
+		SMTPPassword:                 getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:                     getEnv("SMTP_FROM", ""),
+		SMTPFromName:                 getEnv("SMTP_FROM_NAME", "Idol API"),
+		StripeSecretKey:              getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret:          getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		StripeKeySeedSecret:          getEnv("STRIPE_KEY_SEED_SECRET", ""),
+		StripePriceDeveloper:         getEnv("STRIPE_PRICE_DEVELOPER", ""),
+		StripePriceBusiness:          getEnv("STRIPE_PRICE_BUSINESS", ""),
 	}
 
 	// バリデーション実行

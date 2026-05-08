@@ -807,32 +807,6 @@ definitions:
       url:
         type: string
     type: object
-  handlers.createFreeAPIKeyRequest:
-    properties:
-      email:
-        type: string
-      name:
-        maxLength: 100
-        type: string
-    required:
-    - email
-    - name
-    type: object
-  handlers.createFreeAPIKeyResponse:
-    properties:
-      email:
-        type: string
-      id:
-        type: string
-      masked_key:
-        type: string
-      name:
-        type: string
-      plan_type:
-        type: string
-      raw_key:
-        type: string
-    type: object
   handlers.createPortalSessionRequest:
     properties:
       return_url:
@@ -1821,40 +1795,6 @@ paths:
           schema:
             $ref: '#/definitions/middleware.ErrorResponse'
       summary: Checkout Session 作成
-      tags:
-      - billing
-  /billing/free-apikeys:
-    post:
-      consumes:
-      - application/json
-      description: 誰でも free プランの API キーを発行できる
-      parameters:
-      - description: Free APIキー作成リクエスト
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.createFreeAPIKeyRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/handlers.createFreeAPIKeyResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/middleware.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/middleware.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/middleware.ErrorResponse'
-      summary: Free APIキー作成
       tags:
       - billing
   /billing/portal-sessions:

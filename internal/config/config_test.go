@@ -109,6 +109,18 @@ func TestLoad(t *testing.T) {
 		assert.NotNil(t, cfg)
 		assert.Equal(t, "secret-admin-key-that-is-32-chars!", cfg.AdminAPIKey)
 	})
+
+	t.Run("public mutation rate limit defaults are restrictive", func(t *testing.T) {
+		t.Setenv("PUBLIC_MUTATION_RATE_LIMIT_RPS", "")
+		t.Setenv("PUBLIC_MUTATION_RATE_LIMIT_BURST", "")
+
+		cfg, err := Load()
+
+		assert.NoError(t, err)
+		assert.NotNil(t, cfg)
+		assert.Equal(t, 0.2, cfg.PublicMutationRateLimitRPS)
+		assert.Equal(t, 3, cfg.PublicMutationRateLimitBurst)
+	})
 }
 
 func TestGetEnv(t *testing.T) {

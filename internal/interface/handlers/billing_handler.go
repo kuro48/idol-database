@@ -14,7 +14,6 @@ const stripeSignatureHeader = "Stripe-Signature"
 // BillingService は課金導線ハンドラーが依存する契約。
 type BillingService interface {
 	CreateCheckoutSession(ctx context.Context, input appBilling.CreateCheckoutSessionInput) (*appBilling.CreateCheckoutSessionResult, error)
-	CreateFreeAPIKey(ctx context.Context, input appBilling.CreateFreeAPIKeyRequest) (*appBilling.CreateFreeAPIKeyResult, error)
 	CreatePortalSession(ctx context.Context, input appBilling.CreatePortalSessionRequest) (*appBilling.CreatePortalSessionResult, error)
 	HandleStripeWebhook(ctx context.Context, payload []byte, signature string) error
 }
@@ -41,23 +40,9 @@ type createPortalSessionRequest struct {
 	ReturnURL string `json:"return_url" binding:"required,url"`
 }
 
-type createFreeAPIKeyRequest struct {
-	Email string `json:"email" binding:"required,email"`
-	Name  string `json:"name" binding:"required,max=100"`
-}
-
 type createCheckoutSessionResponse struct {
 	ID  string `json:"id"`
 	URL string `json:"url"`
-}
-
-type createFreeAPIKeyResponse struct {
-	ID        string `json:"id"`
-	RawKey    string `json:"raw_key"`
-	MaskedKey string `json:"masked_key"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	PlanType  string `json:"plan_type"`
 }
 
 type createPortalSessionResponse struct {
@@ -91,37 +76,6 @@ func (h *BillingHandler) CreateCheckoutSession(c *gin.Context) {
 	})
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{Message: "Checkout Session の作成に失敗しました"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, result)
-}
-
-// CreateFreeAPIKey は self-serve で free プランの API キーを発行する。
-// @Summary     Free APIキー作成
-// @Description 誰でも free プランの API キーを発行できる
-// @Tags        billing
-// @Accept      json
-// @Produce     json
-// @Param       request body createFreeAPIKeyRequest true "Free APIキー作成リクエスト"
-// @Success     201 {object} createFreeAPIKeyResponse
-// @Failure     400 {object} middleware.ErrorResponse
-// @Failure     409 {object} middleware.ErrorResponse
-// @Failure     500 {object} middleware.ErrorResponse
-// @Router      /billing/free-apikeys [post]
-func (h *BillingHandler) CreateFreeAPIKey(c *gin.Context) {
-	var req createFreeAPIKeyRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
-		return
-	}
-
-	result, err := h.service.CreateFreeAPIKey(c.Request.Context(), appBilling.CreateFreeAPIKeyRequest{
-		Email: req.Email,
-		Name:  req.Name,
-	})
-	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Message: "free プランのAPIキー発行に失敗しました"})
 		return
 	}
 
