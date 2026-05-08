@@ -91,7 +91,6 @@ type fakeAPIKeyIssuer struct {
 	rawKey     string
 	key        *domainapikey.APIKey
 	updatedKey *domainapikey.APIKey
-	listKeys   []*domainapikey.APIKey
 }
 
 func (f *fakeAPIKeyIssuer) CreateOrGetKeyWithRawKey(_ context.Context, input appAPIKey.CreateKeyInput, rawKey string) (*appAPIKey.CreateKeyOutput, error) {
@@ -135,21 +134,6 @@ func (f *fakeAPIKeyIssuer) UpdateKeyPlanAndStatus(_ context.Context, id string, 
 	f.key = key
 	f.updatedKey = key
 	return key, nil
-}
-
-func (f *fakeAPIKeyIssuer) CreateKey(_ context.Context, input appAPIKey.CreateKeyInput) (*appAPIKey.CreateKeyOutput, error) {
-	f.calls++
-	rawKey := "ik_live_free000000000000000000000000000000000000000000"
-	key, err := domainapikey.New("507f1f77bcf86cd799439014", rawKey, input.Email, input.Name, plan.Type(input.PlanType))
-	if err != nil {
-		return nil, err
-	}
-	f.key = key
-	return &appAPIKey.CreateKeyOutput{RawKey: rawKey, Key: key}, nil
-}
-
-func (f *fakeAPIKeyIssuer) ListKeysByEmail(_ context.Context, _ string) ([]*domainapikey.APIKey, error) {
-	return f.listKeys, nil
 }
 
 type fakeNotifier struct {
@@ -419,65 +403,6 @@ func TestHandleStripeWebhook_DeactivatesAndReactivatesKeyOnInvoiceEvents(t *test
 	require.NoError(t, err)
 	assert.True(t, issuer.updatedKey.IsActive())
 	assert.Equal(t, plan.TypeDeveloper, issuer.updatedKey.PlanType())
-}
-
-func TestCreateFreeAPIKey_IssuesFreePlanKey(t *testing.T) {
-	t.Parallel()
-
-	issuer := &fakeAPIKeyIssuer{}
-	service := NewService(
-		&fakeStripeClient{},
-		newFakeFulfillmentRepo(),
-		issuer,
-		&fakeNotifier{},
-		Config{},
-	)
-
-	result, err := service.CreateFreeAPIKey(context.Background(), CreateFreeAPIKeyRequest{
-		Email: "free@example.com",
-		Name:  "Free App",
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, "free", result.PlanType)
-	assert.Equal(t, "free@example.com", result.Email)
-	assert.Equal(t, "Free App", result.Name)
-	assert.NotEmpty(t, result.RawKey)
-}
-
-func TestCreateFreeAPIKey_RejectsDuplicateActiveFreeKey(t *testing.T) {
-	t.Parallel()
-
-	existingKey, err := domainapikey.Reconstruct(
-		"507f1f77bcf86cd799439014",
-		"ik_live_12345678",
-		"hash",
-		"ik_live_1234****5678",
-		"free@example.com",
-		"Free App",
-		plan.TypeFree,
-		true,
-		mustTime(),
-	)
-	require.NoError(t, err)
-
-	issuer := &fakeAPIKeyIssuer{listKeys: []*domainapikey.APIKey{existingKey}}
-	service := NewService(
-		&fakeStripeClient{},
-		newFakeFulfillmentRepo(),
-		issuer,
-		&fakeNotifier{},
-		Config{},
-	)
-
-	_, err = service.CreateFreeAPIKey(context.Background(), CreateFreeAPIKeyRequest{
-		Email: "free@example.com",
-		Name:  "Free App",
-	})
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "既に")
 }
 
 func mustTime() (tm time.Time) {

@@ -363,6 +363,7 @@ func main() {
 	// 注意: インメモリ実装のため水平スケール時は値を 1/レプリカ数 に下げるか、ロードバランサー側でも制限すること
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
 	router.Use(rateLimiter.Limit())
+	publicMutationLimiter := middleware.NewRateLimiter(cfg.PublicMutationRateLimitRPS, cfg.PublicMutationRateLimitBurst)
 
 	// ヘルスチェックエンドポイント
 	// liveness: プロセスが生きているかのみ確認（依存先チェックなし）
@@ -423,7 +424,7 @@ func main() {
 		}
 
 		// 削除申請: 申請・参照は公開、管理は admin スコープ必須
-		removalRequests := v1.Group("/removal-requests")
+		removalRequests := v1.Group("/removal-requests", publicMutationLimiter.Limit())
 		{
 			removalRequests.POST("", removalHandler.CreateRemovalRequest) // 削除申請作成（公開）
 			removalRequests.GET("/:id", removalHandler.GetRemovalRequest) // 削除申請詳細取得（公開）
@@ -472,20 +473,13 @@ func main() {
 		}
 
 		// Webhook受信エンドポイント（公開: 外部からの受信）
-		v1.POST("/webhooks/receive/:subscription_id", webhookHandler.ReceiveWebhook)
+		v1.POST("/webhooks/receive/:subscription_id", publicMutationLimiter.Limit(), webhookHandler.ReceiveWebhook)
 
 		// エクスポート（admin スコープ必須）
 		adminExport := v1.Group("/admin/export", adminAuth)
 		{
 			adminExport.GET("/idols", exportHandler.ExportIdols)   // アイドルエクスポート
 			adminExport.GET("/logs", exportHandler.ListExportLogs) // 実行履歴
-		}
-
-		if billingHandler != nil {
-			billing := v1.Group("/billing")
-			{
-				billing.POST("/free-apikeys", billingHandler.CreateFreeAPIKey)
-			}
 		}
 
 		if billingHandler != nil && cfg.StripeSecretKey != "" && smtpNotifier != nil {
@@ -569,7 +563,7 @@ func main() {
 		}
 
 		// 投稿審査: 作成・取得は公開、審査は admin スコープ必須
-		submissions := v1.Group("/submissions")
+		submissions := v1.Group("/submissions", publicMutationLimiter.Limit())
 		{
 			submissions.POST("", submissionHandler.CreateSubmission)           // 投稿作成（公開）
 			submissions.GET("/:id", submissionHandler.GetSubmission)           // 投稿詳細取得（公開）
