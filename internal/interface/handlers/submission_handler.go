@@ -24,7 +24,7 @@ func NewSubmissionHandler(submissionUsecase submission.SubmissionUseCase) *Submi
 type CreateSubmissionRequest struct {
 	TargetType       string                 `json:"target_type" binding:"required,oneof=idol group agency event"`
 	Payload          map[string]interface{} `json:"payload" binding:"required"`
-	SourceURLs       []string               `json:"source_urls" binding:"required,min=1"`
+	SourceURLs       []string               `json:"source_urls" binding:"required,min=1,max=10,dive,url"`
 	ContributorEmail string                 `json:"contributor_email" binding:"required,email"`
 }
 
@@ -38,7 +38,7 @@ type UpdateStatusRequest struct {
 // ReviseSubmissionRequest は差し戻し後の再投稿リクエスト
 type ReviseSubmissionRequest struct {
 	Payload    map[string]interface{} `json:"payload" binding:"required"`
-	SourceURLs []string               `json:"source_urls" binding:"required,min=1"`
+	SourceURLs []string               `json:"source_urls" binding:"required,min=1,max=10,dive,url"`
 }
 
 // SubmissionListResponse は投稿審査一覧レスポンス（管理者用）

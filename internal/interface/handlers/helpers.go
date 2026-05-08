@@ -20,13 +20,10 @@ func getPathID(c *gin.Context) (string, bool) {
 	return id, true
 }
 
-// getAccessToken はヘッダーまたは query から公開アクセストークンを取得する。
+// getAccessToken はヘッダーから公開アクセストークンを取得する。
 // 未指定の場合は 401 を返して false を返す。
 func getAccessToken(c *gin.Context) (string, bool) {
 	token := c.GetHeader(accessTokenHeader)
-	if token == "" {
-		token = c.Query("access_token")
-	}
 	if token == "" {
 		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
 		return "", false
