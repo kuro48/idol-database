@@ -27,11 +27,19 @@ type ArtistRefRequest struct {
 
 // TrackRequest は収録曲リクエスト
 type TrackRequest struct {
-	TrackNumber   int     `json:"track_number" binding:"required,min=1"`
-	Title         string  `json:"title" binding:"required,min=1,max=200"`
-	DurationSec   *int    `json:"duration_sec" binding:"omitempty,min=0"`
-	ISRC          *string `json:"isrc" binding:"omitempty"`
-	CoverImageURL *string `json:"cover_image_url" binding:"omitempty,url"`
+	TrackNumber   int                       `json:"track_number" binding:"required,min=1"`
+	Title         string                    `json:"title" binding:"required,min=1,max=200"`
+	DurationSec   *int                      `json:"duration_sec" binding:"omitempty,min=0"`
+	ISRC          *string                   `json:"isrc" binding:"omitempty"`
+	CoverImageURL *string                   `json:"cover_image_url" binding:"omitempty,url"`
+	Participants  []TrackParticipantRequest `json:"participants" binding:"omitempty,dive"`
+}
+
+// TrackParticipantRequest は楽曲単位のアイドル参加情報リクエスト
+type TrackParticipantRequest struct {
+	IdolID   string  `json:"idol_id" binding:"required"`
+	Status   string  `json:"status" binding:"required,oneof=participating not_participating"`
+	Position *string `json:"position" binding:"omitempty,max=100"`
 }
 
 // StreamingLinksRequest はストリーミングリンクリクエスト
@@ -397,6 +405,22 @@ func toTrackCommands(reqs []TrackRequest) []release.TrackCommand {
 			DurationSec:   r.DurationSec,
 			ISRC:          r.ISRC,
 			CoverImageURL: r.CoverImageURL,
+			Participants:  toTrackParticipantCommands(r.Participants),
+		})
+	}
+	return cmds
+}
+
+func toTrackParticipantCommands(reqs []TrackParticipantRequest) []release.TrackParticipantCommand {
+	if reqs == nil {
+		return nil
+	}
+	cmds := make([]release.TrackParticipantCommand, 0, len(reqs))
+	for _, r := range reqs {
+		cmds = append(cmds, release.TrackParticipantCommand{
+			IdolID:   r.IdolID,
+			Status:   r.Status,
+			Position: r.Position,
 		})
 	}
 	return cmds

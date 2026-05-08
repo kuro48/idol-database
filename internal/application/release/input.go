@@ -14,6 +14,14 @@ type TrackInput struct {
 	DurationSec   *int
 	ISRC          *string
 	CoverImageURL *string
+	Participants  []TrackParticipantInput
+}
+
+// TrackParticipantInput は楽曲単位のアイドル参加情報入力
+type TrackParticipantInput struct {
+	IdolID   string
+	Status   string // "participating" or "not_participating"
+	Position *string
 }
 
 // StreamingLinksInput はストリーミングリンクの入力

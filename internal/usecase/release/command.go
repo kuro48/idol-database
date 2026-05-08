@@ -14,6 +14,14 @@ type TrackCommand struct {
 	DurationSec   *int
 	ISRC          *string
 	CoverImageURL *string
+	Participants  []TrackParticipantCommand
+}
+
+// TrackParticipantCommand は楽曲単位のアイドル参加情報入力
+type TrackParticipantCommand struct {
+	IdolID   string
+	Status   string
+	Position *string
 }
 
 // StreamingLinksCommand はストリーミングリンクのコマンド入力

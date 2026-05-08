@@ -92,11 +92,19 @@ type ArtistRefDTO struct {
 
 // TrackDTO は収録曲のデータ転送オブジェクト
 type TrackDTO struct {
-	TrackNumber   int     `json:"track_number"`
-	Title         string  `json:"title"`
-	DurationSec   *int    `json:"duration_sec,omitempty"`
-	ISRC          *string `json:"isrc,omitempty"`
-	CoverImageURL *string `json:"cover_image_url,omitempty"`
+	TrackNumber   int                   `json:"track_number"`
+	Title         string                `json:"title"`
+	DurationSec   *int                  `json:"duration_sec,omitempty"`
+	ISRC          *string               `json:"isrc,omitempty"`
+	CoverImageURL *string               `json:"cover_image_url,omitempty"`
+	Participants  []TrackParticipantDTO `json:"participants,omitempty"`
+}
+
+// TrackParticipantDTO は楽曲単位のアイドル参加情報のデータ転送オブジェクト
+type TrackParticipantDTO struct {
+	IdolID   string  `json:"idol_id"`
+	Status   string  `json:"status"`
+	Position *string `json:"position,omitempty"`
 }
 
 // StreamingLinksDTO はストリーミングリンクのデータ転送オブジェクト

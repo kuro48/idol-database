@@ -54,11 +54,18 @@ type artistRefDocument struct {
 }
 
 type trackDocument struct {
-	TrackNumber   int     `bson:"track_number"`
-	Title         string  `bson:"title"`
-	DurationSec   *int    `bson:"duration_sec,omitempty"`
-	ISRC          *string `bson:"isrc,omitempty"`
-	CoverImageURL *string `bson:"cover_image_url,omitempty"`
+	TrackNumber   int                        `bson:"track_number"`
+	Title         string                     `bson:"title"`
+	DurationSec   *int                       `bson:"duration_sec,omitempty"`
+	ISRC          *string                    `bson:"isrc,omitempty"`
+	CoverImageURL *string                    `bson:"cover_image_url,omitempty"`
+	Participants  []trackParticipantDocument `bson:"participants,omitempty"`
+}
+
+type trackParticipantDocument struct {
+	IdolID   string  `bson:"idol_id"`
+	Status   string  `bson:"status"`
+	Position *string `bson:"position,omitempty"`
 }
 
 type streamingLinksDocument struct {
@@ -92,6 +99,7 @@ func toReleaseDocument(r *release.Release) (*releaseDocument, error) {
 			DurationSec:   t.DurationSec(),
 			ISRC:          t.ISRC(),
 			CoverImageURL: t.CoverImageURL(),
+			Participants:  toTrackParticipantDocuments(t.Participants()),
 		}
 	}
 
@@ -124,6 +132,21 @@ func toReleaseDocument(r *release.Release) (*releaseDocument, error) {
 		CreatedAt:      r.CreatedAt(),
 		UpdatedAt:      r.UpdatedAt(),
 	}, nil
+}
+
+func toTrackParticipantDocuments(participants []release.TrackParticipant) []trackParticipantDocument {
+	if len(participants) == 0 {
+		return nil
+	}
+	docs := make([]trackParticipantDocument, 0, len(participants))
+	for _, p := range participants {
+		docs = append(docs, trackParticipantDocument{
+			IdolID:   p.IdolID(),
+			Status:   p.Status().Value(),
+			Position: p.Position(),
+		})
+	}
+	return docs
 }
 
 func toStreamingLinksDocument(links *release.StreamingLinks) *streamingLinksDocument {
@@ -166,7 +189,11 @@ func toReleaseDomain(doc *releaseDocument) (*release.Release, error) {
 
 	tracks := make([]release.Track, 0, len(doc.Tracks))
 	for _, t := range doc.Tracks {
-		track, err := release.NewTrack(t.TrackNumber, t.Title, t.DurationSec, t.ISRC, t.CoverImageURL)
+		participants, err := toTrackParticipantsDomain(t.Participants)
+		if err != nil {
+			return nil, fmt.Errorf("楽曲参加情報変換エラー: %w", err)
+		}
+		track, err := release.NewTrack(t.TrackNumber, t.Title, t.DurationSec, t.ISRC, t.CoverImageURL, participants)
 		if err != nil {
 			return nil, fmt.Errorf("楽曲変換エラー: %w", err)
 		}
@@ -200,6 +227,25 @@ func toReleaseDomain(doc *releaseDocument) (*release.Release, error) {
 		doc.CoverImageURL, doc.Aliases, doc.TagIDs,
 		doc.CreatedAt, doc.UpdatedAt,
 	), nil
+}
+
+func toTrackParticipantsDomain(docs []trackParticipantDocument) ([]release.TrackParticipant, error) {
+	if docs == nil {
+		return nil, nil
+	}
+	participants := make([]release.TrackParticipant, 0, len(docs))
+	for _, doc := range docs {
+		status, err := release.NewParticipationStatus(doc.Status)
+		if err != nil {
+			return nil, err
+		}
+		participant, err := release.NewTrackParticipant(doc.IdolID, status, doc.Position)
+		if err != nil {
+			return nil, err
+		}
+		participants = append(participants, participant)
+	}
+	return participants, nil
 }
 
 func toStreamingLinksDomain(doc *streamingLinksDocument) *release.StreamingLinks {
@@ -299,6 +345,17 @@ func (r *ReleaseRepository) Update(ctx context.Context, rel *release.Release) er
 		}
 		if t.CoverImageURL != nil {
 			m["cover_image_url"] = t.CoverImageURL
+		}
+		if len(t.Participants) > 0 {
+			participants := make(bson.A, 0, len(t.Participants))
+			for _, p := range t.Participants {
+				pm := bson.M{"idol_id": p.IdolID, "status": p.Status}
+				if p.Position != nil {
+					pm["position"] = p.Position
+				}
+				participants = append(participants, pm)
+			}
+			m["participants"] = participants
 		}
 		tracks[i] = m
 	}
@@ -503,6 +560,7 @@ func (r *ReleaseRepository) EnsureIndexes(ctx context.Context) error {
 		{Keys: bson.D{{Key: "release_date", Value: -1}}},
 		{Keys: bson.D{{Key: "release_type", Value: 1}}},
 		{Keys: bson.D{{Key: "artists.id", Value: 1}}},
+		{Keys: bson.D{{Key: "tracks.participants.idol_id", Value: 1}}},
 		{Keys: bson.D{{Key: "title", Value: 1}}},
 		{Keys: bson.D{{Key: "created_at", Value: -1}}},
 		{Keys: bson.D{{Key: "tag_ids", Value: 1}}},
