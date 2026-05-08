@@ -2319,6 +2319,474 @@ const docTemplate = `{
                 }
             }
         },
+        "/releases": {
+            "get": {
+                "description": "条件を指定してリリース一覧を取得（検索・フィルタリング・ページネーション対応）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "リリース一覧取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "タイトル（部分一致）",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "single",
+                            "album",
+                            "ep",
+                            "mini_album",
+                            "digital_single",
+                            "compilation"
+                        ],
+                        "type": "string",
+                        "description": "リリース種別",
+                        "name": "release_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "アーティストID",
+                        "name": "artist_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "idol",
+                            "group"
+                        ],
+                        "type": "string",
+                        "description": "アーティスト種別",
+                        "name": "artist_kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "リリース日FROM (YYYY-MM-DD)",
+                        "name": "release_date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "リリース日TO (YYYY-MM-DD)",
+                        "name": "release_date_to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "release_date",
+                            "title",
+                            "created_at"
+                        ],
+                        "type": "string",
+                        "default": "release_date",
+                        "description": "ソート項目",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "ソート順",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "ページ番号",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "1ページあたりの件数",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/release.SearchResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいリリース（シングル・アルバム等）を作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "リリース作成",
+                "parameters": [
+                    {
+                        "description": "リリース作成リクエスト",
+                        "name": "release",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateReleaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/release.ReleaseDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/releases/{id}": {
+            "get": {
+                "description": "IDを指定してリリース情報を取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "リリース詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "リリースID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/release.ReleaseDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "IDを指定してリリース情報を更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "リリース更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "リリースID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "リリース更新リクエスト",
+                        "name": "release",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateReleaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "IDを指定してリリースをソフトデリートする",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "リリース削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "リリースID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/releases/{id}/external-ids": {
+            "put": {
+                "description": "リリースの外部サービスIDマッピングを更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "外部ID更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "リリースID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "外部ID更新リクエスト",
+                        "name": "external_ids",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateReleaseExternalIDsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/releases/{id}/restore": {
+            "put": {
+                "description": "ソフトデリートされたリリースを復元する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "リリース復元",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "リリースID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/releases/{id}/streaming-links": {
+            "put": {
+                "description": "リリースのストリーミングサービスリンクを更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "ストリーミングリンク更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "リリースID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ストリーミングリンク更新リクエスト",
+                        "name": "links",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateStreamingLinksRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/removal-requests": {
             "get": {
                 "description": "全ての削除申請を取得する（管理者用）",
@@ -3598,6 +4066,28 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.ArtistRefRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "kind"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "idol",
+                        "group"
+                    ]
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.BulkCreateIdolsRequest": {
             "type": "object",
             "required": [
@@ -3720,6 +4210,59 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.CreateReleaseRequest": {
+            "type": "object",
+            "required": [
+                "artists",
+                "release_date",
+                "release_type",
+                "title"
+            ],
+            "properties": {
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "artists": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/handlers.ArtistRefRequest"
+                    }
+                },
+                "cover_image_url": {
+                    "type": "string"
+                },
+                "release_date": {
+                    "type": "string"
+                },
+                "release_type": {
+                    "type": "string"
+                },
+                "streaming_links": {
+                    "$ref": "#/definitions/handlers.StreamingLinksRequest"
+                },
+                "tag_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "tracks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.TrackRequest"
+                    }
+                }
+            }
+        },
         "handlers.CreateRemovalRequestDTO": {
             "type": "object",
             "required": [
@@ -3785,6 +4328,7 @@ const docTemplate = `{
                 },
                 "source_urls": {
                     "type": "array",
+                    "maxItems": 10,
                     "minItems": 1,
                     "items": {
                         "type": "string"
@@ -3893,10 +4437,37 @@ const docTemplate = `{
                 },
                 "source_urls": {
                     "type": "array",
+                    "maxItems": 10,
                     "minItems": 1,
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "handlers.StreamingLinksRequest": {
+            "type": "object",
+            "properties": {
+                "amazon_music": {
+                    "type": "string"
+                },
+                "apple_music": {
+                    "type": "string"
+                },
+                "line_music": {
+                    "type": "string"
+                },
+                "official": {
+                    "type": "string"
+                },
+                "spotify": {
+                    "type": "string"
+                },
+                "youtube": {
+                    "type": "string"
+                },
+                "youtube_music": {
+                    "type": "string"
                 }
             }
         },
@@ -3958,6 +4529,63 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.TrackParticipantRequest": {
+            "type": "object",
+            "required": [
+                "idol_id",
+                "status"
+            ],
+            "properties": {
+                "idol_id": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "participating",
+                        "not_participating"
+                    ]
+                }
+            }
+        },
+        "handlers.TrackRequest": {
+            "type": "object",
+            "required": [
+                "title",
+                "track_number"
+            ],
+            "properties": {
+                "cover_image_url": {
+                    "type": "string"
+                },
+                "duration_sec": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "isrc": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.TrackParticipantRequest"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "track_number": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
         "handlers.UpdateExternalIDsRequest": {
             "type": "object",
             "required": [
@@ -4010,6 +4638,67 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.UpdateReleaseExternalIDsRequest": {
+            "type": "object",
+            "required": [
+                "external_ids"
+            ],
+            "properties": {
+                "external_ids": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handlers.UpdateReleaseRequest": {
+            "type": "object",
+            "properties": {
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "artists": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/handlers.ArtistRefRequest"
+                    }
+                },
+                "cover_image_url": {
+                    "type": "string"
+                },
+                "release_date": {
+                    "type": "string"
+                },
+                "release_type": {
+                    "type": "string"
+                },
+                "streaming_links": {
+                    "$ref": "#/definitions/handlers.StreamingLinksRequest"
+                },
+                "tag_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "tracks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.TrackRequest"
+                    }
+                }
+            }
+        },
         "handlers.UpdateStatusDTO": {
             "type": "object",
             "required": [
@@ -4046,6 +4735,32 @@ const docTemplate = `{
                         "rejected",
                         "needs_revision"
                     ]
+                }
+            }
+        },
+        "handlers.UpdateStreamingLinksRequest": {
+            "type": "object",
+            "properties": {
+                "amazon_music": {
+                    "type": "string"
+                },
+                "apple_music": {
+                    "type": "string"
+                },
+                "line_music": {
+                    "type": "string"
+                },
+                "official": {
+                    "type": "string"
+                },
+                "spotify": {
+                    "type": "string"
+                },
+                "youtube": {
+                    "type": "string"
+                },
+                "youtube_music": {
+                    "type": "string"
                 }
             }
         },
@@ -4425,6 +5140,202 @@ const docTemplate = `{
                 }
             }
         },
+        "release.ArtistRefDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "release.PaginationLinks": {
+            "type": "object",
+            "properties": {
+                "first": {
+                    "type": "string"
+                },
+                "last": {
+                    "type": "string"
+                },
+                "next": {
+                    "type": "string"
+                },
+                "prev": {
+                    "type": "string"
+                }
+            }
+        },
+        "release.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_prev": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "release.ReleaseDTO": {
+            "type": "object",
+            "properties": {
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "artists": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/release.ArtistRefDTO"
+                    }
+                },
+                "cover_image_url": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "external_ids": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "release_date": {
+                    "type": "string"
+                },
+                "release_type": {
+                    "type": "string"
+                },
+                "streaming_links": {
+                    "$ref": "#/definitions/release.StreamingLinksDTO"
+                },
+                "tag_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "tracks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/release.TrackDTO"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "release.SearchResult": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/release.ReleaseDTO"
+                    }
+                },
+                "links": {
+                    "$ref": "#/definitions/release.PaginationLinks"
+                },
+                "meta": {
+                    "$ref": "#/definitions/release.PaginationMeta"
+                }
+            }
+        },
+        "release.StreamingLinksDTO": {
+            "type": "object",
+            "properties": {
+                "amazon_music": {
+                    "type": "string"
+                },
+                "apple_music": {
+                    "type": "string"
+                },
+                "line_music": {
+                    "type": "string"
+                },
+                "official": {
+                    "type": "string"
+                },
+                "spotify": {
+                    "type": "string"
+                },
+                "youtube": {
+                    "type": "string"
+                },
+                "youtube_music": {
+                    "type": "string"
+                }
+            }
+        },
+        "release.TrackDTO": {
+            "type": "object",
+            "properties": {
+                "cover_image_url": {
+                    "type": "string"
+                },
+                "duration_sec": {
+                    "type": "integer"
+                },
+                "isrc": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/release.TrackParticipantDTO"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "track_number": {
+                    "type": "integer"
+                }
+            }
+        },
+        "release.TrackParticipantDTO": {
+            "type": "object",
+            "properties": {
+                "idol_id": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "removal.CreateRemovalRequestResult": {
             "type": "object",
             "properties": {
@@ -4722,6 +5633,14 @@ const docTemplate = `{
                     "maxLength": 50
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "Bearer API key. Example: \"Bearer ik_live_...\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
