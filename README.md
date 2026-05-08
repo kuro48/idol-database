@@ -91,3 +91,18 @@ go mod tidy
 ```
 
 API 仕様以外の補助資料は削除し、運用上参照する HTTP 仕様は Swagger に集約しています。
+
+## リリース前チェック
+
+本番公開時は `GIN_MODE=release` を設定し、`ADMIN_API_KEY` は32文字以上のランダム値にしてください。`WRITE_API_KEY` はコンテンツ更新用、外部read APIは `Authorization: Bearer <API key>` で発行済みAPIキーを必須にしています。
+
+公開してよい未認証エンドポイントは、ヘルスチェック、利用規約/プライバシーポリシー、投稿・削除申請の作成、外部Webhook受信に限定します。アイドル、グループ、事務所、イベント、リリース、タグのread APIは匿名アクセスを許可しません。
+
+MongoDBインデックスは起動時に各リポジトリの `EnsureIndexes` で作成されます。本番データ投入前に `/health/ready` が200を返すこと、ログに各インデックス作成完了が出ていることを確認してください。
+
+スモーク確認:
+
+```bash
+BASE_URL=https://api.example.com ./scripts/smoke-read-auth.sh
+BASE_URL=https://api.example.com API_KEY=ik_live_xxx ./scripts/smoke-read-auth.sh
+```

@@ -13,6 +13,10 @@
 // @BasePath  /api/v1
 
 // @schemes http https
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+// @description Bearer API key. Example: "Bearer ik_live_..."
 
 package main
 

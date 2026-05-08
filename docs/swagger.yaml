@@ -245,6 +245,21 @@ definitions:
     required:
     - performer_id
     type: object
+  handlers.ArtistRefRequest:
+    properties:
+      id:
+        type: string
+      kind:
+        enum:
+        - idol
+        - group
+        type: string
+      role:
+        type: string
+    required:
+    - id
+    - kind
+    type: object
   handlers.BulkCreateIdolsRequest:
     properties:
       idols:
@@ -328,6 +343,43 @@ definitions:
     required:
     - name
     type: object
+  handlers.CreateReleaseRequest:
+    properties:
+      aliases:
+        items:
+          type: string
+        type: array
+      artists:
+        items:
+          $ref: '#/definitions/handlers.ArtistRefRequest'
+        minItems: 1
+        type: array
+      cover_image_url:
+        type: string
+      release_date:
+        type: string
+      release_type:
+        type: string
+      streaming_links:
+        $ref: '#/definitions/handlers.StreamingLinksRequest'
+      tag_ids:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+      tracks:
+        items:
+          $ref: '#/definitions/handlers.TrackRequest'
+        type: array
+    required:
+    - artists
+    - release_date
+    - release_type
+    - title
+    type: object
   handlers.CreateRemovalRequestDTO:
     properties:
       contact_info:
@@ -373,6 +425,7 @@ definitions:
       source_urls:
         items:
           type: string
+        maxItems: 10
         minItems: 1
         type: array
       target_type:
@@ -448,11 +501,29 @@ definitions:
       source_urls:
         items:
           type: string
+        maxItems: 10
         minItems: 1
         type: array
     required:
     - payload
     - source_urls
+    type: object
+  handlers.StreamingLinksRequest:
+    properties:
+      amazon_music:
+        type: string
+      apple_music:
+        type: string
+      line_music:
+        type: string
+      official:
+        type: string
+      spotify:
+        type: string
+      youtube:
+        type: string
+      youtube_music:
+        type: string
     type: object
   handlers.SubmissionListResponse:
     properties:
@@ -492,6 +563,46 @@ definitions:
       type:
         type: string
     type: object
+  handlers.TrackParticipantRequest:
+    properties:
+      idol_id:
+        type: string
+      position:
+        maxLength: 100
+        type: string
+      status:
+        enum:
+        - participating
+        - not_participating
+        type: string
+    required:
+    - idol_id
+    - status
+    type: object
+  handlers.TrackRequest:
+    properties:
+      cover_image_url:
+        type: string
+      duration_sec:
+        minimum: 0
+        type: integer
+      isrc:
+        type: string
+      participants:
+        items:
+          $ref: '#/definitions/handlers.TrackParticipantRequest'
+        type: array
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+      track_number:
+        minimum: 1
+        type: integer
+    required:
+    - title
+    - track_number
+    type: object
   handlers.UpdateExternalIDsRequest:
     properties:
       external_ids:
@@ -527,6 +638,47 @@ definitions:
         minLength: 1
         type: string
     type: object
+  handlers.UpdateReleaseExternalIDsRequest:
+    properties:
+      external_ids:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - external_ids
+    type: object
+  handlers.UpdateReleaseRequest:
+    properties:
+      aliases:
+        items:
+          type: string
+        type: array
+      artists:
+        items:
+          $ref: '#/definitions/handlers.ArtistRefRequest'
+        minItems: 1
+        type: array
+      cover_image_url:
+        type: string
+      release_date:
+        type: string
+      release_type:
+        type: string
+      streaming_links:
+        $ref: '#/definitions/handlers.StreamingLinksRequest'
+      tag_ids:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+      tracks:
+        items:
+          $ref: '#/definitions/handlers.TrackRequest'
+        type: array
+    type: object
   handlers.UpdateStatusDTO:
     properties:
       status:
@@ -553,6 +705,23 @@ definitions:
     required:
     - reviewed_by
     - status
+    type: object
+  handlers.UpdateStreamingLinksRequest:
+    properties:
+      amazon_music:
+        type: string
+      apple_music:
+        type: string
+      line_music:
+        type: string
+      official:
+        type: string
+      spotify:
+        type: string
+      youtube:
+        type: string
+      youtube_music:
+        type: string
     type: object
   handlers.apiKeyResponse:
     properties:
@@ -802,6 +971,134 @@ definitions:
         type: string
       details: {}
       message:
+        type: string
+    type: object
+  release.ArtistRefDTO:
+    properties:
+      id:
+        type: string
+      kind:
+        type: string
+      role:
+        type: string
+    type: object
+  release.PaginationLinks:
+    properties:
+      first:
+        type: string
+      last:
+        type: string
+      next:
+        type: string
+      prev:
+        type: string
+    type: object
+  release.PaginationMeta:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  release.ReleaseDTO:
+    properties:
+      aliases:
+        items:
+          type: string
+        type: array
+      artists:
+        items:
+          $ref: '#/definitions/release.ArtistRefDTO'
+        type: array
+      cover_image_url:
+        type: string
+      created_at:
+        type: string
+      external_ids:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        type: string
+      release_date:
+        type: string
+      release_type:
+        type: string
+      streaming_links:
+        $ref: '#/definitions/release.StreamingLinksDTO'
+      tag_ids:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      tracks:
+        items:
+          $ref: '#/definitions/release.TrackDTO'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  release.SearchResult:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/release.ReleaseDTO'
+        type: array
+      links:
+        $ref: '#/definitions/release.PaginationLinks'
+      meta:
+        $ref: '#/definitions/release.PaginationMeta'
+    type: object
+  release.StreamingLinksDTO:
+    properties:
+      amazon_music:
+        type: string
+      apple_music:
+        type: string
+      line_music:
+        type: string
+      official:
+        type: string
+      spotify:
+        type: string
+      youtube:
+        type: string
+      youtube_music:
+        type: string
+    type: object
+  release.TrackDTO:
+    properties:
+      cover_image_url:
+        type: string
+      duration_sec:
+        type: integer
+      isrc:
+        type: string
+      participants:
+        items:
+          $ref: '#/definitions/release.TrackParticipantDTO'
+        type: array
+      title:
+        type: string
+      track_number:
+        type: integer
+    type: object
+  release.TrackParticipantDTO:
+    properties:
+      idol_id:
+        type: string
+      position:
+        type: string
+      status:
         type: string
     type: object
   removal.CreateRemovalRequestResult:
@@ -2542,6 +2839,320 @@ paths:
       summary: アイドル一括作成
       tags:
       - idols
+  /releases:
+    get:
+      consumes:
+      - application/json
+      description: 条件を指定してリリース一覧を取得（検索・フィルタリング・ページネーション対応）
+      parameters:
+      - description: タイトル（部分一致）
+        in: query
+        name: title
+        type: string
+      - description: リリース種別
+        enum:
+        - single
+        - album
+        - ep
+        - mini_album
+        - digital_single
+        - compilation
+        in: query
+        name: release_type
+        type: string
+      - description: アーティストID
+        in: query
+        name: artist_id
+        type: string
+      - description: アーティスト種別
+        enum:
+        - idol
+        - group
+        in: query
+        name: artist_kind
+        type: string
+      - description: リリース日FROM (YYYY-MM-DD)
+        in: query
+        name: release_date_from
+        type: string
+      - description: リリース日TO (YYYY-MM-DD)
+        in: query
+        name: release_date_to
+        type: string
+      - default: release_date
+        description: ソート項目
+        enum:
+        - release_date
+        - title
+        - created_at
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: ソート順
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/release.SearchResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: リリース一覧取得
+      tags:
+      - releases
+    post:
+      consumes:
+      - application/json
+      description: 新しいリリース（シングル・アルバム等）を作成する
+      parameters:
+      - description: リリース作成リクエスト
+        in: body
+        name: release
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateReleaseRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/release.ReleaseDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: リリース作成
+      tags:
+      - releases
+  /releases/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: IDを指定してリリースをソフトデリートする
+      parameters:
+      - description: リリースID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: リリース削除
+      tags:
+      - releases
+    get:
+      consumes:
+      - application/json
+      description: IDを指定してリリース情報を取得する
+      parameters:
+      - description: リリースID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/release.ReleaseDTO'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: リリース詳細取得
+      tags:
+      - releases
+    put:
+      consumes:
+      - application/json
+      description: IDを指定してリリース情報を更新する
+      parameters:
+      - description: リリースID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: リリース更新リクエスト
+        in: body
+        name: release
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateReleaseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: リリース更新
+      tags:
+      - releases
+  /releases/{id}/external-ids:
+    put:
+      consumes:
+      - application/json
+      description: リリースの外部サービスIDマッピングを更新する
+      parameters:
+      - description: リリースID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 外部ID更新リクエスト
+        in: body
+        name: external_ids
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateReleaseExternalIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: 外部ID更新
+      tags:
+      - releases
+  /releases/{id}/restore:
+    put:
+      consumes:
+      - application/json
+      description: ソフトデリートされたリリースを復元する
+      parameters:
+      - description: リリースID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: リリース復元
+      tags:
+      - releases
+  /releases/{id}/streaming-links:
+    put:
+      consumes:
+      - application/json
+      description: リリースのストリーミングサービスリンクを更新する
+      parameters:
+      - description: リリースID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ストリーミングリンク更新リクエスト
+        in: body
+        name: links
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateStreamingLinksRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/middleware.ErrorResponse'
+      summary: ストリーミングリンク更新
+      tags:
+      - releases
   /removal-requests:
     get:
       description: 全ての削除申請を取得する（管理者用）
@@ -3147,4 +3758,10 @@ paths:
 schemes:
 - http
 - https
+securityDefinitions:
+  ApiKeyAuth:
+    description: 'Bearer API key. Example: "Bearer ik_live_..."'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
