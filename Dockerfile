@@ -1,36 +1,33 @@
 # ビルドステージ
 FROM golang:1.24-alpine AS builder
 
-# 必要なパッケージをインストール
 RUN apk add --no-cache git
 
 WORKDIR /app
 
-# go.modとgo.sumをコピーして依存関係をダウンロード
 COPY go.mod go.sum ./
 RUN go mod download
 
-# ソースコードをコピー
 COPY . .
 
-# アプリケーションをビルド
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o main ./cmd/api
 
 # 実行ステージ
-FROM alpine:latest
+FROM alpine:3.21
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates \
+    && addgroup -S appgroup \
+    && adduser -S appuser -G appgroup
 
-WORKDIR /root/
+WORKDIR /app
 
-# ビルドステージからバイナリをコピー
 COPY --from=builder /app/main .
-
-# 利用規約ファイルをコピー
 COPY --from=builder /app/static/terms ./static/terms
 
-# ポート8081を公開
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 8081
 
-# アプリケーションを実行
 CMD ["./main"]
