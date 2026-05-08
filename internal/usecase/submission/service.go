@@ -1,9 +1,11 @@
 package submission
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 
 	domain "github.com/kuro48/idol-api/internal/domain/submission"
@@ -31,6 +33,9 @@ func (u *Usecase) CreateSubmission(ctx context.Context, cmd CreateSubmissionComm
 	payloadJSON, err := json.Marshal(cmd.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("ペイロードのJSON変換に失敗しました: %w", err)
+	}
+	if err := validateSubmissionPayload(cmd.TargetType, payloadJSON); err != nil {
+		return nil, err
 	}
 
 	result, err := u.submissionApp.CreateSubmission(ctx, SubmissionCreateInput{
@@ -180,6 +185,59 @@ func decodeSubmissionPayload[T any](payload string) (T, error) {
 	return input, nil
 }
 
+func validateSubmissionPayload(targetType string, payload []byte) error {
+	switch targetType {
+	case "idol":
+		var input IdolCreateInput
+		if err := decodeStrictPayload(payload, &input); err != nil {
+			return err
+		}
+		if input.Name == "" {
+			return fmt.Errorf("idol 投稿ペイロードには name が必須です")
+		}
+	case "group":
+		var input GroupCreateInput
+		if err := decodeStrictPayload(payload, &input); err != nil {
+			return err
+		}
+		if input.Name == "" {
+			return fmt.Errorf("group 投稿ペイロードには name が必須です")
+		}
+	case "agency":
+		var input AgencyCreateInput
+		if err := decodeStrictPayload(payload, &input); err != nil {
+			return err
+		}
+		if input.Name == "" || input.Country == "" {
+			return fmt.Errorf("agency 投稿ペイロードには name と country が必須です")
+		}
+	case "event":
+		var input EventCreateInput
+		if err := decodeStrictPayload(payload, &input); err != nil {
+			return err
+		}
+		if input.Title == "" || input.EventType == "" || input.StartDateTime == "" {
+			return fmt.Errorf("event 投稿ペイロードには title, event_type, start_date_time が必須です")
+		}
+	default:
+		return fmt.Errorf("未対応の投稿タイプです: %s", targetType)
+	}
+	return nil
+}
+
+func decodeStrictPayload(payload []byte, dest interface{}) error {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dest); err != nil {
+		return fmt.Errorf("投稿ペイロードの形式が不正です: %w", err)
+	}
+	var extra interface{}
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return fmt.Errorf("投稿ペイロードに複数JSON値を含めることはできません")
+	}
+	return nil
+}
+
 // ReviseSubmission は差し戻し後の再投稿を行う（投稿者向け）
 func (u *Usecase) ReviseSubmission(ctx context.Context, cmd ReviseSubmissionCommand) (*PublicSubmissionDTO, error) {
 	sub, err := u.submissionApp.GetSubmission(ctx, cmd.ID)
@@ -194,6 +252,9 @@ func (u *Usecase) ReviseSubmission(ctx context.Context, cmd ReviseSubmissionComm
 	payloadJSON, err := json.Marshal(cmd.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("ペイロードのJSON変換に失敗しました: %w", err)
+	}
+	if err := validateSubmissionPayload(string(sub.TargetType()), payloadJSON); err != nil {
+		return nil, err
 	}
 
 	// ステータスを needs_revision から pending に戻す
