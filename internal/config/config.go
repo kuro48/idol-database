@@ -9,6 +9,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const minAdminAPIKeyLength = 32
+
 type Config struct {
 	MongoDBURI         string
 	MongoDBDatabase    string
@@ -19,6 +21,11 @@ type Config struct {
 	AdminAPIKey        string        // 管理系API認証キー（必須）
 	TrustedProxies     string        // カンマ区切りの信頼プロキシIPレンジ（空の場合はプロキシ信頼なし）
 	WebhookTimeout     time.Duration // WebhookHTTPクライアントのタイムアウト（WEBHOOK_TIMEOUT_SECONDS で変更可能、デフォルト: 10秒）
+	RateLimitRPS       float64       // 1秒あたりのリクエスト数上限（RATE_LIMIT_RPS、デフォルト: 10）
+	RateLimitBurst     int           // バースト許容数（RATE_LIMIT_BURST、デフォルト: 20）
+	// OIDC 認証設定（idol-auth / Ory Hydra、空の場合は OIDC 無効・API キー認証のみ）
+	OIDCIssuer   string // Hydra 公開 URL（OIDC_ISSUER、例: https://auth.example.com）
+	OIDCAudience string // リソースサーバー識別子（OIDC_AUDIENCE、例: https://api.idol.example.com）
 	// SMTP メール通知設定（SMTP_HOST が空の場合はメール通知を無効化）
 	SMTPHost     string
 	SMTPPort     int
@@ -60,6 +67,16 @@ func Load() (*Config, error) {
 		smtpPort = 587
 	}
 
+	rateLimitRPS, err := strconv.ParseFloat(getEnv("RATE_LIMIT_RPS", "10"), 64)
+	if err != nil || rateLimitRPS <= 0 {
+		rateLimitRPS = 10
+	}
+
+	rateLimitBurst, err := strconv.Atoi(getEnv("RATE_LIMIT_BURST", "20"))
+	if err != nil || rateLimitBurst <= 0 {
+		rateLimitBurst = 20
+	}
+
 	cfg := &Config{
 		MongoDBURI:           getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDBDatabase:      getEnv("MONGODB_DATABASE", "idol_database"),
@@ -70,6 +87,10 @@ func Load() (*Config, error) {
 		AdminAPIKey:          getEnv("ADMIN_API_KEY", ""),
 		TrustedProxies:       getEnv("TRUSTED_PROXIES", ""),
 		WebhookTimeout:       time.Duration(webhookTimeoutSec) * time.Second,
+		RateLimitRPS:         rateLimitRPS,
+		RateLimitBurst:       rateLimitBurst,
+		OIDCIssuer:           getEnv("OIDC_ISSUER", ""),
+		OIDCAudience:         getEnv("OIDC_AUDIENCE", ""),
 		SMTPHost:             getEnv("SMTP_HOST", ""),
 		SMTPPort:             smtpPort,
 		SMTPUsername:         getEnv("SMTP_USERNAME", ""),
@@ -142,6 +163,13 @@ func (c *Config) Validate() error {
 		return &ValidationError{
 			Field:   "ADMIN_API_KEY",
 			Message: "本番環境では ADMIN_API_KEY の設定が必須です",
+		}
+	}
+	// 本番モードでは AdminAPIKey の最小長を強制する
+	if c.GinMode == "release" && len(c.AdminAPIKey) < minAdminAPIKeyLength {
+		return &ValidationError{
+			Field:   "ADMIN_API_KEY",
+			Message: fmt.Sprintf("本番環境では ADMIN_API_KEY は %d 文字以上である必要があります", minAdminAPIKeyLength),
 		}
 	}
 

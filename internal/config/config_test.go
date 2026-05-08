@@ -12,7 +12,7 @@ func TestLoad(t *testing.T) {
 		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "9000")
 		t.Setenv("GIN_MODE", "release")
-		t.Setenv("ADMIN_API_KEY", "test-admin-key")
+		t.Setenv("ADMIN_API_KEY", "test-admin-key-that-is-32-chars!!")
 
 		cfg, err := Load()
 
@@ -101,13 +101,13 @@ func TestLoad(t *testing.T) {
 		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "8081")
 		t.Setenv("GIN_MODE", "release")
-		t.Setenv("ADMIN_API_KEY", "secret-admin-key")
+		t.Setenv("ADMIN_API_KEY", "secret-admin-key-that-is-32-chars!")
 
 		cfg, err := Load()
 
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg)
-		assert.Equal(t, "secret-admin-key", cfg.AdminAPIKey)
+		assert.Equal(t, "secret-admin-key-that-is-32-chars!", cfg.AdminAPIKey)
 	})
 }
 
