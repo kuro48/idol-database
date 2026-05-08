@@ -378,6 +378,15 @@ func main() {
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
+	// Static frontend shell. Data access still requires API keys through /api/v1.
+	router.Static("/assets", "./static/web/assets")
+	router.GET("/app", func(c *gin.Context) {
+		c.File("./static/web/app.html")
+	})
+	router.GET("/admin", func(c *gin.Context) {
+		c.File("./static/web/admin.html")
+	})
+
 	// OIDC 認証の初期化（OIDC_ISSUER が設定されている場合のみ有効）
 	var oidcVerifier domainAuth.TokenVerifier
 	if cfg.OIDCIssuer != "" {
@@ -424,10 +433,10 @@ func main() {
 		}
 
 		// 削除申請: 申請・参照は公開、管理は admin スコープ必須
-		removalRequests := v1.Group("/removal-requests", publicMutationLimiter.Limit())
+		removalRequests := v1.Group("/removal-requests")
 		{
-			removalRequests.POST("", removalHandler.CreateRemovalRequest) // 削除申請作成（公開）
-			removalRequests.GET("/:id", removalHandler.GetRemovalRequest) // 削除申請詳細取得（公開）
+			removalRequests.POST("", publicMutationLimiter.Limit(), removalHandler.CreateRemovalRequest) // 削除申請作成（公開）
+			removalRequests.GET("/:id", removalHandler.GetRemovalRequest)                                // 削除申請詳細取得（公開）
 		}
 		adminRemoval := v1.Group("/removal-requests", adminAuth)
 		{
@@ -563,11 +572,11 @@ func main() {
 		}
 
 		// 投稿審査: 作成・取得は公開、審査は admin スコープ必須
-		submissions := v1.Group("/submissions", publicMutationLimiter.Limit())
+		submissions := v1.Group("/submissions")
 		{
-			submissions.POST("", submissionHandler.CreateSubmission)           // 投稿作成（公開）
-			submissions.GET("/:id", submissionHandler.GetSubmission)           // 投稿詳細取得（公開）
-			submissions.PUT("/:id/revise", submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（公開）
+			submissions.POST("", publicMutationLimiter.Limit(), submissionHandler.CreateSubmission)           // 投稿作成（公開）
+			submissions.GET("/:id", submissionHandler.GetSubmission)                                          // 投稿詳細取得（公開）
+			submissions.PUT("/:id/revise", publicMutationLimiter.Limit(), submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（公開）
 		}
 		adminSubmissions := v1.Group("/submissions", adminAuth)
 		{
