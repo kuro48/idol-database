@@ -29,6 +29,9 @@ func (u *Usecase) CreateRelease(ctx context.Context, cmd CreateReleaseCommand) (
 	if err := u.validateArtists(ctx, cmd.Artists); err != nil {
 		return nil, err
 	}
+	if err := u.validateTrackParticipants(ctx, cmd.Tracks); err != nil {
+		return nil, err
+	}
 
 	input := appRelease.CreateInput{
 		Title:         cmd.Title,
@@ -85,6 +88,9 @@ func (u *Usecase) UpdateRelease(ctx context.Context, cmd UpdateReleaseCommand) e
 	if err := u.validateArtists(ctx, cmd.Artists); err != nil {
 		return err
 	}
+	if err := u.validateTrackParticipants(ctx, cmd.Tracks); err != nil {
+		return err
+	}
 
 	return u.appService.UpdateRelease(ctx, appRelease.UpdateInput{
 		ID:             cmd.ID,
@@ -137,6 +143,18 @@ func (u *Usecase) validateArtists(ctx context.Context, artists []ArtistRefComman
 		case "group":
 			if err := u.groupApp.GetGroup(ctx, a.ID); err != nil {
 				return fmt.Errorf("グループID '%s' が見つかりません: %w", a.ID, err)
+			}
+		}
+	}
+	return nil
+}
+
+// validateTrackParticipants は楽曲参加アイドルの存在確認を行う。
+func (u *Usecase) validateTrackParticipants(ctx context.Context, tracks []TrackCommand) error {
+	for _, track := range tracks {
+		for _, participant := range track.Participants {
+			if err := u.idolApp.GetIdol(ctx, participant.IdolID); err != nil {
+				return fmt.Errorf("楽曲 '%s' のアイドルID '%s' が見つかりません: %w", track.Title, participant.IdolID, err)
 			}
 		}
 	}
@@ -247,12 +265,21 @@ func (u *Usecase) toDTO(r *domainRelease.Release) *ReleaseDTO {
 
 	tracks := make([]TrackDTO, 0, len(r.Tracks()))
 	for _, t := range r.Tracks() {
+		participants := make([]TrackParticipantDTO, 0, len(t.Participants()))
+		for _, p := range t.Participants() {
+			participants = append(participants, TrackParticipantDTO{
+				IdolID:   p.IdolID(),
+				Status:   p.Status().Value(),
+				Position: p.Position(),
+			})
+		}
 		tracks = append(tracks, TrackDTO{
 			TrackNumber:   t.TrackNumber(),
 			Title:         t.Title(),
 			DurationSec:   t.DurationSec(),
 			ISRC:          t.ISRC(),
 			CoverImageURL: t.CoverImageURL(),
+			Participants:  participants,
 		})
 	}
 
@@ -318,9 +345,25 @@ func toAppTracks(cmds []TrackCommand) []appRelease.TrackInput {
 			DurationSec:   c.DurationSec,
 			ISRC:          c.ISRC,
 			CoverImageURL: c.CoverImageURL,
+			Participants:  toAppTrackParticipants(c.Participants),
 		})
 	}
 	return tracks
+}
+
+func toAppTrackParticipants(cmds []TrackParticipantCommand) []appRelease.TrackParticipantInput {
+	if cmds == nil {
+		return nil
+	}
+	participants := make([]appRelease.TrackParticipantInput, 0, len(cmds))
+	for _, c := range cmds {
+		participants = append(participants, appRelease.TrackParticipantInput{
+			IdolID:   c.IdolID,
+			Status:   c.Status,
+			Position: c.Position,
+		})
+	}
+	return participants
 }
 
 func toAppStreamingLinks(cmd *StreamingLinksCommand) *appRelease.StreamingLinksInput {

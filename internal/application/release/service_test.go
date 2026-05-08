@@ -115,6 +115,42 @@ func TestCreateReleaseRejectsDuplicateTrackNumbers(t *testing.T) {
 	assert.Contains(t, err.Error(), "トラック番号が重複しています")
 }
 
+func TestCreateReleaseStoresTrackParticipants(t *testing.T) {
+	svc := NewApplicationService(newInMemoryReleaseRepo(), nil)
+	center := "center"
+
+	created, err := svc.CreateRelease(context.Background(), CreateInput{
+		Title:       "参加情報付き楽曲",
+		ReleaseType: "single",
+		ReleaseDate: "2026-05-08",
+		Artists: []ArtistRefInput{
+			{Kind: "group", ID: "group-1", Role: "main"},
+		},
+		Tracks: []TrackInput{
+			{
+				TrackNumber: 1,
+				Title:       "表題曲",
+				Participants: []TrackParticipantInput{
+					{IdolID: "idol-1", Status: "participating", Position: &center},
+					{IdolID: "idol-2", Status: "not_participating"},
+				},
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, created.Tracks(), 1)
+	participants := created.Tracks()[0].Participants()
+	require.Len(t, participants, 2)
+	assert.Equal(t, "idol-1", participants[0].IdolID())
+	assert.Equal(t, "participating", participants[0].Status().Value())
+	require.NotNil(t, participants[0].Position())
+	assert.Equal(t, center, *participants[0].Position())
+	assert.Equal(t, "idol-2", participants[1].IdolID())
+	assert.Equal(t, "not_participating", participants[1].Status().Value())
+	assert.Nil(t, participants[1].Position())
+}
+
 func TestUpdateReleaseUpdatesStreamingLinks(t *testing.T) {
 	repo := newInMemoryReleaseRepo()
 	svc := NewApplicationService(repo, nil)

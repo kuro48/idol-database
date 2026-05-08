@@ -336,13 +336,36 @@ func buildArtistRefs(inputs []ArtistRefInput) ([]release.ArtistRef, error) {
 func buildTracks(inputs []TrackInput) ([]release.Track, error) {
 	tracks := make([]release.Track, 0, len(inputs))
 	for _, t := range inputs {
-		track, err := release.NewTrack(t.TrackNumber, t.Title, t.DurationSec, t.ISRC, t.CoverImageURL)
+		participants, err := buildTrackParticipants(t.Participants)
+		if err != nil {
+			return nil, fmt.Errorf("楽曲参加情報エラー (track %d): %w", t.TrackNumber, err)
+		}
+		track, err := release.NewTrack(t.TrackNumber, t.Title, t.DurationSec, t.ISRC, t.CoverImageURL, participants)
 		if err != nil {
 			return nil, fmt.Errorf("楽曲エラー (track %d): %w", t.TrackNumber, err)
 		}
 		tracks = append(tracks, track)
 	}
 	return tracks, nil
+}
+
+func buildTrackParticipants(inputs []TrackParticipantInput) ([]release.TrackParticipant, error) {
+	if inputs == nil {
+		return nil, nil
+	}
+	participants := make([]release.TrackParticipant, 0, len(inputs))
+	for _, input := range inputs {
+		status, err := release.NewParticipationStatus(input.Status)
+		if err != nil {
+			return nil, err
+		}
+		participant, err := release.NewTrackParticipant(input.IdolID, status, input.Position)
+		if err != nil {
+			return nil, err
+		}
+		participants = append(participants, participant)
+	}
+	return participants, nil
 }
 
 func buildStreamingLinks(input *StreamingLinksInput) (*release.StreamingLinks, error) {
