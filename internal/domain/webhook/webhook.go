@@ -21,6 +21,9 @@ const (
 	EventEventUpdated    EventType = "event.updated"
 	EventEventDeleted    EventType = "event.deleted"
 	EventRemovalApproved EventType = "removal.approved"
+	EventReleaseCreated  EventType = "release.created"
+	EventReleaseUpdated  EventType = "release.updated"
+	EventReleaseDeleted  EventType = "release.deleted"
 )
 
 // IsValidEventType はEventTypeが定義済みの有効な値かを判定する
@@ -30,7 +33,8 @@ func IsValidEventType(e EventType) bool {
 		EventGroupCreated, EventGroupUpdated, EventGroupDeleted,
 		EventAgencyCreated, EventAgencyUpdated, EventAgencyDeleted,
 		EventEventCreated, EventEventUpdated, EventEventDeleted,
-		EventRemovalApproved:
+		EventRemovalApproved,
+		EventReleaseCreated, EventReleaseUpdated, EventReleaseDeleted:
 		return true
 	default:
 		return false
