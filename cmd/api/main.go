@@ -311,7 +311,7 @@ func main() {
 	billingHandler = handlers.NewBillingHandler(billingService)
 
 	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
-	// OptionalAuth: キーあり → 検証+使用量カウント、キーなし → 匿名通過
+	// Auth: APIキー必須。検証に成功したリクエストのみ使用量をカウントして通過させる。
 	planAuth := middleware.NewPlanAuth(apikeyRepo, usageRepo)
 
 	// Ginルーターのセットアップ（デフォルトミドルウェアなし）
@@ -401,12 +401,12 @@ func main() {
 
 	v1 := router.Group("/api/v1")
 	{
-		// アイドル: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
-		idols := v1.Group("/idols", planAuth.OptionalAuth())
+		// アイドル: 読み取りはAPIキー必須、書き込みは write スコープ必須
+		idols := v1.Group("/idols", planAuth.Auth())
 		{
-			idols.GET("", idolHandler.ListIdols)                       // 一覧取得（公開）
-			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得（公開）
-			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs) // 外部IDマッピング取得（公開）
+			idols.GET("", idolHandler.ListIdols)                       // 一覧取得
+			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得
+			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs) // 外部IDマッピング取得
 		}
 		idolsWrite := v1.Group("/idols", writeAuth)
 		{
@@ -497,8 +497,8 @@ func main() {
 			}
 		}
 
-		// グループ: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
-		groups := v1.Group("/groups", planAuth.OptionalAuth())
+		// グループ: 読み取りはAPIキー必須、書き込みは write スコープ必須
+		groups := v1.Group("/groups", planAuth.Auth())
 		{
 			groups.GET("", groupHandler.ListGroup)
 			groups.GET("/:id", groupHandler.GetGroup)
@@ -510,8 +510,8 @@ func main() {
 			groupsWrite.DELETE("/:id", groupHandler.DeleteGroup)
 		}
 
-		// 事務所: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
-		agencies := v1.Group("/agencies", planAuth.OptionalAuth())
+		// 事務所: 読み取りはAPIキー必須、書き込みは write スコープ必須
+		agencies := v1.Group("/agencies", planAuth.Auth())
 		{
 			agencies.GET("", agencyHandler.ListAgencies)
 			agencies.GET("/:id", agencyHandler.GetAgency)
@@ -529,8 +529,8 @@ func main() {
 			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
 		}
 
-		// イベント: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
-		events := v1.Group("/events", planAuth.OptionalAuth())
+		// イベント: 読み取りはAPIキー必須、書き込みは write スコープ必須
+		events := v1.Group("/events", planAuth.Auth())
 		{
 			events.GET("", eventHandler.ListEvents)                 // イベント一覧取得（検索機能付き）
 			events.GET("/upcoming", eventHandler.GetUpcomingEvents) // 今後のイベント取得
@@ -545,8 +545,8 @@ func main() {
 			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
 		}
 
-		// リリース: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
-		releases := v1.Group("/releases", planAuth.OptionalAuth())
+		// リリース: 読み取りはAPIキー必須、書き込みは write スコープ必須
+		releases := v1.Group("/releases", planAuth.Auth())
 		{
 			releases.GET("", releaseHandler.ListReleases)
 			releases.GET("/:id", releaseHandler.GetRelease)
@@ -578,8 +578,8 @@ func main() {
 			adminSubmissions.PUT("/:id/status", submissionHandler.UpdateStatus)        // ステータス更新
 		}
 
-		// タグ: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
-		tags := v1.Group("/tags", planAuth.OptionalAuth())
+		// タグ: 読み取りはAPIキー必須、書き込みは write スコープ必須
+		tags := v1.Group("/tags", planAuth.Auth())
 		{
 			tags.GET("", tagHandler.ListTags)   // タグ一覧取得
 			tags.GET("/:id", tagHandler.GetTag) // タグ詳細取得
