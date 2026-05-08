@@ -39,6 +39,7 @@ import (
 	appGroup "github.com/kuro48/idol-api/internal/application/group"
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	appJob "github.com/kuro48/idol-api/internal/application/job"
+	appRelease "github.com/kuro48/idol-api/internal/application/release"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
 	appSubmission "github.com/kuro48/idol-api/internal/application/submission"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
@@ -56,6 +57,7 @@ import (
 	usecaseEvent "github.com/kuro48/idol-api/internal/usecase/event"
 	usecaseGroup "github.com/kuro48/idol-api/internal/usecase/group"
 	usecaseIdol "github.com/kuro48/idol-api/internal/usecase/idol"
+	usecaseRelease "github.com/kuro48/idol-api/internal/usecase/release"
 	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
 	usecaseSubmission "github.com/kuro48/idol-api/internal/usecase/submission"
 	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
@@ -105,6 +107,7 @@ func main() {
 	apikeyRepo := mongodb.NewAPIKeyRepository(db.Database)
 	usageRepo := mongodb.NewUsageRepository(db.Database)
 	billingRepo := mongodb.NewBillingFulfillmentRepository(db.Database)
+	releaseRepo := mongodb.NewReleaseRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -183,6 +186,11 @@ func main() {
 	} else {
 		slog.Info("BillingFulfillmentインデックス作成完了", "collection", "billing_fulfillments")
 	}
+	if err := releaseRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Releaseインデックス作成失敗（続行）", "error", err, "collection", "releases")
+	} else {
+		slog.Info("Releaseインデックス作成完了", "collection", "releases")
+	}
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
@@ -197,6 +205,7 @@ func main() {
 	exportAppService := appExport.NewApplicationService(exportLogRepo, idolAppService)
 	submissionAppService := appSubmission.NewApplicationService(submissionRepo)
 	apikeyAppService := appAPIKey.NewApplicationService(apikeyRepo)
+	releaseAppService := appRelease.NewApplicationService(releaseRepo, webhookAppService)
 
 	// 起動時に RUNNING 状態で止まっているジョブを PENDING に戻す
 	if err := jobAppService.RecoverStuckJobs(ctx); err != nil {
@@ -215,6 +224,9 @@ func main() {
 	tagAppPort := adapters.NewTagAppAdapter(tagAppService)
 	submissionAppPort := adapters.NewSubmissionAppAdapter(submissionAppService)
 	submissionTargetPort := adapters.NewSubmissionTargetAppAdapter(idolAppService, groupAppService, agencyAppService, eventAppService)
+	releaseAppPort := adapters.NewReleaseAppAdapter(releaseAppService)
+	releaseIdolPort := adapters.NewIdolExistenceAdapter(idolAppService)
+	releaseGroupPort := adapters.NewGroupExistenceAdapter(groupAppService)
 
 	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
 	var smtpNotifier *email.SMTPNotifier
@@ -242,6 +254,7 @@ func main() {
 	eventUsecase := usecaseEvent.NewUsecase(eventAppPort)
 	tagUsecase := usecaseTag.NewUsecase(tagAppPort)
 	submissionUsecase := usecaseSubmission.NewUsecase(submissionAppPort, submissionTargetPort, emailNotifier)
+	releaseUsecase := usecaseRelease.NewUsecase(releaseAppPort, releaseIdolPort, releaseGroupPort)
 
 	// プレゼンテーション層: ハンドラー
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsAppService)
@@ -256,6 +269,7 @@ func main() {
 	webhookHandler := handlers.NewWebhookHandler(adapters.NewWebhookAppAdapter(webhookAppService))
 	exportHandler := handlers.NewExportHandler(exportAppService)
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
+	releaseHandler := handlers.NewReleaseHandler(releaseUsecase)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 	healthHandler := handlers.NewHealthHandler(db)
 	billingService := appBilling.NewService(
@@ -508,6 +522,25 @@ func main() {
 			eventsWrite.DELETE("/:id", eventHandler.DeleteEvent)                              // イベント削除
 			eventsWrite.POST("/:id/performers", eventHandler.AddPerformer)                    // パフォーマー追加
 			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
+		}
+
+		// リリース: 読み取りは公開（APIキーあれば使用量カウント）、書き込みは write スコープ必須
+		releases := v1.Group("/releases", planAuth.OptionalAuth())
+		{
+			releases.GET("", releaseHandler.ListReleases)
+			releases.GET("/:id", releaseHandler.GetRelease)
+		}
+		releasesWrite := v1.Group("/releases", writeAuth)
+		{
+			releasesWrite.POST("", releaseHandler.CreateRelease)
+			releasesWrite.PUT("/:id", releaseHandler.UpdateRelease)
+			releasesWrite.DELETE("/:id", releaseHandler.DeleteRelease)
+			releasesWrite.PUT("/:id/streaming-links", releaseHandler.UpdateStreamingLinks)
+			releasesWrite.PUT("/:id/external-ids", releaseHandler.UpdateExternalIDs)
+		}
+		releasesAdmin := v1.Group("/releases", adminAuth)
+		{
+			releasesAdmin.PUT("/:id/restore", releaseHandler.RestoreRelease)
 		}
 
 		// 投稿審査: 作成・取得は公開、審査は admin スコープ必須
