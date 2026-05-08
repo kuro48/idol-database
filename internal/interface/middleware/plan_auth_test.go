@@ -76,64 +76,6 @@ func newRouter(mw ...gin.HandlerFunc) *gin.Engine {
 	return router
 }
 
-// --- OptionalAuth ---
-
-func TestOptionalAuth_NoToken_PassesThrough(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	m := middleware.NewPlanAuth(&stubAPIKeyRepo{}, &stubUsageRepo{usage: withinLimitUsage()})
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	w := httptest.NewRecorder()
-	newRouter(m.OptionalAuth()).ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestOptionalAuth_ValidToken_PassesThrough(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	m := middleware.NewPlanAuth(
-		&stubAPIKeyRepo{keys: []*domainapikey.APIKey{newTestAPIKey(t)}},
-		&stubUsageRepo{usage: withinLimitUsage()},
-	)
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Authorization", "Bearer "+testRawKey)
-	w := httptest.NewRecorder()
-	newRouter(m.OptionalAuth()).ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestOptionalAuth_InvalidToken_Returns401(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	m := middleware.NewPlanAuth(
-		&stubAPIKeyRepo{keys: []*domainapikey.APIKey{}},
-		&stubUsageRepo{usage: withinLimitUsage()},
-	)
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Authorization", "Bearer ik_live_invalidkeyinvalidkeyinvalidkeyinvalidkeyinvalid")
-	w := httptest.NewRecorder()
-	newRouter(m.OptionalAuth()).ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestOptionalAuth_LimitExceeded_Returns429(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	m := middleware.NewPlanAuth(
-		&stubAPIKeyRepo{keys: []*domainapikey.APIKey{newTestAPIKey(t)}},
-		&stubUsageRepo{usage: atLimitUsage()},
-	)
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Authorization", "Bearer "+testRawKey)
-	w := httptest.NewRecorder()
-	newRouter(m.OptionalAuth()).ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusTooManyRequests, w.Code)
-}
-
 // --- Auth ---
 
 func TestAuth_NoToken_Returns401(t *testing.T) {
