@@ -1,38 +1,33 @@
-# Git関連
-.git
-.gitignore
+# Exclude everything by default. The Dockerfile only needs Go sources,
+# generated API docs, static assets, and module files.
+**
 
-# ドキュメント
-*.md
-claudedocs/
-# docs/ は Swagger生成ファイルを含むため除外しない
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!docs/
+!docs/**
+!static/
+!static/**
 
-# ビルド成果物
-main
-*.exe
-*.dll
-*.so
-*.dylib
-
-# テスト関連
-*.test
-*.out
-
-# 環境設定（Docker内で設定するため）
+# Keep local secrets and generated artifacts out even if patterns change.
 .env
-.env.local
-
-# IDE設定
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS関連
+.env.*
+.git
+.github
+.claude
+.serena
+.docker
+frontend
+coverage.*
+*.out
+*.test
+main
+bin
+dist
+tmp
+temp
 .DS_Store
-Thumbs.db
-
-# その他
-tmp/
-temp/
