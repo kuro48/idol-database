@@ -39,6 +39,9 @@ go.work.sum
 # macOS
 .DS_Store
 
+# Frontend build workspace (source is compiled into static/)
+frontend/
+
 .claude/
 .serena/
 CLAUDE.md
