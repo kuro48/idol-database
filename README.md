@@ -60,6 +60,28 @@ WRITE_API_KEY=your-write-api-key
 ADMIN_API_KEY=your-admin-api-key
 ```
 
+### 環境変数リファレンス
+
+<!-- AUTO-GENERATED from .env.example -->
+| 変数 | 必須 | デフォルト | 説明 |
+|------|------|-----------|------|
+| `MONGODB_URI` | Yes | — | MongoDB 接続 URI |
+| `MONGODB_DATABASE` | Yes | — | 使用するデータベース名 |
+| `MONGO_USERNAME` | Docker のみ | — | Docker Compose 用 MongoDB 認証ユーザー名 |
+| `MONGO_PASSWORD` | Docker のみ | — | Docker Compose 用 MongoDB 認証パスワード |
+| `SERVER_PORT` | No | `8081` | HTTP サーバーのリッスンポート |
+| `GIN_MODE` | No | `release` | Gin 実行モード（`debug` / `release`） |
+| `CORS_ALLOWED_ORIGINS` | No | — | 許可する CORS オリジン（カンマ区切り） |
+| `WRITE_API_KEY` | Yes | — | write スコープ APIキー（POST/PUT/DELETE 用） |
+| `ADMIN_API_KEY` | Yes | — | admin スコープ APIキー（32 文字以上推奨） |
+| `OIDC_ISSUER` | No | — | OIDC Issuer URL（空の場合は APIキー認証のみ） |
+| `OIDC_AUDIENCE` | No | — | OIDC リソースサーバー識別子 |
+| `RATE_LIMIT_RPS` | No | `10` | グローバルレート制限（リクエスト/秒） |
+| `RATE_LIMIT_BURST` | No | `20` | グローバルレート制限バースト許容数 |
+| `PUBLIC_MUTATION_RATE_LIMIT_RPS` | No | `0.2` | 公開 POST 系追加レート制限（リクエスト/秒） |
+| `PUBLIC_MUTATION_RATE_LIMIT_BURST` | No | `3` | 公開 POST 系バースト許容数 |
+<!-- END AUTO-GENERATED -->
+
 ## API ドキュメント
 
 API 仕様は Swaggo を唯一の正本として管理します。エンドポイント、認証、リクエスト/レスポンス、クエリ仕様は Swagger UI または生成物を参照してください。
