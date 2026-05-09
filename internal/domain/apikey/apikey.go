@@ -13,6 +13,8 @@ import (
 	"github.com/kuro48/idol-api/internal/domain/plan"
 )
 
+var hexColorPattern = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+
 const (
 	// keyBodyLen はキー本体のランダムバイト数（24バイト = 48文字の16進数）
 	keyBodyLen = 24
@@ -35,6 +37,7 @@ type APIKey struct {
 	planType  plan.Type
 	isActive  bool
 	createdAt time.Time
+	oshiColor string // 推しメンカラー（CSS hex: "#FF69B4"）、空文字はデフォルト
 }
 
 // GenerateRawKey は新しい生のAPIキー文字列を生成する
@@ -113,11 +116,12 @@ func New(id, rawKey, email, name string, planType plan.Type) (*APIKey, error) {
 		planType:  planType,
 		isActive:  true,
 		createdAt: time.Now(),
+		oshiColor: "",
 	}, nil
 }
 
 // Reconstruct はDBから取得したデータでAPIKeyを再構築する
-func Reconstruct(id, prefix, keyHash, maskedKey, email, name string, planType plan.Type, isActive bool, createdAt time.Time) (*APIKey, error) {
+func Reconstruct(id, prefix, keyHash, maskedKey, email, name string, planType plan.Type, isActive bool, createdAt time.Time, oshiColor string) (*APIKey, error) {
 	if !objectIDPattern.MatchString(id) {
 		return nil, errors.New("無効なAPIキーIDです")
 	}
@@ -131,6 +135,7 @@ func Reconstruct(id, prefix, keyHash, maskedKey, email, name string, planType pl
 		planType:  planType,
 		isActive:  isActive,
 		createdAt: createdAt,
+		oshiColor: oshiColor,
 	}, nil
 }
 
@@ -158,6 +163,15 @@ func (k *APIKey) ChangePlan(planType plan.Type) error {
 	return nil
 }
 
+// UpdateOshiColor は推しメンカラーを更新する（空文字はクリア扱い）
+func (k *APIKey) UpdateOshiColor(color string) error {
+	if color != "" && !hexColorPattern.MatchString(color) {
+		return errors.New("推しメンカラーは #RGB または #RRGGBB 形式で指定してください")
+	}
+	k.oshiColor = color
+	return nil
+}
+
 // Getters
 
 func (k *APIKey) ID() string           { return k.id }
@@ -169,3 +183,4 @@ func (k *APIKey) Name() string         { return k.name }
 func (k *APIKey) PlanType() plan.Type  { return k.planType }
 func (k *APIKey) IsActive() bool       { return k.isActive }
 func (k *APIKey) CreatedAt() time.Time { return k.createdAt }
+func (k *APIKey) OshiColor() string    { return k.oshiColor }

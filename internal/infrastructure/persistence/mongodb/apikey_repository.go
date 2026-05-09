@@ -36,6 +36,7 @@ type apikeyDocument struct {
 	PlanType  string        `bson:"plan_type"`
 	IsActive  bool          `bson:"is_active"`
 	CreatedAt time.Time     `bson:"created_at"`
+	OshiColor string        `bson:"oshi_color,omitempty"`
 }
 
 // EnsureIndexes はコレクションのインデックスを作成する
@@ -75,6 +76,7 @@ func (r *APIKeyRepository) Save(ctx context.Context, key *domainapikey.APIKey) e
 		PlanType:  string(key.PlanType()),
 		IsActive:  key.IsActive(),
 		CreatedAt: key.CreatedAt(),
+		OshiColor: key.OshiColor(),
 	}
 	_, err = r.collection.InsertOne(ctx, doc)
 	if err != nil {
@@ -155,8 +157,9 @@ func (r *APIKeyRepository) Update(ctx context.Context, key *domainapikey.APIKey)
 	}
 
 	update := bson.M{"$set": bson.M{
-		"is_active": key.IsActive(),
-		"plan_type": string(key.PlanType()),
+		"is_active":  key.IsActive(),
+		"plan_type":  string(key.PlanType()),
+		"oshi_color": key.OshiColor(),
 	}}
 	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, update)
 	if err != nil {
@@ -176,6 +179,7 @@ func toAPIKeyDomain(doc *apikeyDocument) (*domainapikey.APIKey, error) {
 		plan.Type(doc.PlanType),
 		doc.IsActive,
 		doc.CreatedAt,
+		doc.OshiColor,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("APIキードメインモデルの再構築に失敗しました: %w", err)

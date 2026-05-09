@@ -33,12 +33,17 @@ type apiKeyResponse struct {
 	PlanType  string `json:"plan_type"`
 	IsActive  bool   `json:"is_active"`
 	CreatedAt string `json:"created_at"`
+	OshiColor string `json:"oshi_color"`
 }
 
 // createAPIKeyResponse はAPIキー作成レスポンス（生キーを一度だけ含む）
 type createAPIKeyResponse struct {
 	apiKeyResponse
 	RawKey string `json:"raw_key"`
+}
+
+type updateOshiColorRequest struct {
+	OshiColor string `json:"oshi_color"`
 }
 
 // CreateAPIKey は新しいAPIキーを作成する
@@ -120,6 +125,65 @@ func (h *APIKeyHandler) RevokeAPIKey(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetMe は現在の API キー情報（推しメンカラー含む）を返す
+// @Summary     自分のAPIキー情報取得
+// @Tags        me
+// @Produce     json
+// @Success     200 {object} apiKeyResponse
+// @Failure     401 {object} middleware.ErrorResponse
+// @Router      /me [get]
+func (h *APIKeyHandler) GetMe(c *gin.Context) {
+	apiKeyID, _ := c.Get(middleware.CtxKeyAPIKeyID)
+	id, ok := apiKeyID.(string)
+	if !ok || id == "" {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
+
+	key, err := h.service.FindByID(c.Request.Context(), id)
+	if err != nil || key == nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{Message: "APIキーの取得に失敗しました"})
+		return
+	}
+
+	c.JSON(http.StatusOK, toAPIKeyResponse(key))
+}
+
+// UpdateMyOshiColor は推しメンカラーを更新する
+// @Summary     推しメンカラーの更新
+// @Tags        me
+// @Accept      json
+// @Produce     json
+// @Param       request body updateOshiColorRequest true "推しメンカラー更新リクエスト"
+// @Success     200 {object} apiKeyResponse
+// @Failure     400 {object} middleware.ErrorResponse
+// @Router      /me/oshi-color [patch]
+func (h *APIKeyHandler) UpdateMyOshiColor(c *gin.Context) {
+	apiKeyID, _ := c.Get(middleware.CtxKeyAPIKeyID)
+	id, ok := apiKeyID.(string)
+	if !ok || id == "" {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
+
+	var req updateOshiColorRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{Message: "リクエストが不正です"})
+		return
+	}
+
+	key, err := h.service.UpdateOshiColor(c.Request.Context(), appAPIKey.UpdateOshiColorInput{
+		ID:        id,
+		OshiColor: req.OshiColor,
+	})
+	if err != nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{Message: "推しメンカラーの更新に失敗しました"})
+		return
+	}
+
+	c.JSON(http.StatusOK, toAPIKeyResponse(key))
+}
+
 func toAPIKeyResponse(k *domainapikey.APIKey) apiKeyResponse {
 	return apiKeyResponse{
 		ID:        k.ID(),
@@ -129,5 +193,6 @@ func toAPIKeyResponse(k *domainapikey.APIKey) apiKeyResponse {
 		PlanType:  string(k.PlanType()),
 		IsActive:  k.IsActive(),
 		CreatedAt: k.CreatedAt().UTC().Format("2006-01-02T15:04:05Z"),
+		OshiColor: k.OshiColor(),
 	}
 }

@@ -126,6 +126,35 @@ func (s *ApplicationService) UpdateKeyPlanAndStatus(ctx context.Context, id stri
 	return key, nil
 }
 
+// FindByID はIDでAPIキーを返す
+func (s *ApplicationService) FindByID(ctx context.Context, id string) (*domainapikey.APIKey, error) {
+	key, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("APIキーの取得に失敗しました: %w", err)
+	}
+	return key, nil
+}
+
+// UpdateOshiColor は推しメンカラーを更新する
+func (s *ApplicationService) UpdateOshiColor(ctx context.Context, input UpdateOshiColorInput) (*domainapikey.APIKey, error) {
+	key, err := s.repo.FindByID(ctx, input.ID)
+	if err != nil {
+		return nil, fmt.Errorf("APIキーの取得に失敗しました: %w", err)
+	}
+	if key == nil {
+		return nil, fmt.Errorf("APIキーが見つかりません: %s", input.ID)
+	}
+
+	if err := key.UpdateOshiColor(input.OshiColor); err != nil {
+		return nil, fmt.Errorf("推しメンカラーの更新に失敗しました: %w", err)
+	}
+
+	if err := s.repo.Update(ctx, key); err != nil {
+		return nil, fmt.Errorf("APIキーの保存に失敗しました: %w", err)
+	}
+	return key, nil
+}
+
 func (s *ApplicationService) findExistingByRawKey(ctx context.Context, rawKey string) (*domainapikey.APIKey, error) {
 	candidates, err := s.repo.FindByPrefix(ctx, domainapikey.PrefixOf(rawKey))
 	if err != nil {

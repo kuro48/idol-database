@@ -11,3 +11,9 @@ type CreateKeyInput struct {
 type RevokeKeyInput struct {
 	ID string // MongoDB ObjectID hex
 }
+
+// UpdateOshiColorInput は推しメンカラー更新の入力
+type UpdateOshiColorInput struct {
+	ID        string // MongoDB ObjectID hex
+	OshiColor string // CSS hex color (#RGB or #RRGGBB)、空文字はクリア
+}

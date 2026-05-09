@@ -22,6 +22,10 @@ const (
 	CtxKeyAPIKeyPrefix = "api_key_prefix"
 	// CtxKeyAPIKeyEmail はGinコンテキストに格納するAPIキー所有者メールアドレスのキー
 	CtxKeyAPIKeyEmail = "api_key_email"
+	// CtxKeyAPIKeyID はGinコンテキストに格納するAPIキーIDのキー
+	CtxKeyAPIKeyID = "api_key_id"
+	// CtxKeyOshiColor はGinコンテキストに格納する推しメンカラーのキー
+	CtxKeyOshiColor = "oshi_color"
 
 	// planAuthTimeout はDB問い合わせのタイムアウト
 	planAuthTimeout = 3 * time.Second
@@ -95,6 +99,8 @@ func (m *PlanAuthMiddleware) Auth() gin.HandlerFunc {
 		c.Set(CtxKeyWriteEnabled, limits.WriteEnabled)
 		c.Set(CtxKeyAPIKeyPrefix, apiKey.Prefix())
 		c.Set(CtxKeyAPIKeyEmail, apiKey.Email())
+		c.Set(CtxKeyAPIKeyID, apiKey.ID())
+		c.Set(CtxKeyOshiColor, apiKey.OshiColor())
 		c.Next()
 	}
 }

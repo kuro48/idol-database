@@ -1,23 +1,3 @@
-// @title           Idol API
-// @version         1.0
-// @description     包括的アイドル情報API - アイドル、グループ、事務所、イベント情報を提供
-// @termsOfService  http://swagger.io/terms/
-
-// @contact.name   API Support
-// @contact.email  support@idol-api.com
-
-// @license.name  MIT
-// @license.url   https://opensource.org/licenses/MIT
-
-// @host      localhost:8081
-// @BasePath  /api/v1
-
-// @schemes http https
-// @securityDefinitions.apikey ApiKeyAuth
-// @in header
-// @name Authorization
-// @description Bearer API key. Example: "Bearer ik_live_..."
-
 package main
 
 import (
@@ -47,6 +27,7 @@ import (
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
 	appSubmission "github.com/kuro48/idol-api/internal/application/submission"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
+	appUserPrefs "github.com/kuro48/idol-api/internal/application/userprefs"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
 	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
@@ -68,10 +49,6 @@ import (
 	usecaseSubmission "github.com/kuro48/idol-api/internal/usecase/submission"
 	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
 
-	_ "github.com/kuro48/idol-api/docs" // Swagger docs
-
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -112,6 +89,7 @@ func main() {
 	submissionRepo := mongodb.NewSubmissionRepository(db.Database)
 	apikeyRepo := mongodb.NewAPIKeyRepository(db.Database)
 	usageRepo := mongodb.NewUsageRepository(db.Database)
+	userPrefsRepo := mongodb.NewUserPrefsRepository(db.Database)
 	billingRepo := mongodb.NewBillingFulfillmentRepository(db.Database)
 	releaseRepo := mongodb.NewReleaseRepository(db.Database)
 
@@ -171,6 +149,11 @@ func main() {
 		slog.Warn("Usageインデックス作成失敗（続行）", "error", err, "collection", "api_key_usage")
 	} else {
 		slog.Info("Usageインデックス作成完了", "collection", "api_key_usage")
+	}
+	if err := userPrefsRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("UserPrefsインデックス作成失敗（続行）", "error", err, "collection", "user_preferences")
+	} else {
+		slog.Info("UserPrefsインデックス作成完了", "collection", "user_preferences")
 	}
 	if err := webhookSubRepo.EnsureIndexes(ctx); err != nil {
 		slog.Warn("WebhookSubインデックス作成失敗（続行）", "error", err, "collection", "webhook_subscriptions")
@@ -276,6 +259,8 @@ func main() {
 	exportHandler := handlers.NewExportHandler(exportAppService)
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
 	releaseHandler := handlers.NewReleaseHandler(releaseUsecase)
+	userPrefsService := appUserPrefs.New(userPrefsRepo)
+	meHandler := handlers.NewMeHandler(userPrefsService)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 	healthHandler := handlers.NewHealthHandler(db)
 	billingService := appBilling.NewService(
@@ -373,11 +358,6 @@ func main() {
 	// 後方互換のため /health も維持
 	router.GET("/health", healthHandler.Health)
 
-	// Swagger UI（本番環境では無効化）
-	if cfg.GinMode != gin.ReleaseMode {
-		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	}
-
 	// Static frontend shell. Data access still requires API keys through /api/v1.
 	router.Static("/assets", "./static/web/assets")
 	router.GET("/app", func(c *gin.Context) {
@@ -457,6 +437,13 @@ func main() {
 			adminAPIKeys.POST("", apikeyHandler.CreateAPIKey)       // APIキー作成
 			adminAPIKeys.GET("", apikeyHandler.ListAPIKeys)         // APIキー一覧（?email=）
 			adminAPIKeys.DELETE("/:id", apikeyHandler.RevokeAPIKey) // APIキー無効化
+		}
+
+		// 自分の情報（OIDC 専用）
+		me := v1.Group("/me", middleware.RequireOIDC(oidcVerifier))
+		{
+			me.GET("", meHandler.GetMe)                          // 自分の情報（oshi_color 含む）
+			me.PATCH("/oshi-color", meHandler.UpdateMyOshiColor) // 推しメンカラー更新
 		}
 
 		// API利用分析（admin スコープ必須）
