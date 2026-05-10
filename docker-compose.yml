@@ -20,7 +20,7 @@ services:
 
   api:
     build:
-      context: ./
+      context: ./backend
       dockerfile: Dockerfile
     container_name: idol-api
     restart: always
