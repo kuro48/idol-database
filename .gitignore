@@ -39,8 +39,10 @@ go.work.sum
 # macOS
 .DS_Store
 
-# Frontend build workspace (source is compiled into static/)
-frontend/
+# Frontend build artifacts (source is tracked, build output is not)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
 
 .claude/
 .serena/
