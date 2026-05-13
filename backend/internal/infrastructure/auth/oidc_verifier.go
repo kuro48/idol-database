@@ -84,21 +84,19 @@ func (v *OIDCVerifier) Verify(ctx context.Context, rawToken string) (*domainAuth
 		return nil, fmt.Errorf("アクセストークンクレーム検証エラー: %w", err)
 	}
 
+	// idol-auth がアクセストークンに注入するカスタムクレーム。
+	// email/display_name はIDトークン専用のため含まれない。
 	var claims struct {
-		Email       string   `json:"email"`
-		DisplayName string   `json:"display_name"`
-		Roles       []string `json:"roles"`
-		Scope       string   `json:"scope"` // Hydra は space-delimited 文字列で返す
+		Roles []string `json:"roles"`
+		Scope string   `json:"scope"` // Hydra は space-delimited 文字列で返す
 	}
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		return nil, fmt.Errorf("アクセストークン認可クレーム解析エラー: %w", err)
 	}
 
 	return &domainAuth.Principal{
-		SubjectID:   registered.Subject,
-		Email:       claims.Email,
-		DisplayName: claims.DisplayName,
-		Roles:       claims.Roles,
-		Scopes:      strings.Fields(claims.Scope),
+		SubjectID: registered.Subject,
+		Roles:     claims.Roles,
+		Scopes:    strings.Fields(claims.Scope),
 	}, nil
 }

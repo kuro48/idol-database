@@ -26,8 +26,10 @@ type Config struct {
 	// 公開POST系（投稿・削除申請・外部Webhook受信）に追加適用する低レート制限
 	PublicMutationRateLimitRPS   float64 // PUBLIC_MUTATION_RATE_LIMIT_RPS、デフォルト: 0.2
 	PublicMutationRateLimitBurst int     // PUBLIC_MUTATION_RATE_LIMIT_BURST、デフォルト: 3
-	// OIDC 認証設定（idol-auth / Ory Hydra、空の場合は OIDC 無効・API キー認証のみ）
-	OIDCIssuer   string // Hydra 公開 URL（OIDC_ISSUER、例: https://auth.example.com）
+	// OIDC 認証設定（空の場合は OIDC 無効・API キー認証のみ）
+	// OIDC_ISSUER は idol-auth App URL ではなく Hydra の公開 URL（HYDRA_HOSTNAME）を設定する。
+	// idol-auth と Hydra は別ホスト: APP_HOSTNAME=auth.example.com, HYDRA_HOSTNAME=oauth.example.com
+	OIDCIssuer   string // Hydra 公開 URL（OIDC_ISSUER）
 	OIDCAudience string // リソースサーバー識別子（OIDC_AUDIENCE、例: https://api.idol.example.com）
 	// SMTP メール通知設定（SMTP_HOST が空の場合はメール通知を無効化）
 	SMTPHost     string

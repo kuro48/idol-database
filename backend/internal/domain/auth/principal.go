@@ -7,13 +7,13 @@ import (
 
 type principalContextKey struct{}
 
-// Principal は認証済みユーザーの認証情報を保持する値オブジェクト
+// Principal は認証済みユーザーの認証情報を保持する値オブジェクト。
+// idol-auth はアクセストークンに roles のみ注入する。email/display_name は
+// IDトークン専用クレームのためアクセストークン検証では取得不可。
 type Principal struct {
-	SubjectID   string   // Kratos identity ID (sub claim)
-	Email       string   // email claim
-	DisplayName string   // display_name claim
-	Roles       []string // roles claim
-	Scopes      []string // scope claim (space-delimited → slice)
+	SubjectID string   // Kratos identity ID (sub claim)
+	Roles     []string // roles claim（idol-auth が注入）
+	Scopes    []string // scope claim (space-delimited → slice)
 }
 
 // HasScope は指定したスコープを保持しているか返す
