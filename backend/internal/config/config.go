@@ -9,16 +9,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const minAdminAPIKeyLength = 32
-
 type Config struct {
 	MongoDBURI         string
 	MongoDBDatabase    string
 	ServerPort         string
 	GinMode            string
 	CORSAllowedOrigins string        // カンマ区切り。空の場合はデフォルト値を使用
-	WriteAPIKey        string        // 書き込み系API認証キー（POST/PUT/DELETE）
-	AdminAPIKey        string        // 管理系API認証キー（必須）
 	TrustedProxies     string        // カンマ区切りの信頼プロキシIPレンジ（空の場合はプロキシ信頼なし）
 	WebhookTimeout     time.Duration // WebhookHTTPクライアントのタイムアウト（WEBHOOK_TIMEOUT_SECONDS で変更可能、デフォルト: 10秒）
 	RateLimitRPS       float64       // 1秒あたりのリクエスト数上限（RATE_LIMIT_RPS、デフォルト: 10）
@@ -26,11 +22,8 @@ type Config struct {
 	// 公開POST系（投稿・削除申請・外部Webhook受信）に追加適用する低レート制限
 	PublicMutationRateLimitRPS   float64 // PUBLIC_MUTATION_RATE_LIMIT_RPS、デフォルト: 0.2
 	PublicMutationRateLimitBurst int     // PUBLIC_MUTATION_RATE_LIMIT_BURST、デフォルト: 3
-	// OIDC 認証設定（空の場合は OIDC 無効・API キー認証のみ）
-	// OIDC_ISSUER は idol-auth App URL ではなく Hydra の公開 URL（HYDRA_HOSTNAME）を設定する。
-	// idol-auth と Hydra は別ホスト: APP_HOSTNAME=auth.example.com, HYDRA_HOSTNAME=oauth.example.com
-	OIDCIssuer   string // Hydra 公開 URL（OIDC_ISSUER）
-	OIDCAudience string // リソースサーバー識別子（OIDC_AUDIENCE、例: https://api.idol.example.com）
+	// idol-auth 認証設定（空の場合は write/admin エンドポイントが 503 を返す）
+	IdolAuthURL string // idol-auth の公開 URL（IDOL_AUTH_URL、例: https://auth.example.com）
 	// SMTP メール通知設定（SMTP_HOST が空の場合はメール通知を無効化）
 	SMTPHost     string
 	SMTPPort     int
@@ -98,16 +91,13 @@ func Load() (*Config, error) {
 		ServerPort:                   getEnv("SERVER_PORT", "8081"),
 		GinMode:                      getEnv("GIN_MODE", "debug"),
 		CORSAllowedOrigins:           getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
-		WriteAPIKey:                  getEnv("WRITE_API_KEY", ""),
-		AdminAPIKey:                  getEnv("ADMIN_API_KEY", ""),
 		TrustedProxies:               getEnv("TRUSTED_PROXIES", ""),
 		WebhookTimeout:               time.Duration(webhookTimeoutSec) * time.Second,
 		RateLimitRPS:                 rateLimitRPS,
 		RateLimitBurst:               rateLimitBurst,
 		PublicMutationRateLimitRPS:   publicMutationRateLimitRPS,
 		PublicMutationRateLimitBurst: publicMutationRateLimitBurst,
-		OIDCIssuer:                   getEnv("OIDC_ISSUER", ""),
-		OIDCAudience:                 getEnv("OIDC_AUDIENCE", ""),
+		IdolAuthURL:                  getEnv("IDOL_AUTH_URL", ""),
 		SMTPHost:                     getEnv("SMTP_HOST", ""),
 		SMTPPort:                     smtpPort,
 		SMTPUsername:                 getEnv("SMTP_USERNAME", ""),
@@ -175,18 +165,11 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// 本番モードでは AdminAPIKey を必須とする
-	if c.GinMode == "release" && c.AdminAPIKey == "" {
+	// 本番モードでは IdolAuthURL を必須とする
+	if c.GinMode == "release" && c.IdolAuthURL == "" {
 		return &ValidationError{
-			Field:   "ADMIN_API_KEY",
-			Message: "本番環境では ADMIN_API_KEY の設定が必須です",
-		}
-	}
-	// 本番モードでは AdminAPIKey の最小長を強制する
-	if c.GinMode == "release" && len(c.AdminAPIKey) < minAdminAPIKeyLength {
-		return &ValidationError{
-			Field:   "ADMIN_API_KEY",
-			Message: fmt.Sprintf("本番環境では ADMIN_API_KEY は %d 文字以上である必要があります", minAdminAPIKeyLength),
+			Field:   "IDOL_AUTH_URL",
+			Message: "本番環境では IDOL_AUTH_URL の設定が必須です",
 		}
 	}
 

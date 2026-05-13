@@ -3,10 +3,8 @@ module github.com/kuro48/idol-api
 go 1.26.3
 
 require (
-	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
-	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/files v1.0.1
@@ -66,7 +64,6 @@ require (
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect

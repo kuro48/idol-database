@@ -8,25 +8,14 @@ import (
 type principalContextKey struct{}
 
 // Principal は認証済みユーザーの認証情報を保持する値オブジェクト。
-// idol-auth はアクセストークンに roles のみ注入する。email/display_name は
-// IDトークン専用クレームのためアクセストークン検証では取得不可。
+// idol-auth はアクセストークンに roles のみ注入する。
 type Principal struct {
 	SubjectID string   // Kratos identity ID (sub claim)
 	Roles     []string // roles claim（idol-auth が注入）
-	Scopes    []string // scope claim (space-delimited → slice)
+	Scopes    []string // scope claim（ログ・デバッグ用）
 }
 
-// HasScope は指定したスコープを保持しているか返す
-func (p *Principal) HasScope(scope string) bool {
-	for _, s := range p.Scopes {
-		if s == scope {
-			return true
-		}
-	}
-	return false
-}
-
-// HasRole は指定したロールを保持しているか返す
+// HasRole は指定したロールを保持しているか返す（大文字小文字を無視）
 func (p *Principal) HasRole(role string) bool {
 	for _, r := range p.Roles {
 		if strings.EqualFold(r, role) {
@@ -36,14 +25,14 @@ func (p *Principal) HasRole(role string) bool {
 	return false
 }
 
-// CanWrite は idol.write / idol.admin スコープまたは admin ロールを持つか返す
+// CanWrite はデータ書き込み操作（POST/PUT/DELETE）を許可するか返す
 func (p *Principal) CanWrite() bool {
-	return p.HasScope("idol.write") || p.HasScope("idol.admin") || p.HasRole("admin")
+	return p.HasRole("admin")
 }
 
-// CanAdmin は idol.admin スコープまたは admin ロールを持つか返す
+// CanAdmin は管理操作を許可するか返す
 func (p *Principal) CanAdmin() bool {
-	return p.HasScope("idol.admin") || p.HasRole("admin")
+	return p.HasRole("admin")
 }
 
 // WithPrincipal は Principal をコンテキストに埋め込む

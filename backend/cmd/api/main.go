@@ -387,31 +387,22 @@ func main() {
 		c.File("./static/web/admin.html")
 	})
 
-	// OIDC 認証の初期化（OIDC_ISSUER が設定されている場合のみ有効）
+	// idol-auth 認証の初期化（IDOL_AUTH_URL が設定されている場合のみ有効）
 	var oidcVerifier domainAuth.TokenVerifier
-	if cfg.OIDCIssuer != "" {
-		v, err := infraAuth.NewOIDCVerifier(ctx, cfg.OIDCIssuer, cfg.OIDCAudience)
+	if cfg.IdolAuthURL != "" {
+		v, err := infraAuth.NewIntrospectionVerifier(cfg.IdolAuthURL)
 		if err != nil {
-			if cfg.GinMode == gin.ReleaseMode {
-				slog.Error("OIDC 初期化失敗", "error", err)
-				os.Exit(1)
-			}
-			slog.Warn("OIDC 初期化失敗（APIキー認証のみで継続）", "error", err)
-		} else {
-			oidcVerifier = v
-			slog.Info("OIDC 認証が有効です", "issuer", cfg.OIDCIssuer, "audience", cfg.OIDCAudience)
+			slog.Error("idol-auth 初期化失敗", "error", err)
+			os.Exit(1)
 		}
+		oidcVerifier = v
+		slog.Info("idol-auth 認証が有効です", "url", cfg.IdolAuthURL)
 	} else {
-		slog.Info("OIDC 認証は無効です（OIDC_ISSUER 未設定）")
+		slog.Warn("idol-auth 認証は無効です（IDOL_AUTH_URL 未設定）。write/admin エンドポイントは 503 を返します")
 	}
 
-	// APIキー設定
-	apiKeyCfg := middleware.APIKeyConfig{
-		WriteAPIKey: cfg.WriteAPIKey,
-		AdminAPIKey: cfg.AdminAPIKey,
-	}
-	writeAuth := middleware.OIDCWriteAuth(oidcVerifier, apiKeyCfg)
-	adminAuth := middleware.OIDCAdminAuth(oidcVerifier, cfg.AdminAPIKey)
+	writeAuth := middleware.OIDCWriteAuth(oidcVerifier)
+	adminAuth := middleware.OIDCAdminAuth(oidcVerifier)
 
 	v1 := router.Group("/api/v1")
 	{

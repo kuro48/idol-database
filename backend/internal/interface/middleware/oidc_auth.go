@@ -2,57 +2,59 @@ package middleware
 
 import (
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
 )
 
-// OIDCWriteAuth は idol.write / idol.admin スコープを持つ OIDC トークン、
-// または既存の write/admin API キーを受け付ける複合認証ミドルウェアを返す。
-// verifier が nil の場合は API キー認証のみにフォールバックする（後方互換）。
-func OIDCWriteAuth(verifier domainAuth.TokenVerifier, apiKeyCfg APIKeyConfig) gin.HandlerFunc {
-	apikeyFallback := WriteAuth(apiKeyCfg)
-
-	return func(c *gin.Context) {
-		if verifier != nil {
-			if token, ok := extractBearer(c); ok {
-				principal, err := verifier.Verify(c.Request.Context(), token)
-				if err == nil && principal.CanWrite() {
-					c.Request = c.Request.WithContext(domainAuth.WithPrincipal(c.Request.Context(), principal))
-					c.Next()
-					return
-				}
-				if err != nil {
-					slog.Debug("OIDC トークン検証失敗（APIキーへフォールバック）", "error", err)
-				}
-			}
-		}
-		apikeyFallback(c)
-	}
+// OIDCWriteAuth は idol-auth トークンを検証し admin ロールを持つ場合のみ通過させる。
+// verifier が nil（IDOL_AUTH_URL 未設定）の場合は 503 を返す。
+func OIDCWriteAuth(verifier domainAuth.TokenVerifier) gin.HandlerFunc {
+	return oidcAuth(verifier, (*domainAuth.Principal).CanWrite)
 }
 
-// OIDCAdminAuth は idol.admin スコープまたは admin ロールを持つ OIDC トークン、
-// または既存の admin API キーを受け付ける複合認証ミドルウェアを返す。
-// verifier が nil の場合は API キー認証のみにフォールバックする（後方互換）。
-func OIDCAdminAuth(verifier domainAuth.TokenVerifier, adminAPIKey string) gin.HandlerFunc {
-	apikeyFallback := AdminAuth(adminAPIKey)
+// OIDCAdminAuth は idol-auth トークンを検証し admin ロールを持つ場合のみ通過させる。
+// verifier が nil（IDOL_AUTH_URL 未設定）の場合は 503 を返す。
+func OIDCAdminAuth(verifier domainAuth.TokenVerifier) gin.HandlerFunc {
+	return oidcAuth(verifier, (*domainAuth.Principal).CanAdmin)
+}
 
+func oidcAuth(verifier domainAuth.TokenVerifier, allowed func(*domainAuth.Principal) bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if verifier != nil {
-			if token, ok := extractBearer(c); ok {
-				principal, err := verifier.Verify(c.Request.Context(), token)
-				if err == nil && principal.CanAdmin() {
-					c.Request = c.Request.WithContext(domainAuth.WithPrincipal(c.Request.Context(), principal))
-					c.Next()
-					return
-				}
-				if err != nil {
-					slog.Debug("OIDC トークン検証失敗（APIキーへフォールバック）", "error", err)
-				}
-			}
+		if verifier == nil {
+			c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+				Code:    "SERVICE_UNAVAILABLE",
+				Message: "認証サービスが設定されていません。IDOL_AUTH_URL 環境変数を設定してください",
+			})
+			c.Abort()
+			return
 		}
-		apikeyFallback(c)
+
+		token, ok := extractBearer(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, NewUnauthorizedError())
+			c.Abort()
+			return
+		}
+
+		principal, err := verifier.Verify(c.Request.Context(), token)
+		if err != nil {
+			slog.Debug("トークン検証失敗", "error", err)
+			c.JSON(http.StatusUnauthorized, NewUnauthorizedError())
+			c.Abort()
+			return
+		}
+
+		if !allowed(principal) {
+			c.JSON(http.StatusForbidden, NewForbiddenError())
+			c.Abort()
+			return
+		}
+
+		c.Request = c.Request.WithContext(domainAuth.WithPrincipal(c.Request.Context(), principal))
+		c.Next()
 	}
 }
 

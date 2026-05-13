@@ -12,7 +12,7 @@ func TestLoad(t *testing.T) {
 		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "9000")
 		t.Setenv("GIN_MODE", "release")
-		t.Setenv("ADMIN_API_KEY", "test-admin-key-that-is-32-chars!!")
+		t.Setenv("IDOL_AUTH_URL", "https://auth.example.com")
 
 		cfg, err := Load()
 
@@ -22,6 +22,7 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, "test_database", cfg.MongoDBDatabase)
 		assert.Equal(t, "9000", cfg.ServerPort)
 		assert.Equal(t, "release", cfg.GinMode)
+		assert.Equal(t, "https://auth.example.com", cfg.IdolAuthURL)
 	})
 
 	t.Run("default values are applied when env vars are empty", func(t *testing.T) {
@@ -80,12 +81,12 @@ func TestLoad(t *testing.T) {
 		assert.Nil(t, cfg)
 	})
 
-	t.Run("release mode without ADMIN_API_KEY returns error", func(t *testing.T) {
+	t.Run("release mode without IDOL_AUTH_URL returns error", func(t *testing.T) {
 		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
 		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "8081")
 		t.Setenv("GIN_MODE", "release")
-		t.Setenv("ADMIN_API_KEY", "")
+		t.Setenv("IDOL_AUTH_URL", "")
 
 		cfg, err := Load()
 
@@ -93,21 +94,21 @@ func TestLoad(t *testing.T) {
 		assert.Nil(t, cfg)
 		var valErr *ValidationError
 		assert.ErrorAs(t, err, &valErr)
-		assert.Equal(t, "ADMIN_API_KEY", valErr.Field)
+		assert.Equal(t, "IDOL_AUTH_URL", valErr.Field)
 	})
 
-	t.Run("release mode with ADMIN_API_KEY succeeds", func(t *testing.T) {
+	t.Run("release mode with IDOL_AUTH_URL succeeds", func(t *testing.T) {
 		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
 		t.Setenv("MONGODB_DATABASE", "test_database")
 		t.Setenv("SERVER_PORT", "8081")
 		t.Setenv("GIN_MODE", "release")
-		t.Setenv("ADMIN_API_KEY", "secret-admin-key-that-is-32-chars!")
+		t.Setenv("IDOL_AUTH_URL", "https://auth.example.com")
 
 		cfg, err := Load()
 
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg)
-		assert.Equal(t, "secret-admin-key-that-is-32-chars!", cfg.AdminAPIKey)
+		assert.Equal(t, "https://auth.example.com", cfg.IdolAuthURL)
 	})
 
 	t.Run("public mutation rate limit defaults are restrictive", func(t *testing.T) {
