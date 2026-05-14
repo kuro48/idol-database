@@ -49,6 +49,6 @@ frontend/.vite/
 CLAUDE.md
 
 # Swagger generated docs
-docs/docs.go
-docs/swagger.json
-docs/swagger.yaml
+backend/docs/docs.go
+backend/docs/swagger.json
+backend/docs/swagger.yaml
