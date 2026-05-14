@@ -63,7 +63,7 @@
 本規約に関するお問い合わせは、以下の窓口までお願いいたします：
 
 - **コンテンツ削除申請**: `POST /api/v1/removal-requests` エンドポイントを使用
-- **その他のお問い合わせ**: GitHub Issues（https://github.com/kuro48/idol-database/issues）
+- **その他のお問い合わせ**: GitHub Issues（https://github.com/kuro48/idol-api/issues）
 
 ---
 
