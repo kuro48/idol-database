@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/usecase/submission"
 	"github.com/stretchr/testify/assert"
@@ -53,6 +54,14 @@ func (m *MockSubmissionUseCase) ListPendingSubmissions(ctx context.Context) ([]*
 	return args.Get(0).([]*submission.SubmissionDTO), args.Error(1)
 }
 
+func (m *MockSubmissionUseCase) ListMySubmissions(ctx context.Context, subjectID string) ([]*submission.PublicSubmissionDTO, error) {
+	args := m.Called(ctx, subjectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*submission.PublicSubmissionDTO), args.Error(1)
+}
+
 func (m *MockSubmissionUseCase) UpdateStatus(ctx context.Context, cmd submission.UpdateStatusCommand) (*submission.SubmissionDTO, error) {
 	args := m.Called(ctx, cmd)
 	if args.Get(0) == nil {
@@ -79,6 +88,24 @@ func setupSubmissionRouter(uc submission.SubmissionUseCase) *gin.Engine {
 	router.GET("/submissions/pending", h.ListPendingSubmissions)
 	router.PUT("/submissions/:id/status", h.UpdateStatus)
 	router.PUT("/submissions/:id/revise", h.ReviseSubmission)
+	return router
+}
+
+func setupAuthenticatedSubmissionRouter(uc submission.SubmissionUseCase) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	h := handlers.NewSubmissionHandler(uc)
+	router.Use(func(c *gin.Context) {
+		principal := &domainAuth.Principal{
+			SubjectID:   "identity-123",
+			Email:       "user@example.com",
+			DisplayName: "Test User",
+		}
+		c.Request = c.Request.WithContext(domainAuth.WithPrincipal(c.Request.Context(), principal))
+		c.Next()
+	})
+	router.POST("/submissions", h.CreateSubmission)
+	router.GET("/me/submissions", h.ListMySubmissions)
 	return router
 }
 
@@ -128,6 +155,37 @@ func TestCreateSubmission_ValidInput(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
+	mockUC.AssertExpectations(t)
+}
+
+func TestCreateSubmission_UsesAuthenticatedPrincipal(t *testing.T) {
+	mockUC := new(MockSubmissionUseCase)
+	mockUC.On("CreateSubmission", mock.Anything, mock.MatchedBy(func(cmd submission.CreateSubmissionCommand) bool {
+		return cmd.ContributorEmail == "user@example.com" &&
+			cmd.ContributorIdentityID == "identity-123"
+	})).Return(newCreateSubmissionResult(), nil)
+
+	router := setupAuthenticatedSubmissionRouter(mockUC)
+	body := `{"target_type":"idol","payload":{"name":"テスト"},"source_urls":["https://example.com"],"contributor_email":"attacker@example.com"}`
+	req := httptest.NewRequest(http.MethodPost, "/submissions", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	mockUC.AssertExpectations(t)
+}
+
+func TestListMySubmissions_UsesAuthenticatedSubject(t *testing.T) {
+	mockUC := new(MockSubmissionUseCase)
+	mockUC.On("ListMySubmissions", mock.Anything, "identity-123").Return([]*submission.PublicSubmissionDTO{newPublicDTO()}, nil)
+
+	router := setupAuthenticatedSubmissionRouter(mockUC)
+	req := httptest.NewRequest(http.MethodGet, "/me/submissions", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 	mockUC.AssertExpectations(t)
 }
 

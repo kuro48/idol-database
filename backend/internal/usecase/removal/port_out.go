@@ -16,6 +16,7 @@ type RemovalAppPort interface {
 	GetRemovalRequest(ctx context.Context, id string) (*domain.RemovalRequest, error)
 	ListAllRemovalRequests(ctx context.Context) ([]*domain.RemovalRequest, error)
 	ListPendingRemovalRequests(ctx context.Context) ([]*domain.RemovalRequest, error)
+	FindByRequesterIdentityID(ctx context.Context, identityID string) ([]*domain.RemovalRequest, error)
 	UpdateRemovalRequest(ctx context.Context, request *domain.RemovalRequest) error
 }
 
@@ -62,13 +63,14 @@ type ResolvedNotification struct {
 
 // RemovalCreateInput は削除申請作成の入力
 type RemovalCreateInput struct {
-	TargetType  string
-	TargetID    string
-	Requester   string
-	Reason      string
-	ContactInfo string
-	Evidence    string
-	Description string
+	TargetType          string
+	TargetID            string
+	Requester           string
+	RequesterIdentityID string
+	Reason              string
+	ContactInfo         string
+	Evidence            string
+	Description         string
 }
 
 // RemovalCreateResult はアプリケーション層の作成結果

@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_OIDC_ISSUER: string
+  readonly VITE_IDOL_AUTH_BASE_URL: string
   readonly VITE_OIDC_CLIENT_ID: string
   readonly VITE_OIDC_REDIRECT_URI: string
   readonly VITE_OIDC_POST_LOGOUT_URI: string

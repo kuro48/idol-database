@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -14,7 +15,7 @@ type Config struct {
 	MongoDBDatabase    string
 	ServerPort         string
 	GinMode            string
-	CORSAllowedOrigins string        // カンマ区切り。空の場合はデフォルト値を使用
+	CORSAllowedOrigins string        // カンマ区切り。release では明示必須
 	TrustedProxies     string        // カンマ区切りの信頼プロキシIPレンジ（空の場合はプロキシ信頼なし）
 	WebhookTimeout     time.Duration // WebhookHTTPクライアントのタイムアウト（WEBHOOK_TIMEOUT_SECONDS で変更可能、デフォルト: 10秒）
 	RateLimitRPS       float64       // 1秒あたりのリクエスト数上限（RATE_LIMIT_RPS、デフォルト: 10）
@@ -23,7 +24,9 @@ type Config struct {
 	PublicMutationRateLimitRPS   float64 // PUBLIC_MUTATION_RATE_LIMIT_RPS、デフォルト: 0.2
 	PublicMutationRateLimitBurst int     // PUBLIC_MUTATION_RATE_LIMIT_BURST、デフォルト: 3
 	// idol-auth 認証設定（空の場合は write/admin エンドポイントが 503 を返す）
-	IdolAuthURL string // idol-auth の公開 URL（IDOL_AUTH_URL、例: https://auth.example.com）
+	IdolAuthURL       string // idol-auth の公開 URL（IDOL_AUTH_URL、例: https://auth.example.com）
+	IdolAuthIssuerURL string // idol-auth の OIDC issuer URL（IDOL_AUTH_ISSUER_URL、例: https://auth.example.com）
+	IdolAuthClientID  string // idol-auth の OIDC client ID（IDOL_AUTH_CLIENT_ID）
 	// SMTP メール通知設定（SMTP_HOST が空の場合はメール通知を無効化）
 	SMTPHost     string
 	SMTPPort     int
@@ -90,7 +93,7 @@ func Load() (*Config, error) {
 		MongoDBDatabase:              getEnv("MONGODB_DATABASE", "idol_database"),
 		ServerPort:                   getEnv("SERVER_PORT", "8081"),
 		GinMode:                      getEnv("GIN_MODE", "debug"),
-		CORSAllowedOrigins:           getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"),
+		CORSAllowedOrigins:           getEnv("CORS_ALLOWED_ORIGINS", ""),
 		TrustedProxies:               getEnv("TRUSTED_PROXIES", ""),
 		WebhookTimeout:               time.Duration(webhookTimeoutSec) * time.Second,
 		RateLimitRPS:                 rateLimitRPS,
@@ -98,6 +101,8 @@ func Load() (*Config, error) {
 		PublicMutationRateLimitRPS:   publicMutationRateLimitRPS,
 		PublicMutationRateLimitBurst: publicMutationRateLimitBurst,
 		IdolAuthURL:                  getEnv("IDOL_AUTH_URL", ""),
+		IdolAuthIssuerURL:            getEnv("IDOL_AUTH_ISSUER_URL", ""),
+		IdolAuthClientID:             getEnv("IDOL_AUTH_CLIENT_ID", ""),
 		SMTPHost:                     getEnv("SMTP_HOST", ""),
 		SMTPPort:                     smtpPort,
 		SMTPUsername:                 getEnv("SMTP_USERNAME", ""),
@@ -170,6 +175,35 @@ func (c *Config) Validate() error {
 		return &ValidationError{
 			Field:   "IDOL_AUTH_URL",
 			Message: "本番環境では IDOL_AUTH_URL の設定が必須です",
+		}
+	}
+	if c.GinMode == "release" && c.IdolAuthIssuerURL == "" {
+		return &ValidationError{
+			Field:   "IDOL_AUTH_ISSUER_URL",
+			Message: "本番環境では IDOL_AUTH_ISSUER_URL の設定が必須です",
+		}
+	}
+	if c.GinMode == "release" && c.IdolAuthClientID == "" {
+		return &ValidationError{
+			Field:   "IDOL_AUTH_CLIENT_ID",
+			Message: "本番環境では IDOL_AUTH_CLIENT_ID の設定が必須です",
+		}
+	}
+	if c.GinMode == "release" {
+		if strings.TrimSpace(c.CORSAllowedOrigins) == "" {
+			return &ValidationError{
+				Field:   "CORS_ALLOWED_ORIGINS",
+				Message: "本番環境では CORS_ALLOWED_ORIGINS の明示設定が必須です",
+			}
+		}
+		for _, origin := range strings.Split(c.CORSAllowedOrigins, ",") {
+			origin = strings.TrimSpace(origin)
+			if origin == "*" || strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1") || strings.HasPrefix(origin, "http://") {
+				return &ValidationError{
+					Field:   "CORS_ALLOWED_ORIGINS",
+					Message: "本番環境では https の具体的なオリジンだけを指定してください",
+				}
+			}
 		}
 	}
 

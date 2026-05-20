@@ -2,10 +2,11 @@ package submission
 
 // CreateInput は投稿審査作成の入力
 type CreateInput struct {
-	TargetType       string
-	Payload          string
-	SourceURLs       []string
-	ContributorEmail string
+	TargetType            string
+	Payload               string
+	SourceURLs            []string
+	ContributorEmail      string
+	ContributorIdentityID string
 }
 
 // UpdateStatusInput はステータス更新の入力

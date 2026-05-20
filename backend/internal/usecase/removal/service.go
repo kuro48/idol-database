@@ -53,13 +53,14 @@ func (u *Usecase) CreateRemovalRequest(ctx context.Context, cmd CreateRemovalReq
 	}
 
 	result, err := u.removalApp.CreateRemovalRequest(ctx, RemovalCreateInput{
-		TargetType:  cmd.TargetType,
-		TargetID:    cmd.TargetID,
-		Requester:   cmd.RequesterType,
-		Reason:      cmd.Reason,
-		ContactInfo: cmd.ContactInfo,
-		Evidence:    cmd.Evidence,
-		Description: cmd.Description,
+		TargetType:          cmd.TargetType,
+		TargetID:            cmd.TargetID,
+		Requester:           cmd.RequesterType,
+		RequesterIdentityID: cmd.RequesterIdentityID,
+		Reason:              cmd.Reason,
+		ContactInfo:         cmd.ContactInfo,
+		Evidence:            cmd.Evidence,
+		Description:         cmd.Description,
 	})
 	if err != nil {
 		return nil, err
@@ -145,6 +146,32 @@ func (u *Usecase) ListOverdueRemovalRequests(ctx context.Context) ([]*RemovalReq
 	}
 
 	return toDTOs(overdue), nil
+}
+
+// ListMyRemovalRequests は認証済み本人の削除申請一覧を取得する
+func (u *Usecase) ListMyRemovalRequests(ctx context.Context, subjectID string) ([]*PublicRemovalRequestDTO, error) {
+	requests, err := u.removalApp.FindByRequesterIdentityID(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]*PublicRemovalRequestDTO, 0, len(requests))
+	for _, request := range requests {
+		dtos = append(dtos, &PublicRemovalRequestDTO{
+			ID:            request.ID().Value(),
+			TargetID:      request.TargetID(),
+			TargetType:    string(request.TargetType()),
+			RequesterType: string(request.Requester().Type()),
+			Reason:        request.Reason().Value(),
+			Evidence:      request.Evidence().Value(),
+			Description:   request.Description().Value(),
+			Status:        string(request.Status()),
+			CreatedAt:     request.CreatedAt(),
+			UpdatedAt:     request.UpdatedAt(),
+		})
+	}
+
+	return dtos, nil
 }
 
 // UpdateStatus はステータスを更新する

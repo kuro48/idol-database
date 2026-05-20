@@ -22,14 +22,18 @@ type SubmissionAppPort interface {
 
 	// UpdateSubmission は投稿審査を更新する
 	UpdateSubmission(ctx context.Context, submission *domain.Submission) error
+
+	// FindByContributorIdentityID は投稿者 identity ID で投稿審査を取得する
+	FindByContributorIdentityID(ctx context.Context, identityID string) ([]*domain.Submission, error)
 }
 
 // SubmissionCreateInput は投稿審査作成の入力
 type SubmissionCreateInput struct {
-	TargetType       string
-	Payload          string
-	SourceURLs       []string
-	ContributorEmail string
+	TargetType            string
+	Payload               string
+	SourceURLs            []string
+	ContributorEmail      string
+	ContributorIdentityID string
 }
 
 // SubmissionCreateResult はアプリケーション層の作成結果

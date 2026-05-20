@@ -16,6 +16,9 @@ type SubmissionUseCase interface {
 	// ListPendingSubmissions は審査待ちの投稿審査を取得する（管理者向け）
 	ListPendingSubmissions(ctx context.Context) ([]*SubmissionDTO, error)
 
+	// ListMySubmissions は認証済み本人の投稿審査一覧を取得する
+	ListMySubmissions(ctx context.Context, subjectID string) ([]*PublicSubmissionDTO, error)
+
 	// UpdateStatus は投稿審査のステータスを更新する（管理者向け）
 	UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*SubmissionDTO, error)
 

@@ -10,9 +10,12 @@ type principalContextKey struct{}
 // Principal は認証済みユーザーの認証情報を保持する値オブジェクト。
 // idol-auth はアクセストークンに roles のみ注入する。
 type Principal struct {
-	SubjectID string   // Kratos identity ID (sub claim)
-	Roles     []string // roles claim（idol-auth が注入）
-	Scopes    []string // scope claim（ログ・デバッグ用）
+	SubjectID   string   // Kratos identity ID (sub claim)
+	Email       string   // email claim（ID token 由来）
+	DisplayName string   // display_name claim（ID token 由来）
+	OshiColor   string   // oshi_color claim（ID token 由来）
+	Roles       []string // roles claim（idol-auth が注入）
+	Scopes      []string // scope claim（ログ・デバッグ用）
 }
 
 // HasRole は指定したロールを保持しているか返す（大文字小文字を無視）

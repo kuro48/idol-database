@@ -34,6 +34,10 @@ func (s *removalAppStub) ListPendingRemovalRequests(context.Context) ([]*domainR
 	return nil, errors.New("not implemented")
 }
 
+func (s *removalAppStub) FindByRequesterIdentityID(context.Context, string) ([]*domainRemoval.RemovalRequest, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (s *removalAppStub) UpdateRemovalRequest(context.Context, *domainRemoval.RemovalRequest) error {
 	s.updated = true
 	return nil
@@ -120,7 +124,7 @@ func newPendingRemovalRequest(t *testing.T, targetType domainRemoval.TargetType,
 	description, err := domainRemoval.NewRemovalReason("公開継続に問題があるため詳細を記載します")
 	require.NoError(t, err)
 
-	req := domainRemoval.NewRemovalRequest(targetID, targetType, requester, reason, contact, "hashed-token", evidence, description)
+	req := domainRemoval.NewRemovalRequest(targetID, targetType, requester, "identity-123", reason, contact, "hashed-token", evidence, description)
 	req.SetID(id)
 	return req
 }

@@ -16,6 +16,9 @@ const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'))
 const ApiKeysPage = lazy(() => import('./pages/dashboard/ApiKeysPage'))
 const AnalyticsPage = lazy(() => import('./pages/dashboard/AnalyticsPage'))
 const OshiColorPage = lazy(() => import('./pages/settings/OshiColorPage'))
+const SubmissionRequestPage = lazy(() => import('./pages/requests/SubmissionRequestPage'))
+const RemovalRequestPage = lazy(() => import('./pages/requests/RemovalRequestPage'))
+const MyRequestsPage = lazy(() => import('./pages/requests/MyRequestsPage'))
 
 function PageFallback() {
   return (
@@ -48,6 +51,9 @@ export default function App() {
             <Route path="/events" element={<EventListPage />} />
             <Route path="/tags" element={<TagListPage />} />
             <Route path="/releases" element={<ReleaseListPage />} />
+            <Route path="/requests/new" element={<SubmissionRequestPage />} />
+            <Route path="/requests/removal" element={<RemovalRequestPage />} />
+            <Route path="/requests" element={<MyRequestsPage />} />
             <Route path="/settings/oshi-color" element={<OshiColorPage />} />
           </Route>
 

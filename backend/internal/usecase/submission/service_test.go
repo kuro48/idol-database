@@ -34,6 +34,10 @@ func (f *fakeSubmissionApp) ListPending(context.Context) ([]*domain.Submission, 
 	return nil, errors.New("not implemented")
 }
 
+func (f *fakeSubmissionApp) FindByContributorIdentityID(context.Context, string) ([]*domain.Submission, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (f *fakeSubmissionApp) UpdateSubmission(_ context.Context, submission *domain.Submission) error {
 	f.updated = submission
 	return nil
@@ -220,7 +224,7 @@ func newSubmissionForTest(t *testing.T, targetType domain.SubmissionType, payloa
 	email, err := domain.NewContributorEmail("user@example.com")
 	require.NoError(t, err)
 
-	sub := domain.NewSubmission(targetType, payload, []domain.SourceURL{sourceURL}, email, "hashed-token")
+	sub := domain.NewSubmission(targetType, payload, []domain.SourceURL{sourceURL}, email, "identity-123", "hashed-token")
 	sub.SetID(id)
 	return sub
 }

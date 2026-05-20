@@ -8,18 +8,19 @@ import (
 
 // RemovalRequest は削除申請のエンティティ（Aggregate Root）
 type RemovalRequest struct {
-	id              RemovalID
-	targetID        string
-	targetType      TargetType
-	requester       Requester
-	reason          RemovalReason
-	contactInfo     ContactInfo
-	accessTokenHash string
-	evidence        EvidenceURL
-	description     RemovalReason
-	status          RemovalStatus
-	createdAt       time.Time
-	updatedAt       time.Time
+	id                  RemovalID
+	targetID            string
+	targetType          TargetType
+	requester           Requester
+	requesterIdentityID string
+	reason              RemovalReason
+	contactInfo         ContactInfo
+	accessTokenHash     string
+	evidence            EvidenceURL
+	description         RemovalReason
+	status              RemovalStatus
+	createdAt           time.Time
+	updatedAt           time.Time
 }
 
 // NewRemovalRequest は新しい削除申請を作成する
@@ -27,6 +28,7 @@ func NewRemovalRequest(
 	targetID string,
 	targetType TargetType,
 	requester Requester,
+	requesterIdentityID string,
 	reason RemovalReason,
 	contactInfo ContactInfo,
 	accessTokenHash string,
@@ -37,17 +39,18 @@ func NewRemovalRequest(
 
 	return &RemovalRequest{
 		// IDは空（保存時に生成される）
-		targetID:        targetID,
-		targetType:      targetType,
-		requester:       requester,
-		reason:          reason,
-		contactInfo:     contactInfo,
-		accessTokenHash: accessTokenHash,
-		evidence:        evidence,
-		description:     description,
-		status:          StatusPending, // 初期状態は保留中
-		createdAt:       now,
-		updatedAt:       now,
+		targetID:            targetID,
+		targetType:          targetType,
+		requester:           requester,
+		requesterIdentityID: requesterIdentityID,
+		reason:              reason,
+		contactInfo:         contactInfo,
+		accessTokenHash:     accessTokenHash,
+		evidence:            evidence,
+		description:         description,
+		status:              StatusPending, // 初期状態は保留中
+		createdAt:           now,
+		updatedAt:           now,
 	}
 }
 
@@ -57,6 +60,7 @@ func Reconstruct(
 	targetID string,
 	targetType TargetType,
 	requester Requester,
+	requesterIdentityID string,
 	reason RemovalReason,
 	contactInfo ContactInfo,
 	accessTokenHash string,
@@ -67,18 +71,19 @@ func Reconstruct(
 	updatedAt time.Time,
 ) *RemovalRequest {
 	return &RemovalRequest{
-		id:              id,
-		targetID:        targetID,
-		targetType:      targetType,
-		requester:       requester,
-		reason:          reason,
-		contactInfo:     contactInfo,
-		accessTokenHash: accessTokenHash,
-		evidence:        evidence,
-		description:     description,
-		status:          status,
-		createdAt:       createdAt,
-		updatedAt:       updatedAt,
+		id:                  id,
+		targetID:            targetID,
+		targetType:          targetType,
+		requester:           requester,
+		requesterIdentityID: requesterIdentityID,
+		reason:              reason,
+		contactInfo:         contactInfo,
+		accessTokenHash:     accessTokenHash,
+		evidence:            evidence,
+		description:         description,
+		status:              status,
+		createdAt:           createdAt,
+		updatedAt:           updatedAt,
 	}
 }
 
@@ -100,6 +105,11 @@ func (r *RemovalRequest) TargetType() TargetType {
 // Requester は申請者情報を返す
 func (r *RemovalRequest) Requester() Requester {
 	return r.requester
+}
+
+// RequesterIdentityID は申請者の idol-auth identity ID を返す
+func (r *RemovalRequest) RequesterIdentityID() string {
+	return r.requesterIdentityID
 }
 
 // Reason は削除理由を返す

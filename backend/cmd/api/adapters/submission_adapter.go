@@ -20,10 +20,11 @@ func NewSubmissionAppAdapter(svc *appSubmission.ApplicationService) ucSubmission
 
 func (a *SubmissionAppAdapter) CreateSubmission(ctx context.Context, input ucSubmission.SubmissionCreateInput) (*ucSubmission.SubmissionCreateResult, error) {
 	result, err := a.svc.CreateSubmission(ctx, appSubmission.CreateInput{
-		TargetType:       input.TargetType,
-		Payload:          input.Payload,
-		SourceURLs:       input.SourceURLs,
-		ContributorEmail: input.ContributorEmail,
+		TargetType:            input.TargetType,
+		Payload:               input.Payload,
+		SourceURLs:            input.SourceURLs,
+		ContributorEmail:      input.ContributorEmail,
+		ContributorIdentityID: input.ContributorIdentityID,
 	})
 	if err != nil {
 		return nil, err
@@ -48,4 +49,8 @@ func (a *SubmissionAppAdapter) ListPending(ctx context.Context) ([]*domainSubmis
 
 func (a *SubmissionAppAdapter) UpdateSubmission(ctx context.Context, s *domainSubmission.Submission) error {
 	return a.svc.UpdateSubmission(ctx, s)
+}
+
+func (a *SubmissionAppAdapter) FindByContributorIdentityID(ctx context.Context, identityID string) ([]*domainSubmission.Submission, error) {
+	return a.svc.FindByContributorIdentityID(ctx, identityID)
 }

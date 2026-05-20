@@ -13,7 +13,7 @@ const ADMIN_NAV = [
 ]
 
 export default function AdminShell() {
-  const { isAdmin, logout } = useAuth()
+  const { isAdmin, idToken, logout } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function AdminShell() {
   async function handleLogout() {
     logout()
     try {
-      await userManager.signoutRedirect()
+      await userManager.signoutRedirect(idToken)
     } catch {
       navigate('/login', { replace: true })
     }

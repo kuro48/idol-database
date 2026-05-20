@@ -34,6 +34,10 @@ func (s *notifyingRemovalAppStub) ListPendingRemovalRequests(context.Context) ([
 	return nil, nil
 }
 
+func (s *notifyingRemovalAppStub) FindByRequesterIdentityID(context.Context, string) ([]*domainRemoval.RemovalRequest, error) {
+	return nil, nil
+}
+
 func (s *notifyingRemovalAppStub) UpdateRemovalRequest(context.Context, *domainRemoval.RemovalRequest) error {
 	s.updated = true
 	return nil

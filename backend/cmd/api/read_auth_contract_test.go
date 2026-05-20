@@ -33,13 +33,14 @@ func TestFreeAPIKeyRouteIsDisabled(t *testing.T) {
 	}
 }
 
-func TestFrontendShellRoutesAreServed(t *testing.T) {
+func TestLegacyFrontendShellRoutesAreDevelopmentOnly(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {
 		t.Fatalf("main.go を読み込めません: %v", err)
 	}
 
 	required := []string{
+		`if cfg.GinMode != gin.ReleaseMode`,
 		`router.GET("/app"`,
 		`router.GET("/admin"`,
 		`router.Static("/assets"`,

@@ -10,5 +10,6 @@ type RemovalUseCase interface {
 	ListAllRemovalRequests(ctx context.Context) ([]*RemovalRequestDTO, error)
 	ListPendingRemovalRequests(ctx context.Context) ([]*RemovalRequestDTO, error)
 	ListOverdueRemovalRequests(ctx context.Context) ([]*RemovalRequestDTO, error)
+	ListMyRemovalRequests(ctx context.Context, subjectID string) ([]*PublicRemovalRequestDTO, error)
 	UpdateStatus(ctx context.Context, cmd UpdateStatusCommand) (*RemovalRequestDTO, error)
 }

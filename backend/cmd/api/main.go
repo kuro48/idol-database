@@ -277,6 +277,7 @@ func main() {
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
 	releaseHandler := handlers.NewReleaseHandler(releaseUsecase)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
+	meHandler := handlers.NewMeHandler()
 	healthHandler := handlers.NewHealthHandler(db)
 	billingService := appBilling.NewService(
 		nil,
@@ -346,11 +347,11 @@ func main() {
 	router.Use(middleware.RequestBodyLimit(5 << 20))                   // 5 MiB
 
 	// CORS設定（CORS_ALLOWED_ORIGINS 環境変数で制御）
-	corsOrigins := strings.Split(cfg.CORSAllowedOrigins, ",")
+	corsOrigins := parseCORSOrigins(cfg.CORSAllowedOrigins, cfg.GinMode)
 	corsConfig := cors.Config{
 		AllowOrigins:     corsOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-ID-Token"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}
@@ -378,17 +379,21 @@ func main() {
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	// Static frontend shell. Data access still requires API keys through /api/v1.
-	router.Static("/assets", "./static/web/assets")
-	router.GET("/app", func(c *gin.Context) {
-		c.File("./static/web/app.html")
-	})
-	router.GET("/admin", func(c *gin.Context) {
-		c.File("./static/web/admin.html")
-	})
+	// Legacy static frontend shells are development-only. Production should serve
+	// the React app from the frontend build/hosting path to avoid exposing stale auth UI.
+	if cfg.GinMode != gin.ReleaseMode {
+		router.Static("/assets", "./static/web/assets")
+		router.GET("/app", func(c *gin.Context) {
+			c.File("./static/web/app.html")
+		})
+		router.GET("/admin", func(c *gin.Context) {
+			c.File("./static/web/admin.html")
+		})
+	}
 
 	// idol-auth 認証の初期化（IDOL_AUTH_URL が設定されている場合のみ有効）
 	var oidcVerifier domainAuth.TokenVerifier
+	var identityVerifier domainAuth.IdentityVerifier
 	if cfg.IdolAuthURL != "" {
 		v, err := infraAuth.NewIntrospectionVerifier(cfg.IdolAuthURL)
 		if err != nil {
@@ -400,14 +405,30 @@ func main() {
 	} else {
 		slog.Warn("idol-auth 認証は無効です（IDOL_AUTH_URL 未設定）。write/admin エンドポイントは 503 を返します")
 	}
+	if cfg.IdolAuthIssuerURL != "" {
+		v, err := infraAuth.NewIDTokenVerifier(cfg.IdolAuthIssuerURL, cfg.IdolAuthClientID)
+		if err != nil {
+			slog.Error("idol-auth ID token検証初期化失敗", "error", err)
+			os.Exit(1)
+		}
+		identityVerifier = v
+		slog.Info("idol-auth ID token検証が有効です", "issuer", cfg.IdolAuthIssuerURL)
+	} else {
+		slog.Warn("idol-auth ID token検証は無効です（IDOL_AUTH_ISSUER_URL 未設定）。ユーザー申請エンドポイントは 503 を返します")
+	}
 
 	writeAuth := middleware.OIDCWriteAuth(oidcVerifier)
 	adminAuth := middleware.OIDCAdminAuth(oidcVerifier)
+	userAuth := middleware.OIDCUserAuth(oidcVerifier, identityVerifier)
 
 	v1 := router.Group("/api/v1")
 	{
-		// アイドル: 読み取りはAPIキー必須、書き込みは write スコープ必須
-		idols := v1.Group("/idols", planAuth.Auth())
+		v1.GET("/me", userAuth, meHandler.GetMe)
+		v1.GET("/me/submissions", userAuth, submissionHandler.ListMySubmissions)
+		v1.GET("/me/removal-requests", userAuth, removalHandler.ListMyRemovalRequests)
+
+		// アイドル: 読み取りは公開、書き込みは write スコープ必須
+		idols := v1.Group("/idols")
 		{
 			idols.GET("", idolHandler.ListIdols)                       // 一覧取得
 			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得
@@ -423,11 +444,11 @@ func main() {
 			idolsWrite.PUT("/:id/external-ids", idolHandler.UpdateExternalIDs) // 外部IDマッピング更新
 		}
 
-		// 削除申請: 申請・参照は公開、管理は admin スコープ必須
+		// 削除申請: 申請はログイン必須、参照は投稿者トークン、管理は admin スコープ必須
 		removalRequests := v1.Group("/removal-requests")
 		{
-			removalRequests.POST("", publicMutationLimiter.Limit(), removalHandler.CreateRemovalRequest) // 削除申請作成（公開）
-			removalRequests.GET("/:id", removalHandler.GetRemovalRequest)                                // 削除申請詳細取得（公開）
+			removalRequests.POST("", userAuth, publicMutationLimiter.Limit(), removalHandler.CreateRemovalRequest) // 削除申請作成
+			removalRequests.GET("/:id", removalHandler.GetRemovalRequest)                                          // 削除申請詳細取得（公開）
 		}
 		adminRemoval := v1.Group("/removal-requests", adminAuth)
 		{
@@ -495,8 +516,8 @@ func main() {
 			}
 		}
 
-		// グループ: 読み取りはAPIキー必須、書き込みは write スコープ必須
-		groups := v1.Group("/groups", planAuth.Auth())
+		// グループ: 読み取りは公開、書き込みは write スコープ必須
+		groups := v1.Group("/groups")
 		{
 			groups.GET("", groupHandler.ListGroup)
 			groups.GET("/:id", groupHandler.GetGroup)
@@ -508,8 +529,8 @@ func main() {
 			groupsWrite.DELETE("/:id", groupHandler.DeleteGroup)
 		}
 
-		// 事務所: 読み取りはAPIキー必須、書き込みは write スコープ必須
-		agencies := v1.Group("/agencies", planAuth.Auth())
+		// 事務所: 読み取りは公開、書き込みは write スコープ必須
+		agencies := v1.Group("/agencies")
 		{
 			agencies.GET("", agencyHandler.ListAgencies)
 			agencies.GET("/:id", agencyHandler.GetAgency)
@@ -527,8 +548,8 @@ func main() {
 			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
 		}
 
-		// イベント: 読み取りはAPIキー必須、書き込みは write スコープ必須
-		events := v1.Group("/events", planAuth.Auth())
+		// イベント: 読み取りは公開、書き込みは write スコープ必須
+		events := v1.Group("/events")
 		{
 			events.GET("", eventHandler.ListEvents)                 // イベント一覧取得（検索機能付き）
 			events.GET("/upcoming", eventHandler.GetUpcomingEvents) // 今後のイベント取得
@@ -543,8 +564,8 @@ func main() {
 			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
 		}
 
-		// リリース: 読み取りはAPIキー必須、書き込みは write スコープ必須
-		releases := v1.Group("/releases", planAuth.Auth())
+		// リリース: 読み取りは公開、書き込みは write スコープ必須
+		releases := v1.Group("/releases")
 		{
 			releases.GET("", releaseHandler.ListReleases)
 			releases.GET("/:id", releaseHandler.GetRelease)
@@ -562,10 +583,10 @@ func main() {
 			releasesAdmin.PUT("/:id/restore", releaseHandler.RestoreRelease)
 		}
 
-		// 投稿審査: 作成・取得は公開、審査は admin スコープ必須
+		// 投稿審査: 作成はログイン必須、取得は投稿者トークン、審査は admin スコープ必須
 		submissions := v1.Group("/submissions")
 		{
-			submissions.POST("", publicMutationLimiter.Limit(), submissionHandler.CreateSubmission)           // 投稿作成（公開）
+			submissions.POST("", userAuth, publicMutationLimiter.Limit(), submissionHandler.CreateSubmission) // 投稿作成
 			submissions.GET("/:id", submissionHandler.GetSubmission)                                          // 投稿詳細取得（公開）
 			submissions.PUT("/:id/revise", publicMutationLimiter.Limit(), submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（公開）
 		}
@@ -576,8 +597,8 @@ func main() {
 			adminSubmissions.PUT("/:id/status", submissionHandler.UpdateStatus)        // ステータス更新
 		}
 
-		// タグ: 読み取りはAPIキー必須、書き込みは write スコープ必須
-		tags := v1.Group("/tags", planAuth.Auth())
+		// タグ: 読み取りは公開、書き込みは write スコープ必須
+		tags := v1.Group("/tags")
 		{
 			tags.GET("", tagHandler.ListTags)   // タグ一覧取得
 			tags.GET("/:id", tagHandler.GetTag) // タグ詳細取得
@@ -636,4 +657,20 @@ func main() {
 		slog.Error("HTTPシャットダウンエラー", "error", err)
 	}
 	slog.Info("サーバーを正常に停止しました")
+}
+
+func parseCORSOrigins(raw string, ginMode string) []string {
+	if strings.TrimSpace(raw) == "" && ginMode != gin.ReleaseMode {
+		return []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8080"}
+	}
+
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		origin := strings.TrimSpace(part)
+		if origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+	return origins
 }

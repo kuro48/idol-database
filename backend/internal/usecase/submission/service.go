@@ -39,10 +39,11 @@ func (u *Usecase) CreateSubmission(ctx context.Context, cmd CreateSubmissionComm
 	}
 
 	result, err := u.submissionApp.CreateSubmission(ctx, SubmissionCreateInput{
-		TargetType:       cmd.TargetType,
-		Payload:          string(payloadJSON),
-		SourceURLs:       cmd.SourceURLs,
-		ContributorEmail: cmd.ContributorEmail,
+		TargetType:            cmd.TargetType,
+		Payload:               string(payloadJSON),
+		SourceURLs:            cmd.SourceURLs,
+		ContributorEmail:      cmd.ContributorEmail,
+		ContributorIdentityID: cmd.ContributorIdentityID,
 	})
 	if err != nil {
 		return nil, err
@@ -85,6 +86,20 @@ func (u *Usecase) ListPendingSubmissions(ctx context.Context) ([]*SubmissionDTO,
 	}
 
 	return toAdminDTOs(submissions), nil
+}
+
+// ListMySubmissions は認証済み本人の投稿審査一覧を取得する
+func (u *Usecase) ListMySubmissions(ctx context.Context, subjectID string) ([]*PublicSubmissionDTO, error) {
+	submissions, err := u.submissionApp.FindByContributorIdentityID(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]*PublicSubmissionDTO, 0, len(submissions))
+	for _, sub := range submissions {
+		dtos = append(dtos, toPublicDTO(sub))
+	}
+	return dtos, nil
 }
 
 // UpdateStatus は投稿審査のステータスを更新する（管理者向け）
@@ -278,6 +293,7 @@ func (u *Usecase) ReviseSubmission(ctx context.Context, cmd ReviseSubmissionComm
 		string(payloadJSON),
 		sourceURLObjs,
 		sub.ContributorEmail(),
+		sub.ContributorIdentityID(),
 		sub.AccessTokenHash(),
 		sub.SnsUserID(),
 		sub.Status(),

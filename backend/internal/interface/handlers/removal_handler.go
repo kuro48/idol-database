@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 	"github.com/kuro48/idol-api/internal/usecase/removal"
 )
@@ -26,7 +27,7 @@ type CreateRemovalRequestDTO struct {
 	TargetID      string `json:"target_id" binding:"required"`
 	RequesterType string `json:"requester_type" binding:"required,oneof=idol_themself agency third_party"`
 	Reason        string `json:"reason" binding:"required,min=10,max=1000"`
-	ContactInfo   string `json:"contact_info" binding:"required,email"`
+	ContactInfo   string `json:"contact_info" binding:"omitempty,email"`
 	Evidence      string `json:"evidence" binding:"omitempty,url"`
 	Description   string `json:"description" binding:"required,min=10,max=1000"`
 }
@@ -67,9 +68,14 @@ func (h *RemovalHandler) CreateRemovalRequest(c *gin.Context) {
 		TargetID:      req.TargetID,
 		RequesterType: req.RequesterType,
 		Reason:        req.Reason,
-		ContactInfo:   req.ContactInfo,
 		Evidence:      req.Evidence,
 		Description:   req.Description,
+	}
+	if principal, ok := domainAuth.PrincipalFromContext(c.Request.Context()); ok {
+		cmd.ContactInfo = principal.Email
+		cmd.RequesterIdentityID = principal.SubjectID
+	} else {
+		cmd.ContactInfo = req.ContactInfo
 	}
 
 	result, err := h.removalService.CreateRemovalRequest(c.Request.Context(), cmd)
@@ -152,6 +158,28 @@ func (h *RemovalHandler) ListPendingRemovalRequests(c *gin.Context) {
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Message: "保留中削除申請の取得に失敗しました",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"removal_requests": dtos,
+		"count":            len(dtos),
+	})
+}
+
+// ListMyRemovalRequests は認証済み本人の削除申請一覧を取得する。
+func (h *RemovalHandler) ListMyRemovalRequests(c *gin.Context) {
+	principal, ok := domainAuth.PrincipalFromContext(c.Request.Context())
+	if !ok || principal.SubjectID == "" {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
+
+	dtos, err := h.removalService.ListMyRemovalRequests(c.Request.Context(), principal.SubjectID)
+	if err != nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "削除申請一覧の取得に失敗しました",
 		})
 		return
 	}

@@ -24,13 +24,14 @@ func NewRemovalAppAdapter(svc *appRemoval.ApplicationService) ucRemoval.RemovalA
 
 func (a *RemovalAppAdapter) CreateRemovalRequest(ctx context.Context, input ucRemoval.RemovalCreateInput) (*ucRemoval.RemovalCreateResult, error) {
 	result, err := a.svc.CreateRemovalRequest(ctx, appRemoval.CreateInput{
-		TargetType:  input.TargetType,
-		TargetID:    input.TargetID,
-		Requester:   input.Requester,
-		Reason:      input.Reason,
-		ContactInfo: input.ContactInfo,
-		Evidence:    input.Evidence,
-		Description: input.Description,
+		TargetType:          input.TargetType,
+		TargetID:            input.TargetID,
+		Requester:           input.Requester,
+		RequesterIdentityID: input.RequesterIdentityID,
+		Reason:              input.Reason,
+		ContactInfo:         input.ContactInfo,
+		Evidence:            input.Evidence,
+		Description:         input.Description,
 	})
 	if err != nil {
 		return nil, err
@@ -51,6 +52,10 @@ func (a *RemovalAppAdapter) ListAllRemovalRequests(ctx context.Context) ([]*remo
 
 func (a *RemovalAppAdapter) ListPendingRemovalRequests(ctx context.Context) ([]*removalDomain.RemovalRequest, error) {
 	return a.svc.ListPendingRemovalRequests(ctx)
+}
+
+func (a *RemovalAppAdapter) FindByRequesterIdentityID(ctx context.Context, identityID string) ([]*removalDomain.RemovalRequest, error) {
+	return a.svc.FindByRequesterIdentityID(ctx, identityID)
 }
 
 func (a *RemovalAppAdapter) UpdateRemovalRequest(ctx context.Context, request *removalDomain.RemovalRequest) error {

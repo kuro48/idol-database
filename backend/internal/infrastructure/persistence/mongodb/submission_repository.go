@@ -26,19 +26,20 @@ func NewSubmissionRepository(db *mongo.Database) *SubmissionRepository {
 
 // submissionDocument はMongoDBに保存するドキュメント構造
 type submissionDocument struct {
-	ID               bson.ObjectID `bson:"_id,omitempty"`
-	TargetType       string        `bson:"target_type"`
-	Payload          string        `bson:"payload"`
-	SourceURLs       []string      `bson:"source_urls"`
-	ContributorEmail string        `bson:"contributor_email"`
-	AccessTokenHash  string        `bson:"access_token_hash,omitempty"`
-	SnsUserID        string        `bson:"sns_user_id,omitempty"`
-	Status           string        `bson:"status"`
-	RevisionNote     string        `bson:"revision_note,omitempty"`
-	ReviewedBy       string        `bson:"reviewed_by,omitempty"`
-	ReviewedAt       *time.Time    `bson:"reviewed_at,omitempty"`
-	CreatedAt        time.Time     `bson:"created_at"`
-	UpdatedAt        time.Time     `bson:"updated_at"`
+	ID                    bson.ObjectID `bson:"_id,omitempty"`
+	TargetType            string        `bson:"target_type"`
+	Payload               string        `bson:"payload"`
+	SourceURLs            []string      `bson:"source_urls"`
+	ContributorEmail      string        `bson:"contributor_email"`
+	ContributorIdentityID string        `bson:"contributor_identity_id,omitempty"`
+	AccessTokenHash       string        `bson:"access_token_hash,omitempty"`
+	SnsUserID             string        `bson:"sns_user_id,omitempty"`
+	Status                string        `bson:"status"`
+	RevisionNote          string        `bson:"revision_note,omitempty"`
+	ReviewedBy            string        `bson:"reviewed_by,omitempty"`
+	ReviewedAt            *time.Time    `bson:"reviewed_at,omitempty"`
+	CreatedAt             time.Time     `bson:"created_at"`
+	UpdatedAt             time.Time     `bson:"updated_at"`
 }
 
 // toSubmissionDocument はドメインモデルをMongoDBドキュメントに変換する
@@ -58,19 +59,20 @@ func toSubmissionDocument(s *submission.Submission) (*submissionDocument, error)
 	}
 
 	return &submissionDocument{
-		ID:               objectID,
-		TargetType:       string(s.TargetType()),
-		Payload:          s.Payload(),
-		SourceURLs:       sourceURLs,
-		ContributorEmail: s.ContributorEmail().Value(),
-		AccessTokenHash:  s.AccessTokenHash(),
-		SnsUserID:        s.SnsUserID(),
-		Status:           string(s.Status()),
-		RevisionNote:     s.RevisionNote(),
-		ReviewedBy:       s.ReviewedBy(),
-		ReviewedAt:       s.ReviewedAt(),
-		CreatedAt:        s.CreatedAt(),
-		UpdatedAt:        s.UpdatedAt(),
+		ID:                    objectID,
+		TargetType:            string(s.TargetType()),
+		Payload:               s.Payload(),
+		SourceURLs:            sourceURLs,
+		ContributorEmail:      s.ContributorEmail().Value(),
+		ContributorIdentityID: s.ContributorIdentityID(),
+		AccessTokenHash:       s.AccessTokenHash(),
+		SnsUserID:             s.SnsUserID(),
+		Status:                string(s.Status()),
+		RevisionNote:          s.RevisionNote(),
+		ReviewedBy:            s.ReviewedBy(),
+		ReviewedAt:            s.ReviewedAt(),
+		CreatedAt:             s.CreatedAt(),
+		UpdatedAt:             s.UpdatedAt(),
 	}, nil
 }
 
@@ -111,6 +113,7 @@ func toSubmissionDomain(doc *submissionDocument) (*submission.Submission, error)
 		doc.Payload,
 		sourceURLs,
 		contributorEmail,
+		doc.ContributorIdentityID,
 		doc.AccessTokenHash,
 		doc.SnsUserID,
 		status,
@@ -245,6 +248,32 @@ func (r *SubmissionRepository) FindByContributorEmail(ctx context.Context, email
 	return submissions, nil
 }
 
+// FindByContributorIdentityID は投稿者 identity ID で投稿審査を取得する
+func (r *SubmissionRepository) FindByContributorIdentityID(ctx context.Context, identityID string) ([]*submission.Submission, error) {
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	cursor, err := r.collection.Find(ctx, bson.M{"contributor_identity_id": identityID}, opts)
+	if err != nil {
+		return nil, fmt.Errorf("投稿者IDによる投稿審査取得エラー: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var docs []submissionDocument
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, fmt.Errorf("データ変換エラー: %w", err)
+	}
+
+	submissions := make([]*submission.Submission, 0, len(docs))
+	for _, doc := range docs {
+		s, err := toSubmissionDomain(&doc)
+		if err != nil {
+			return nil, fmt.Errorf("ドメインモデル変換エラー: %w", err)
+		}
+		submissions = append(submissions, s)
+	}
+
+	return submissions, nil
+}
+
 // Update は投稿審査を更新する
 func (r *SubmissionRepository) Update(ctx context.Context, s *submission.Submission) error {
 	objectID, err := bson.ObjectIDFromHex(s.ID().Value())
@@ -288,6 +317,7 @@ func (r *SubmissionRepository) EnsureIndexes(ctx context.Context) error {
 		{Keys: bson.D{{Key: "status", Value: 1}}},
 		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "created_at", Value: 1}}},
 		{Keys: bson.D{{Key: "contributor_email", Value: 1}}},
+		{Keys: bson.D{{Key: "contributor_identity_id", Value: 1}, {Key: "created_at", Value: -1}}},
 		{Keys: bson.D{{Key: "created_at", Value: -1}}},
 	})
 	if err != nil {

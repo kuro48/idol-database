@@ -8,19 +8,20 @@ import (
 
 // Submission は投稿審査のエンティティ（Aggregate Root）
 type Submission struct {
-	id               SubmissionID
-	targetType       SubmissionType
-	payload          string // JSON文字列（投稿内容）
-	sourceURLs       []SourceURL
-	contributorEmail ContributorEmail
-	accessTokenHash  string
-	snsUserID        string // nullable（空文字で未設定）
-	status           SubmissionStatus
-	revisionNote     string     // 差し戻し理由（空文字で未設定）
-	reviewedBy       string     // 審査者ID（空文字で未設定）
-	reviewedAt       *time.Time // 審査日時（nilで未設定）
-	createdAt        time.Time
-	updatedAt        time.Time
+	id                    SubmissionID
+	targetType            SubmissionType
+	payload               string // JSON文字列（投稿内容）
+	sourceURLs            []SourceURL
+	contributorEmail      ContributorEmail
+	contributorIdentityID string
+	accessTokenHash       string
+	snsUserID             string // nullable（空文字で未設定）
+	status                SubmissionStatus
+	revisionNote          string     // 差し戻し理由（空文字で未設定）
+	reviewedBy            string     // 審査者ID（空文字で未設定）
+	reviewedAt            *time.Time // 審査日時（nilで未設定）
+	createdAt             time.Time
+	updatedAt             time.Time
 }
 
 // NewSubmission は新しい投稿審査を作成する
@@ -29,24 +30,26 @@ func NewSubmission(
 	payload string,
 	sourceURLs []SourceURL,
 	contributorEmail ContributorEmail,
+	contributorIdentityID string,
 	accessTokenHash string,
 ) *Submission {
 	now := time.Now()
 
 	return &Submission{
 		// IDは空（保存時に生成される）
-		targetType:       targetType,
-		payload:          payload,
-		sourceURLs:       sourceURLs,
-		contributorEmail: contributorEmail,
-		accessTokenHash:  accessTokenHash,
-		snsUserID:        "",
-		status:           StatusPending, // 初期状態は審査待ち
-		revisionNote:     "",
-		reviewedBy:       "",
-		reviewedAt:       nil,
-		createdAt:        now,
-		updatedAt:        now,
+		targetType:            targetType,
+		payload:               payload,
+		sourceURLs:            sourceURLs,
+		contributorEmail:      contributorEmail,
+		contributorIdentityID: contributorIdentityID,
+		accessTokenHash:       accessTokenHash,
+		snsUserID:             "",
+		status:                StatusPending, // 初期状態は審査待ち
+		revisionNote:          "",
+		reviewedBy:            "",
+		reviewedAt:            nil,
+		createdAt:             now,
+		updatedAt:             now,
 	}
 }
 
@@ -57,6 +60,7 @@ func Reconstruct(
 	payload string,
 	sourceURLs []SourceURL,
 	contributorEmail ContributorEmail,
+	contributorIdentityID string,
 	accessTokenHash string,
 	snsUserID string,
 	status SubmissionStatus,
@@ -67,19 +71,20 @@ func Reconstruct(
 	updatedAt time.Time,
 ) *Submission {
 	return &Submission{
-		id:               id,
-		targetType:       targetType,
-		payload:          payload,
-		sourceURLs:       sourceURLs,
-		contributorEmail: contributorEmail,
-		accessTokenHash:  accessTokenHash,
-		snsUserID:        snsUserID,
-		status:           status,
-		revisionNote:     revisionNote,
-		reviewedBy:       reviewedBy,
-		reviewedAt:       reviewedAt,
-		createdAt:        createdAt,
-		updatedAt:        updatedAt,
+		id:                    id,
+		targetType:            targetType,
+		payload:               payload,
+		sourceURLs:            sourceURLs,
+		contributorEmail:      contributorEmail,
+		contributorIdentityID: contributorIdentityID,
+		accessTokenHash:       accessTokenHash,
+		snsUserID:             snsUserID,
+		status:                status,
+		revisionNote:          revisionNote,
+		reviewedBy:            reviewedBy,
+		reviewedAt:            reviewedAt,
+		createdAt:             createdAt,
+		updatedAt:             updatedAt,
 	}
 }
 
@@ -106,6 +111,11 @@ func (s *Submission) SourceURLs() []SourceURL {
 // ContributorEmail は投稿者メールアドレスを返す
 func (s *Submission) ContributorEmail() ContributorEmail {
 	return s.contributorEmail
+}
+
+// ContributorIdentityID は投稿者の idol-auth identity ID を返す
+func (s *Submission) ContributorIdentityID() string {
+	return s.contributorIdentityID
 }
 
 // AccessTokenHash は公開アクセストークンのハッシュを返す

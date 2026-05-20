@@ -13,8 +13,12 @@ const baseClient = createClient<Record<string, unknown>>({
 baseClient.use({
   onRequest({ request }) {
     const accessToken = useAuthStore.getState().accessToken
+    const idToken = useAuthStore.getState().idToken
     if (accessToken) {
       request.headers.set('Authorization', `Bearer ${accessToken}`)
+    }
+    if (idToken) {
+      request.headers.set('X-ID-Token', idToken)
     }
     return request
   },
@@ -30,8 +34,12 @@ const adminBaseClient = createClient<Record<string, unknown>>({
 adminBaseClient.use({
   onRequest({ request }) {
     const accessToken = useAuthStore.getState().accessToken
+    const idToken = useAuthStore.getState().idToken
     if (accessToken) {
       request.headers.set('Authorization', `Bearer ${accessToken}`)
+    }
+    if (idToken) {
+      request.headers.set('X-ID-Token', idToken)
     }
     return request
   },

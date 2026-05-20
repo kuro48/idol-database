@@ -23,6 +23,7 @@ export function DataTable<TData>({
   isLoading = false,
   emptyMessage = 'No results found.',
 }: DataTableProps<TData>) {
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

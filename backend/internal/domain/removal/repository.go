@@ -16,6 +16,9 @@ type Repository interface {
 	// FindPending は保留中の削除申請を取得する
 	FindPending(ctx context.Context) ([]*RemovalRequest, error)
 
+	// FindByRequesterIdentityID は申請者 identity ID で削除申請を取得する
+	FindByRequesterIdentityID(ctx context.Context, identityID string) ([]*RemovalRequest, error)
+
 	// Update は削除申請を更新する
 	Update(ctx context.Context, request *RemovalRequest) error
 

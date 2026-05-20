@@ -25,18 +25,19 @@ func NewRemovalRepository(db *mongo.Database) *RemovalRepository {
 
 // removalDocument はMongoDBに保存するドキュメント構造
 type removalDocument struct {
-	ID              bson.ObjectID `bson:"_id,omitempty"`
-	TargetID        string        `bson:"target_id"`
-	TargetType      string        `bson:"target_type"`
-	Requester       string        `bson:"requester"`
-	Reason          string        `bson:"reason"`
-	ContactInfo     string        `bson:"contact_info"`
-	AccessTokenHash string        `bson:"access_token_hash,omitempty"`
-	Evidence        string        `bson:"evidence,omitempty"`
-	Description     string        `bson:"description"`
-	Status          string        `bson:"status"`
-	CreatedAt       time.Time     `bson:"created_at"`
-	UpdatedAt       time.Time     `bson:"updated_at"`
+	ID                  bson.ObjectID `bson:"_id,omitempty"`
+	TargetID            string        `bson:"target_id"`
+	TargetType          string        `bson:"target_type"`
+	Requester           string        `bson:"requester"`
+	RequesterIdentityID string        `bson:"requester_identity_id,omitempty"`
+	Reason              string        `bson:"reason"`
+	ContactInfo         string        `bson:"contact_info"`
+	AccessTokenHash     string        `bson:"access_token_hash,omitempty"`
+	Evidence            string        `bson:"evidence,omitempty"`
+	Description         string        `bson:"description"`
+	Status              string        `bson:"status"`
+	CreatedAt           time.Time     `bson:"created_at"`
+	UpdatedAt           time.Time     `bson:"updated_at"`
 }
 
 // toRemovalDocument はドメインモデルをMongoDBドキュメントに変換する
@@ -52,18 +53,19 @@ func toRemovalDocument(r *removal.RemovalRequest) (*removalDocument, error) {
 	}
 
 	return &removalDocument{
-		ID:              objectID,
-		TargetID:        r.TargetID(),
-		TargetType:      string(r.TargetType()),
-		Requester:       string(r.Requester().Type()),
-		Reason:          r.Reason().Value(),
-		ContactInfo:     r.ContactInfo().Value(),
-		AccessTokenHash: r.AccessTokenHash(),
-		Evidence:        r.Evidence().Value(),
-		Description:     r.Description().Value(),
-		Status:          string(r.Status()),
-		CreatedAt:       r.CreatedAt(),
-		UpdatedAt:       r.UpdatedAt(),
+		ID:                  objectID,
+		TargetID:            r.TargetID(),
+		TargetType:          string(r.TargetType()),
+		Requester:           string(r.Requester().Type()),
+		RequesterIdentityID: r.RequesterIdentityID(),
+		Reason:              r.Reason().Value(),
+		ContactInfo:         r.ContactInfo().Value(),
+		AccessTokenHash:     r.AccessTokenHash(),
+		Evidence:            r.Evidence().Value(),
+		Description:         r.Description().Value(),
+		Status:              string(r.Status()),
+		CreatedAt:           r.CreatedAt(),
+		UpdatedAt:           r.UpdatedAt(),
 	}, nil
 }
 
@@ -114,6 +116,7 @@ func toRemovalDomain(doc *removalDocument) (*removal.RemovalRequest, error) {
 		doc.TargetID,
 		targetType,
 		requester,
+		doc.RequesterIdentityID,
 		reason,
 		contactInfo,
 		doc.AccessTokenHash,
@@ -221,6 +224,31 @@ func (r *RemovalRepository) FindPending(ctx context.Context) ([]*removal.Removal
 	return requests, nil
 }
 
+// FindByRequesterIdentityID は申請者 identity ID で削除申請を取得する
+func (r *RemovalRepository) FindByRequesterIdentityID(ctx context.Context, identityID string) ([]*removal.RemovalRequest, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"requester_identity_id": identityID})
+	if err != nil {
+		return nil, fmt.Errorf("申請者IDによる削除申請取得エラー: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var docs []removalDocument
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, fmt.Errorf("データ変換エラー: %w", err)
+	}
+
+	requests := make([]*removal.RemovalRequest, 0, len(docs))
+	for _, doc := range docs {
+		request, err := toRemovalDomain(&doc)
+		if err != nil {
+			return nil, fmt.Errorf("ドメインモデル変換エラー: %w", err)
+		}
+		requests = append(requests, request)
+	}
+
+	return requests, nil
+}
+
 // Update は削除申請を更新する
 func (r *RemovalRepository) Update(ctx context.Context, request *removal.RemovalRequest) error {
 	objectID, err := bson.ObjectIDFromHex(request.ID().Value())
@@ -285,6 +313,7 @@ func (r *RemovalRepository) EnsureIndexes(ctx context.Context) error {
 		{Keys: bson.D{{Key: "status", Value: 1}}},
 		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "created_at", Value: -1}}},
 		{Keys: bson.D{{Key: "target_id", Value: 1}, {Key: "target_type", Value: 1}}},
+		{Keys: bson.D{{Key: "requester_identity_id", Value: 1}, {Key: "created_at", Value: -1}}},
 	})
 	return err
 }

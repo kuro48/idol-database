@@ -31,6 +31,7 @@ func newPendingSubmission(t *testing.T) *submission.Submission {
 		`{"name":"テスト"}`,
 		newValidSourceURLs(t),
 		newValidEmail(t),
+		"identity-123",
 		"access-token-hash",
 	)
 }

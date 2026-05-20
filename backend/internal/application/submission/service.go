@@ -60,6 +60,7 @@ func (s *ApplicationService) CreateSubmission(ctx context.Context, input CreateI
 		input.Payload,
 		sourceURLs,
 		contributorEmail,
+		input.ContributorIdentityID,
 		token.Hash(accessToken),
 	)
 
@@ -123,6 +124,16 @@ func (s *ApplicationService) FindByContributorEmail(ctx context.Context, email s
 	submissions, err := s.submissionRepo.FindByContributorEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("投稿者メールアドレスによる投稿審査の取得に失敗しました: %w", err)
+	}
+
+	return submissions, nil
+}
+
+// FindByContributorIdentityID は投稿者 identity ID で投稿審査を取得する
+func (s *ApplicationService) FindByContributorIdentityID(ctx context.Context, identityID string) ([]*submission.Submission, error) {
+	submissions, err := s.submissionRepo.FindByContributorIdentityID(ctx, identityID)
+	if err != nil {
+		return nil, fmt.Errorf("投稿者IDによる投稿審査の取得に失敗しました: %w", err)
 	}
 
 	return submissions, nil

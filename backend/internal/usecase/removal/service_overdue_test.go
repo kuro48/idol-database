@@ -32,6 +32,10 @@ func (s *overdueRemovalAppStub) ListPendingRemovalRequests(context.Context) ([]*
 	return s.pending, nil
 }
 
+func (s *overdueRemovalAppStub) FindByRequesterIdentityID(context.Context, string) ([]*domainRemoval.RemovalRequest, error) {
+	return nil, nil
+}
+
 func (s *overdueRemovalAppStub) UpdateRemovalRequest(context.Context, *domainRemoval.RemovalRequest) error {
 	return nil
 }
@@ -89,6 +93,7 @@ func reconstructRemovalRequestAt(t *testing.T, createdAt time.Time, status domai
 		"idol-1",
 		domainRemoval.TargetTypeIdol,
 		requester,
+		"identity-123",
 		reason,
 		contact,
 		"hashed-token",

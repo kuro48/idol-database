@@ -19,6 +19,9 @@ type Repository interface {
 	// FindByContributorEmail は投稿者メールアドレスで投稿審査を取得する
 	FindByContributorEmail(ctx context.Context, email string) ([]*Submission, error)
 
+	// FindByContributorIdentityID は投稿者 identity ID で投稿審査を取得する
+	FindByContributorIdentityID(ctx context.Context, identityID string) ([]*Submission, error)
+
 	// Update は投稿審査を更新する
 	Update(ctx context.Context, submission *Submission) error
 }

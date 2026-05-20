@@ -73,6 +73,7 @@ func (s *ApplicationService) CreateRemovalRequest(ctx context.Context, input Cre
 		input.TargetID,
 		targetType,
 		requester,
+		input.RequesterIdentityID,
 		reason,
 		contactInfo,
 		token.Hash(accessToken),
@@ -133,4 +134,14 @@ func (s *ApplicationService) UpdateRemovalRequest(ctx context.Context, request *
 	}
 
 	return nil
+}
+
+// FindByRequesterIdentityID は申請者 identity ID で削除申請を取得する
+func (s *ApplicationService) FindByRequesterIdentityID(ctx context.Context, identityID string) ([]*removal.RemovalRequest, error) {
+	requests, err := s.removalRepo.FindByRequesterIdentityID(ctx, identityID)
+	if err != nil {
+		return nil, fmt.Errorf("申請者IDによる削除申請の取得に失敗しました: %w", err)
+	}
+
+	return requests, nil
 }

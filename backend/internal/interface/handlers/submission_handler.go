@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 	"github.com/kuro48/idol-api/internal/usecase/submission"
 )
@@ -25,7 +26,7 @@ type CreateSubmissionRequest struct {
 	TargetType       string                 `json:"target_type" binding:"required,oneof=idol group agency event"`
 	Payload          map[string]interface{} `json:"payload" binding:"required"`
 	SourceURLs       []string               `json:"source_urls" binding:"required,min=1,max=10,dive,url"`
-	ContributorEmail string                 `json:"contributor_email" binding:"required,email"`
+	ContributorEmail string                 `json:"contributor_email" binding:"omitempty,email"`
 }
 
 // UpdateStatusRequest はステータス更新リクエスト（管理者用）
@@ -66,10 +67,15 @@ func (h *SubmissionHandler) CreateSubmission(c *gin.Context) {
 	}
 
 	cmd := submission.CreateSubmissionCommand{
-		TargetType:       req.TargetType,
-		Payload:          req.Payload,
-		SourceURLs:       req.SourceURLs,
-		ContributorEmail: req.ContributorEmail,
+		TargetType: req.TargetType,
+		Payload:    req.Payload,
+		SourceURLs: req.SourceURLs,
+	}
+	if principal, ok := domainAuth.PrincipalFromContext(c.Request.Context()); ok {
+		cmd.ContributorEmail = principal.Email
+		cmd.ContributorIdentityID = principal.SubjectID
+	} else {
+		cmd.ContributorEmail = req.ContributorEmail
 	}
 
 	result, err := h.submissionUsecase.CreateSubmission(c.Request.Context(), cmd)
@@ -156,6 +162,28 @@ func (h *SubmissionHandler) ListPendingSubmissions(c *gin.Context) {
 	if err != nil {
 		middleware.WriteError(c, err, middleware.ErrorContext{
 			Message: "審査待ち投稿審査の取得に失敗しました",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"submissions": dtos,
+		"count":       len(dtos),
+	})
+}
+
+// ListMySubmissions は認証済み本人の投稿審査一覧を取得する。
+func (h *SubmissionHandler) ListMySubmissions(c *gin.Context) {
+	principal, ok := domainAuth.PrincipalFromContext(c.Request.Context())
+	if !ok || principal.SubjectID == "" {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
+
+	dtos, err := h.submissionUsecase.ListMySubmissions(c.Request.Context(), principal.SubjectID)
+	if err != nil {
+		middleware.WriteError(c, err, middleware.ErrorContext{
+			Message: "投稿審査一覧の取得に失敗しました",
 		})
 		return
 	}
