@@ -8,12 +8,14 @@ const DEFAULT_COLOR = '#FF69B4'
 
 async function updateOshiColor(
   accessToken: string,
+  idToken: string,
   color: string,
 ): Promise<void> {
   const res = await fetch('/api/v1/me/oshi-color', {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      'X-ID-Token': idToken,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ oshi_color: color }),
@@ -22,7 +24,7 @@ async function updateOshiColor(
 }
 
 export default function OshiColorPage() {
-  const { oshiColor, accessToken, isLoggedIn } = useAuth()
+  const { oshiColor, accessToken, idToken, isLoggedIn } = useAuth()
   const setOshiColor = useAuthStore((s) => s.setOshiColor)
   const [color, setColor] = useState(oshiColor ?? DEFAULT_COLOR)
   const [isSaving, setIsSaving] = useState(false)
@@ -31,7 +33,7 @@ export default function OshiColorPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!isLoggedIn || !accessToken) {
+    if (!isLoggedIn || !accessToken || !idToken) {
       setError('You must be signed in to update your oshi color.')
       return
     }
@@ -39,7 +41,7 @@ export default function OshiColorPage() {
     setError(null)
     setSaved(false)
     try {
-      await updateOshiColor(accessToken, color)
+      await updateOshiColor(accessToken, idToken, color)
       setOshiColor(color)
       applyOshiTheme(color)
       setSaved(true)

@@ -20,7 +20,10 @@ interface MeResponse {
 
 async function fetchMe(accessToken: string): Promise<MeResponse> {
   const res = await fetch(ME_ENDPOINT, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'X-ID-Token': useAuthStore.getState().idToken ?? '',
+    },
   })
   if (!res.ok) {
     throw new Error(`/me request failed: ${res.status}`)
@@ -44,12 +47,22 @@ export default function CallbackPage() {
         if (!user || !user.access_token) {
           throw new Error('No access token returned from idol-auth.')
         }
+        if (!user.id_token) {
+          throw new Error('No ID token returned from idol-auth.')
+        }
 
+        useAuthStore.setState({
+          accessToken: user.access_token,
+          idToken: user.id_token,
+          refreshToken: user.refresh_token ?? null,
+        })
         const me = await fetchMe(user.access_token)
         const oshiColor = me.oshi_color || DEFAULT_OSHI_COLOR
 
         setAuth(
           user.access_token,
+          user.id_token,
+          user.refresh_token ?? null,
           me.email,
           me.display_name,
           oshiColor,
