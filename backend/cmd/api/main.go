@@ -53,7 +53,7 @@ import (
 	"github.com/kuro48/idol-api/internal/domain/plan"
 	infraAuth "github.com/kuro48/idol-api/internal/infrastructure/auth"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
-	"github.com/kuro48/idol-api/internal/infrastructure/email"
+	"github.com/kuro48/idol-api/internal/infrastructure/adapters/email"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	infraStripe "github.com/kuro48/idol-api/internal/infrastructure/stripe"
 	"github.com/kuro48/idol-api/internal/interface/handlers"

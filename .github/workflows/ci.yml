@@ -23,6 +23,12 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate Swagger docs
+        run: swag init -g cmd/api/main.go -o docs
+
       - name: Vet
         run: go vet ./...
 
