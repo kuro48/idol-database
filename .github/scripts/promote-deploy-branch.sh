@@ -55,6 +55,10 @@ git add .
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git commit -m "Promote deploy branch from ${GITHUB_SHA:-unknown}"
-git remote add origin "$(git -C "$repo_root" remote get-url origin)"
+if [[ -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
+  git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+else
+  git remote add origin "$(git -C "$repo_root" remote get-url origin)"
+fi
 git fetch origin deploy:refs/remotes/origin/deploy || true
 git push origin HEAD:deploy --force-with-lease
