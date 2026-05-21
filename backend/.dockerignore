@@ -1,0 +1,33 @@
+# Exclude everything by default. The Dockerfile only needs Go sources,
+# generated API docs, static assets, and module files.
+**
+
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!docs/
+!docs/**
+!static/
+!static/**
+
+# Keep local secrets and generated artifacts out even if patterns change.
+.env
+.env.*
+.git
+.github
+.claude
+.serena
+.docker
+frontend
+coverage.*
+*.out
+*.test
+main
+bin
+dist
+tmp
+temp
+.DS_Store

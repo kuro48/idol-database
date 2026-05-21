@@ -1,0 +1,600 @@
+package mongodb
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"time"
+
+	"github.com/kuro48/idol-api/internal/domain/idol"
+	"github.com/kuro48/idol-api/internal/shared/audit"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+// regexMetachars はMongoDBの正規表現で特殊な意味を持つ文字
+var regexMetachars = regexp.MustCompile(`([.+*?()\[\]{}\\^$|])`)
+
+// escapeRegex はユーザー入力文字列をMongoDBのregexクエリで安全に使えるようエスケープする
+func escapeRegex(s string) string {
+	return regexMetachars.ReplaceAllString(s, `\$1`)
+}
+
+// IdolRepository はMongoDBを使用したアイドルリポジトリの実装
+type IdolRepository struct {
+	collection *mongo.Collection
+}
+
+// NewIdolRepository はMongoDBアイドルリポジトリを作成する
+func NewIdolRepository(db *mongo.Database) *IdolRepository {
+	return &IdolRepository{
+		collection: db.Collection("idols"),
+	}
+}
+
+// idolDocument はMongoDBに保存するドキュメント構造
+type idolDocument struct {
+	ID          bson.ObjectID        `bson:"_id,omitempty"`
+	Name        string               `bson:"name"`
+	Birthdate   *time.Time           `bson:"birthdate,omitempty"`
+	AgencyID    *string              `bson:"agency_id,omitempty"`
+	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
+	ExternalIDs map[string]string    `bson:"external_ids,omitempty"`
+	TagIDs      []string             `bson:"tag_ids,omitempty"`
+	Aliases     []string             `bson:"aliases,omitempty"`
+	CreatedAt   time.Time            `bson:"created_at"`
+	UpdatedAt   time.Time            `bson:"updated_at"`
+	CreatedBy   string               `bson:"created_by,omitempty"`
+	UpdatedBy   string               `bson:"updated_by,omitempty"`
+	Source      string               `bson:"source,omitempty"`
+	IsDeleted   bool                 `bson:"is_deleted,omitempty"`
+	DeletedAt   *time.Time           `bson:"deleted_at,omitempty"`
+	DeletedBy   string               `bson:"deleted_by,omitempty"`
+}
+
+// socialLinksDocument はSNS/外部リンクのドキュメント構造
+type socialLinksDocument struct {
+	Twitter   *string `bson:"twitter,omitempty"`
+	Instagram *string `bson:"instagram,omitempty"`
+	TikTok    *string `bson:"tiktok,omitempty"`
+	YouTube   *string `bson:"youtube,omitempty"`
+	Facebook  *string `bson:"facebook,omitempty"`
+	Official  *string `bson:"official,omitempty"`
+	FanClub   *string `bson:"fan_club,omitempty"`
+}
+
+// toDocument はドメインモデルをMongoDBドキュメントに変換する
+func toIdolDocument(i *idol.Idol) (*idolDocument, error) {
+	// IDの文字列をObjectIDに変換
+	objectID, err := bson.ObjectIDFromHex(i.ID().Value())
+	if err != nil && i.ID().Value() != "" {
+		return nil, fmt.Errorf("無効なアイドルID %q: %w", i.ID().Value(), err)
+	}
+
+	var socialLinksDoc *socialLinksDocument
+	if i.SocialLinks() != nil {
+		socialLinksDoc = toSocialLinksDocument(i.SocialLinks())
+	}
+
+	var birthdate *time.Time
+	if i.Birthdate() != nil {
+		bd := i.Birthdate().Value()
+		birthdate = &bd
+	}
+
+	// ExternalIDs の変換
+	var externalIDsDoc map[string]string
+	if extIDs := i.ExternalIDs(); !extIDs.IsEmpty() {
+		rawIDs := extIDs.All()
+		externalIDsDoc = make(map[string]string, len(rawIDs))
+		for k, v := range rawIDs {
+			externalIDsDoc[string(k)] = v
+		}
+	}
+
+	return &idolDocument{
+		ID:          objectID,
+		Name:        i.Name().Value(),
+		Birthdate:   birthdate,
+		AgencyID:    i.AgencyID(),
+		SocialLinks: socialLinksDoc,
+		ExternalIDs: externalIDsDoc,
+		TagIDs:      i.TagIDs(),
+		Aliases:     i.Aliases(),
+		CreatedAt:   i.CreatedAt(),
+		UpdatedAt:   i.UpdatedAt(),
+	}, nil
+}
+
+// toSocialLinksDocument はSocialLinksをドキュメントに変換する
+func toSocialLinksDocument(links *idol.SocialLinks) *socialLinksDocument {
+	return &socialLinksDocument{
+		Twitter:   links.Twitter(),
+		Instagram: links.Instagram(),
+		TikTok:    links.TikTok(),
+		YouTube:   links.YouTube(),
+		Facebook:  links.Facebook(),
+		Official:  links.Official(),
+		FanClub:   links.FanClub(),
+	}
+}
+
+// toDomain はMongoDBドキュメントをドメインモデルに変換する
+func toDomain(doc *idolDocument) (*idol.Idol, error) {
+	id, err := idol.NewIdolID(doc.ID.Hex())
+	if err != nil {
+		return nil, err
+	}
+
+	name, err := idol.NewIdolName(doc.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	var birthdate *idol.Birthdate
+	if doc.Birthdate != nil && !doc.Birthdate.IsZero() {
+		// time.Timeから年月日を抽出してBirthdateを作成
+		year, month, day := doc.Birthdate.Date()
+		bd, err := idol.NewBirthdate(year, int(month), day)
+		if err != nil {
+			return nil, err
+		}
+		birthdate = &bd
+	}
+
+	var socialLinks *idol.SocialLinks
+	if doc.SocialLinks != nil {
+		socialLinks = toSocialLinksDomain(doc.SocialLinks)
+	}
+
+	// ExternalIDs の再構築
+	var externalIDs *idol.ExternalIDs
+	if len(doc.ExternalIDs) > 0 {
+		typedIDs := make(map[idol.ExternalIDKind]string, len(doc.ExternalIDs))
+		for k, v := range doc.ExternalIDs {
+			typedIDs[idol.ExternalIDKind(k)] = v
+		}
+		externalIDs = idol.ReconstructExternalIDs(typedIDs)
+	}
+
+	tagIDs := doc.TagIDs
+	if tagIDs == nil {
+		tagIDs = []string{}
+	}
+
+	aliases := doc.Aliases
+	if aliases == nil {
+		aliases = []string{}
+	}
+
+	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, externalIDs, tagIDs, aliases, doc.CreatedAt, doc.UpdatedAt), nil
+}
+
+// toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する
+func toSocialLinksDomain(doc *socialLinksDocument) *idol.SocialLinks {
+	links := idol.NewSocialLinks()
+
+	if doc.Twitter != nil {
+		_ = links.SetTwitter(*doc.Twitter)
+	}
+	if doc.Instagram != nil {
+		_ = links.SetInstagram(*doc.Instagram)
+	}
+	if doc.TikTok != nil {
+		_ = links.SetTikTok(*doc.TikTok)
+	}
+	if doc.YouTube != nil {
+		_ = links.SetYouTube(*doc.YouTube)
+	}
+	if doc.Facebook != nil {
+		_ = links.SetFacebook(*doc.Facebook)
+	}
+	if doc.Official != nil {
+		_ = links.SetOfficial(*doc.Official)
+	}
+	if doc.FanClub != nil {
+		_ = links.SetFanClub(*doc.FanClub)
+	}
+
+	return links
+}
+
+// Save は新しいアイドルを保存する
+func (r *IdolRepository) Save(ctx context.Context, i *idol.Idol) error {
+	doc, err := toIdolDocument(i)
+	if err != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err)
+	}
+
+	// 新規作成の場合はIDを生成
+	if doc.ID.IsZero() {
+		doc.ID = bson.NewObjectID()
+		doc.CreatedAt = time.Now()
+		doc.UpdatedAt = time.Now()
+		doc.CreatedBy = audit.ActorFrom(ctx)
+		doc.UpdatedBy = audit.ActorFrom(ctx)
+		doc.Source = audit.SourceFrom(ctx)
+
+		newID, err := idol.NewIdolID(doc.ID.Hex())
+		if err != nil {
+			return fmt.Errorf("ID生成エラー: %w", err)
+		}
+		i.SetID(newID)
+	}
+
+	if _, insertErr := r.collection.InsertOne(ctx, doc); insertErr != nil {
+		return fmt.Errorf("アイドルの保存エラー: %w", insertErr)
+	}
+
+	return nil
+}
+
+// FindByID はIDでアイドルを検索する（削除済みを除く）
+func (r *IdolRepository) FindByID(ctx context.Context, id idol.IdolID) (*idol.Idol, error) {
+	objectID, err := bson.ObjectIDFromHex(id.Value())
+	if err != nil {
+		return nil, fmt.Errorf("無効なID形式: %w", err)
+	}
+
+	var doc idolDocument
+	err = r.collection.FindOne(ctx, bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("アイドルが見つかりません")
+		}
+		return nil, fmt.Errorf("アイドル取得エラー: %w", err)
+	}
+
+	return toDomain(&doc)
+}
+
+// FindAll は全てのアイドルを取得する（削除済みを除く）
+func (r *IdolRepository) FindAll(ctx context.Context) ([]*idol.Idol, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"is_deleted": bson.M{"$ne": true}})
+	if err != nil {
+		return nil, fmt.Errorf("アイドル一覧取得エラー: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var docs []idolDocument
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, fmt.Errorf("データ変換エラー: %w", err)
+	}
+
+	idols := make([]*idol.Idol, 0, len(docs))
+	for _, doc := range docs {
+		i, err := toDomain(&doc)
+		if err != nil {
+			return nil, fmt.Errorf("ドメインモデル変換エラー: %w", err)
+		}
+		idols = append(idols, i)
+	}
+
+	return idols, nil
+}
+
+// Update は既存のアイドルを更新する
+func (r *IdolRepository) Update(ctx context.Context, i *idol.Idol) error {
+	objectID, err := bson.ObjectIDFromHex(i.ID().Value())
+	if err != nil {
+		return fmt.Errorf("無効なID形式: %w", err)
+	}
+
+	doc, err := toIdolDocument(i)
+	if err != nil {
+		return fmt.Errorf("ドキュメント変換エラー: %w", err)
+	}
+	doc.UpdatedAt = time.Now()
+
+	setFields := bson.M{
+		"name":       doc.Name,
+		"birthdate":  doc.Birthdate,
+		"agency_id":  doc.AgencyID,
+		"updated_at": doc.UpdatedAt,
+		"updated_by": audit.ActorFrom(ctx),
+		"aliases":    doc.Aliases,
+	}
+	if doc.ExternalIDs != nil {
+		setFields["external_ids"] = doc.ExternalIDs
+	}
+	updateDoc := bson.M{
+		"$set": setFields,
+	}
+
+	result, err := r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, updateDoc)
+	if err != nil {
+		return fmt.Errorf("アイドル更新エラー: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("アイドルが見つかりません")
+	}
+
+	return nil
+}
+
+// Delete はアイドルをソフトデリートする
+func (r *IdolRepository) Delete(ctx context.Context, id idol.IdolID) error {
+	objectID, err := bson.ObjectIDFromHex(id.Value())
+	if err != nil {
+		return fmt.Errorf("無効なID形式: %w", err)
+	}
+
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": audit.ActorFrom(ctx),
+			"updated_at": now,
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("アイドル削除エラー: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("アイドルが見つかりません")
+	}
+
+	return nil
+}
+
+// Restore はソフトデリートされたアイドルを復元する
+func (r *IdolRepository) Restore(ctx context.Context, id idol.IdolID) error {
+	objectID, err := bson.ObjectIDFromHex(id.Value())
+	if err != nil {
+		return fmt.Errorf("無効なID形式: %w", err)
+	}
+
+	now := time.Now()
+	result, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": objectID, "is_deleted": true},
+		bson.M{"$set": bson.M{
+			"is_deleted": false,
+			"deleted_at": nil,
+			"deleted_by": "",
+			"updated_at": now,
+			"updated_by": audit.ActorFrom(ctx),
+		}, "$unset": bson.M{
+			"deleted_at": "",
+			"deleted_by": "",
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("アイドル復元エラー: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("削除済みアイドルが見つかりません")
+	}
+
+	return nil
+}
+
+// ExistsByName は同じ名前のアイドルが存在するかチェック
+func (r *IdolRepository) ExistsByName(ctx context.Context, name idol.IdolName) (bool, error) {
+	count, err := r.collection.CountDocuments(ctx, bson.M{"name": name.Value()})
+	if err != nil {
+		return false, fmt.Errorf("名前チェックエラー: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+// FindByAgencyID は事務所IDでアイドルを検索する
+func (r *IdolRepository) FindByAgencyID(ctx context.Context, agencyID string) ([]*idol.Idol, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"agency_id": agencyID})
+	if err != nil {
+		return nil, fmt.Errorf("事務所IDによるアイドル検索エラー: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var docs []idolDocument
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, fmt.Errorf("データ変換エラー: %w", err)
+	}
+
+	idols := make([]*idol.Idol, 0, len(docs))
+	for _, doc := range docs {
+		i, err := toDomain(&doc)
+		if err != nil {
+			return nil, fmt.Errorf("ドメインモデル変換エラー: %w", err)
+		}
+		idols = append(idols, i)
+	}
+
+	return idols, nil
+}
+
+func (r *IdolRepository) Search(ctx context.Context, criteria idol.SearchCriteria) ([]*idol.Idol, error) {
+	filter := buildMongoFilter(criteria)
+
+	opts := options.Find()
+
+	// ソート設定
+	sortOrder := 1
+	if criteria.Order == "desc" {
+		sortOrder = -1
+	}
+	opts.SetSort(bson.D{{Key: criteria.Sort, Value: sortOrder}})
+
+	// ページネーション
+	opts.SetSkip(int64(criteria.Offset))
+	opts.SetLimit(int64(criteria.Limit))
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []idolDocument
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+
+	idols := make([]*idol.Idol, 0, len(docs))
+	for _, doc := range docs {
+		i, err := toDomain(&doc)
+		if err != nil {
+			return nil, fmt.Errorf("ドメインモデル変換エラー: %w", err)
+		}
+		idols = append(idols, i)
+	}
+
+	return idols, nil
+}
+
+func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
+	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
+
+	// 名前検索（部分一致）: name フィールドまたは aliases フィールドにマッチ
+	// ReDoS対策として正規表現メタ文字をエスケープする
+	if criteria.Name != nil {
+		nameRegex := bson.M{"$regex": escapeRegex(*criteria.Name), "$options": "i"}
+		filter["$or"] = bson.A{
+			bson.M{"name": nameRegex},
+			bson.M{"aliases": nameRegex},
+		}
+	}
+
+	// 事務所ID
+	if criteria.AgencyID != nil {
+		filter["agency_id"] = *criteria.AgencyID
+	}
+
+	// 年齢範囲（生年月日から逆算）
+	if criteria.AgeMin != nil || criteria.AgeMax != nil {
+		now := time.Now()
+		birthdateFilter := bson.M{}
+
+		if criteria.AgeMax != nil {
+			// AgeMax歳より若い → 生年月日がこれより後
+			minBirthdate := now.AddDate(-*criteria.AgeMax-1, 0, 0)
+			birthdateFilter["$gte"] = minBirthdate
+		}
+		if criteria.AgeMin != nil {
+			// AgeMin歳以上 → 生年月日がこれより前
+			maxBirthdate := now.AddDate(-*criteria.AgeMin, 0, 0)
+			birthdateFilter["$lte"] = maxBirthdate
+		}
+
+		if len(birthdateFilter) > 0 {
+			filter["birthdate"] = birthdateFilter
+		}
+	}
+
+	// 生年月日範囲
+	if criteria.BirthdateFrom != nil || criteria.BirthdateTo != nil {
+		birthdateFilter := bson.M{}
+		if criteria.BirthdateFrom != nil {
+			birthdateFilter["$gte"] = *criteria.BirthdateFrom
+		}
+		if criteria.BirthdateTo != nil {
+			birthdateFilter["$lte"] = *criteria.BirthdateTo
+		}
+		filter["birthdate"] = birthdateFilter
+	}
+
+	return filter
+}
+
+func (r *IdolRepository) Count(ctx context.Context, criteria idol.SearchCriteria) (int64, error) {
+	filter := buildMongoFilter(criteria)
+	return r.collection.CountDocuments(ctx, filter)
+}
+
+// FindByExternalID は外部IDでアイドルを検索する
+func (r *IdolRepository) FindByExternalID(ctx context.Context, kind idol.ExternalIDKind, value string) (*idol.Idol, error) {
+	field := "external_ids." + string(kind)
+	var doc idolDocument
+	err := r.collection.FindOne(ctx, bson.M{field: value, "is_deleted": bson.M{"$ne": true}}).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // 見つからない場合はnil
+		}
+		return nil, fmt.Errorf("外部ID検索エラー: %w", err)
+	}
+	return toDomain(&doc)
+}
+
+// EnsureIndexes は検索パフォーマンス向上のためのインデックスを作成
+func (r *IdolRepository) EnsureIndexes(ctx context.Context) error {
+	indexes := []mongo.IndexModel{
+		// 名前インデックス（部分一致検索用）
+		{
+			Keys: bson.D{
+				{Key: "name", Value: 1},
+			},
+		},
+		// 事務所IDインデックス（フィルタリング用）
+		{
+			Keys: bson.D{
+				{Key: "agency_id", Value: 1},
+			},
+		},
+		// 生年月日インデックス（年齢範囲検索・ソート用）
+		{
+			Keys: bson.D{
+				{Key: "birthdate", Value: 1},
+			},
+		},
+		// 作成日時インデックス（デフォルトソート用）
+		{
+			Keys: bson.D{
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// タグIDインデックス（タグフィルタリング用）
+		{
+			Keys: bson.D{
+				{Key: "tag_ids", Value: 1},
+			},
+		},
+		// エイリアスインデックス（別名検索用）
+		{
+			Keys: bson.D{
+				{Key: "aliases", Value: 1},
+			},
+		},
+		// 複合インデックス1: 事務所ID + 作成日時（事務所別一覧取得の最適化）
+		{
+			Keys: bson.D{
+				{Key: "agency_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+		// 複合インデックス2: 生年月日 + 作成日時（年齢範囲検索 + ソート最適化）
+		{
+			Keys: bson.D{
+				{Key: "birthdate", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+		},
+	}
+
+	// 外部ID種別ごとのスパース一意インデックス
+	externalIDKinds := []string{
+		"twitter", "instagram", "tiktok", "youtube_channel",
+		"spotify_artist", "apple_music_artist", "ameba", "note",
+		"wikipedia_ja", "wikipedia_en",
+	}
+	for _, kind := range externalIDKinds {
+		field := "external_ids." + kind
+		indexes = append(indexes, mongo.IndexModel{
+			Keys:    bson.D{{Key: field, Value: 1}},
+			Options: options.Index().SetSparse(true).SetUnique(true).SetName("unique_ext_" + kind),
+		})
+	}
+
+	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		return fmt.Errorf("インデックス作成エラー: %w", err)
+	}
+
+	return nil
+}
