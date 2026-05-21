@@ -187,4 +187,6 @@ jobs:
           fetch-depth: 0
 
       - name: Update deploy branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./.github/scripts/promote-deploy-branch.sh
