@@ -6,6 +6,6 @@ On the server:
 
 ```bash
 git checkout deploy
-git pull --ff-only origin deploy
+git pull origin deploy
 ./backend/scripts/deploy-production.sh
 ```
