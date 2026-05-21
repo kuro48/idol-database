@@ -4,7 +4,7 @@ set -eu
 ROOT_DIR="${ROOT_DIR:-$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)}"
 cd "$ROOT_DIR"
 
-DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-.env.deploy}"
+ENV_FILE="${ENV_FILE:-.env}"
 override_names="ENV_FILE BASE_URL FRONTEND_URL DRY_RUN"
 for name in $override_names; do
   eval "is_set=\${$name+x}"
@@ -13,10 +13,10 @@ for name in $override_names; do
   fi
 done
 
-if [ -f "$DEPLOY_ENV_FILE" ]; then
+if [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck disable=SC1090
-  . "$DEPLOY_ENV_FILE"
+  . "$ENV_FILE"
   set +a
 fi
 
@@ -27,7 +27,6 @@ for name in $override_names; do
   fi
 done
 
-ENV_FILE="${ENV_FILE:-.env}"
 BASE_URL="${BASE_URL:-}"
 FRONTEND_URL="${FRONTEND_URL:-}"
 FRONTEND_DEPLOY_DIR="$ROOT_DIR/frontend-deploy"
