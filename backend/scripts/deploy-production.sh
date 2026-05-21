@@ -13,12 +13,31 @@ for name in $override_names; do
   fi
 done
 
-if [ -f "$ENV_FILE" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
-fi
+env_value() {
+  name="$1"
+  current="$(printenv "$name" 2>/dev/null || true)"
+  if [ -n "$current" ]; then
+    printf '%s' "$current"
+    return
+  fi
+  if [ ! -f "$ENV_FILE" ]; then
+    return
+  fi
+  awk -v key="$name" '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      line = $0
+      sub(/^[[:space:]]*/, "", line)
+      split(line, parts, "=")
+      if (parts[1] == key) {
+        sub(/^[^=]*=/, "", line)
+        print line
+        exit
+      }
+    }
+  ' "$ENV_FILE"
+}
 
 for name in $override_names; do
   eval "is_set=\${deploy_override_$name+x}"
@@ -27,8 +46,8 @@ for name in $override_names; do
   fi
 done
 
-BASE_URL="${BASE_URL:-}"
-FRONTEND_URL="${FRONTEND_URL:-}"
+BASE_URL="${BASE_URL:-$(env_value BASE_URL)}"
+FRONTEND_URL="${FRONTEND_URL:-$(env_value FRONTEND_URL)}"
 FRONTEND_DEPLOY_DIR="$ROOT_DIR/frontend-deploy"
 DRY_RUN="${DRY_RUN:-0}"
 
