@@ -155,7 +155,7 @@ vi .env
 
 # 通常デプロイ。先に deploy ブランチを手動で pull してから実行する。
 git checkout deploy
-git pull --ff-only origin deploy
+git pull origin deploy
 ./backend/scripts/deploy-production.sh
 
 # 実行せずに流れだけ確認
