@@ -162,7 +162,7 @@ git pull --ff-only origin deploy
 DRY_RUN=1 ./backend/scripts/deploy-production.sh
 ```
 
-`deploy-production.sh` は `.env` を自動で読みます。スクリプト内では `git fetch` / `git pull`、test、lint は実行しません。CI が `main` の test/lint/build を通した場合だけ `deploy` ブランチを更新します。フロントエンドはサーバー上で build し、常に `./frontend-deploy` に配置します。worktree が dirty の場合は停止します。別ファイルを使う場合だけ `ENV_FILE=/path/to/app.env ./backend/scripts/deploy-production.sh` を指定してください。
+`deploy-production.sh` は `.env` を自動で読みます。スクリプト内では `git fetch` / `git pull`、test、lint は実行しません。CI が `main` の test/lint/build を通した場合だけ `deploy` ブランチを更新します。`deploy` ブランチにはデプロイに必要な Docker Compose、backend build 用ソース、frontend build 用ソース、スクリプトだけを配置します。フロントエンドはサーバー上で build し、常に `./frontend-deploy` に配置します。worktree が dirty の場合は停止します。別ファイルを使う場合だけ `ENV_FILE=/path/to/app.env ./backend/scripts/deploy-production.sh` を指定してください。
 
 スモーク確認:
 

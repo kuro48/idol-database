@@ -187,7 +187,4 @@ jobs:
           fetch-depth: 0
 
       - name: Update deploy branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push origin HEAD:deploy --force-with-lease
+        run: ./.github/scripts/promote-deploy-branch.sh
