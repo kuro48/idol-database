@@ -30,6 +30,7 @@ go.work.sum
 # env file
 .env
 .env.atlas
+.env.deploy
 .env.local
 
 # Editor/IDE
@@ -43,6 +44,10 @@ go.work.sum
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend-deploy/
+
+# Local build artifacts
+backend/api
 
 .claude/
 .serena/

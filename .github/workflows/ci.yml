@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-test:
     name: Build & Test
@@ -167,3 +170,24 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t idol-api:ci -f backend/Dockerfile backend/
+
+  promote-deploy:
+    name: Promote deploy branch
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-test
+      - boundary-check
+      - openapi-contract
+      - frontend
+      - docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Update deploy branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git push origin HEAD:deploy --force-with-lease
