@@ -3,14 +3,33 @@ set -eu
 
 ENV_FILE="${ENV_FILE:-.env}"
 
-if [ -f "$ENV_FILE" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
-fi
-
 failures=0
+
+env_value() {
+  name="$1"
+  current="$(printenv "$name" 2>/dev/null || true)"
+  if [ -n "$current" ]; then
+    printf '%s' "$current"
+    return
+  fi
+  if [ ! -f "$ENV_FILE" ]; then
+    return
+  fi
+  awk -v key="$name" '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      line = $0
+      sub(/^[[:space:]]*/, "", line)
+      split(line, parts, "=")
+      if (parts[1] == key) {
+        sub(/^[^=]*=/, "", line)
+        print line
+        exit
+      }
+    }
+  ' "$ENV_FILE"
+}
 
 fail() {
   failures=$((failures + 1))
@@ -22,21 +41,21 @@ ok() {
 }
 
 require_var() {
-  name="$1"
-  eval "value=\${$name:-}"
-  if [ -z "$value" ]; then
-    fail "$name is required"
-    return
+	name="$1"
+	value="$(env_value "$name")"
+	if [ -z "$value" ]; then
+		fail "$name is required"
+		return
   fi
   ok "$name is set"
 }
 
 require_https_url() {
-  name="$1"
-  eval "value=\${$name:-}"
-  if [ -z "$value" ]; then
-    fail "$name is required"
-    return
+	name="$1"
+	value="$(env_value "$name")"
+	if [ -z "$value" ]; then
+		fail "$name is required"
+		return
   fi
   case "$value" in
     https://*)
@@ -53,10 +72,11 @@ require_https_url() {
   esac
 }
 
-if [ "${GIN_MODE:-}" != "release" ]; then
-  fail "GIN_MODE must be release"
+gin_mode="$(env_value GIN_MODE)"
+if [ "$gin_mode" != "release" ]; then
+	fail "GIN_MODE must be release"
 else
-  ok "GIN_MODE is release"
+	ok "GIN_MODE is release"
 fi
 
 require_var MONGODB_URI
@@ -66,10 +86,11 @@ require_https_url IDOL_AUTH_ISSUER_URL
 require_var IDOL_AUTH_CLIENT_ID
 require_var CORS_ALLOWED_ORIGINS
 
-if [ -n "${CORS_ALLOWED_ORIGINS:-}" ]; then
-  old_ifs="$IFS"
-  IFS=","
-  for origin in $CORS_ALLOWED_ORIGINS; do
+cors_allowed_origins="$(env_value CORS_ALLOWED_ORIGINS)"
+if [ -n "$cors_allowed_origins" ]; then
+	old_ifs="$IFS"
+	IFS=","
+	for origin in $cors_allowed_origins; do
     IFS="$old_ifs"
     origin="$(printf '%s' "$origin" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     if [ -z "$origin" ]; then
@@ -107,8 +128,9 @@ if [ -n "${CORS_ALLOWED_ORIGINS:-}" ]; then
   IFS="$old_ifs"
 fi
 
-if [ -n "${TRUSTED_PROXIES:-}" ]; then
-  ok "TRUSTED_PROXIES is set"
+trusted_proxies="$(env_value TRUSTED_PROXIES)"
+if [ -n "$trusted_proxies" ]; then
+	ok "TRUSTED_PROXIES is set"
 else
   printf 'WARN: TRUSTED_PROXIES is empty. This is OK only when the app is not behind a trusted reverse proxy.\n' >&2
 fi
