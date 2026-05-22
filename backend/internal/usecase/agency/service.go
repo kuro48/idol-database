@@ -50,6 +50,9 @@ func (u *Usecase) GetAgency(ctx context.Context, query GetAgencyQuery) (*AgencyD
 // ListAgencies は事務所一覧を取得する（ページネーション付き）
 func (u *Usecase) ListAgencies(ctx context.Context, query ListAgenciesQuery) (*AgencySearchResult, error) {
 	query.Normalize()
+	if err := query.Validate(); err != nil {
+		return nil, err
+	}
 
 	result, err := u.appService.ListAgenciesWithPagination(ctx, domain.SearchOptions{
 		Name:    query.Name,

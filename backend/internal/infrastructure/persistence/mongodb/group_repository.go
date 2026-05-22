@@ -51,7 +51,7 @@ func (r *GroupRepository) FindWithPagination(ctx context.Context, opts group.Sea
 	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
 	if opts.Name != nil {
-		filter["name"] = bson.M{"$regex": *opts.Name, "$options": "i"}
+		filter["name"] = bson.M{"$regex": safePartialMatchRegex(*opts.Name), "$options": "i"}
 	}
 
 	total, err := r.collection.CountDocuments(ctx, filter)

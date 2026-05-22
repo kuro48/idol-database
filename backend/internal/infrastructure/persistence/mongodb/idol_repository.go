@@ -14,12 +14,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// regexMetachars はMongoDBの正規表現で特殊な意味を持つ文字
-var regexMetachars = regexp.MustCompile(`([.+*?()\[\]{}\\^$|])`)
-
-// escapeRegex はユーザー入力文字列をMongoDBのregexクエリで安全に使えるようエスケープする
-func escapeRegex(s string) string {
-	return regexMetachars.ReplaceAllString(s, `\$1`)
+// safePartialMatchRegex はユーザー入力文字列をMongoDBのregexクエリで安全に使えるようエスケープする。
+func safePartialMatchRegex(s string) string {
+	return regexp.QuoteMeta(s)
 }
 
 // IdolRepository はMongoDBを使用したアイドルリポジトリの実装
@@ -455,7 +452,7 @@ func buildMongoFilter(criteria idol.SearchCriteria) bson.M {
 	// 名前検索（部分一致）: name フィールドまたは aliases フィールドにマッチ
 	// ReDoS対策として正規表現メタ文字をエスケープする
 	if criteria.Name != nil {
-		nameRegex := bson.M{"$regex": escapeRegex(*criteria.Name), "$options": "i"}
+		nameRegex := bson.M{"$regex": safePartialMatchRegex(*criteria.Name), "$options": "i"}
 		filter["$or"] = bson.A{
 			bson.M{"name": nameRegex},
 			bson.M{"aliases": nameRegex},

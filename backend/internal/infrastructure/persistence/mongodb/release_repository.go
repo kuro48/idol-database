@@ -486,7 +486,7 @@ func buildReleaseFilter(criteria release.SearchCriteria) bson.M {
 	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
 	if criteria.Title != nil {
-		titleRegex := bson.M{"$regex": escapeRegex(*criteria.Title), "$options": "i"}
+		titleRegex := bson.M{"$regex": safePartialMatchRegex(*criteria.Title), "$options": "i"}
 		filter["$or"] = bson.A{
 			bson.M{"title": titleRegex},
 			bson.M{"aliases": titleRegex},

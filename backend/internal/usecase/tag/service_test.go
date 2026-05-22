@@ -50,7 +50,8 @@ func (a *tagAppAdapter) SearchTags(ctx context.Context, criteria domaintag.Searc
 
 // inMemoryTagRepo はテスト用インメモリリポジトリ
 type inMemoryTagRepo struct {
-	data map[string]*domaintag.Tag
+	data         map[string]*domaintag.Tag
+	lastCriteria domaintag.SearchCriteria
 }
 
 func newInMemoryTagRepo() *inMemoryTagRepo {
@@ -100,6 +101,7 @@ func (r *inMemoryTagRepo) FindByCategory(_ context.Context, cat domaintag.TagCat
 }
 
 func (r *inMemoryTagRepo) Search(_ context.Context, criteria domaintag.SearchCriteria) ([]*domaintag.Tag, int64, error) {
+	r.lastCriteria = criteria
 	var result []*domaintag.Tag
 	for _, t := range r.data {
 		if criteria.Name != nil && t.Name().String() != *criteria.Name {
@@ -129,6 +131,12 @@ func newTagUsecase() ucTag.TagUseCase {
 	repo := newInMemoryTagRepo()
 	appSvc := appTag.NewApplicationService(repo)
 	return ucTag.NewUsecase(&tagAppAdapter{svc: appSvc})
+}
+
+func newTagUsecaseWithRepo() (ucTag.TagUseCase, *inMemoryTagRepo) {
+	repo := newInMemoryTagRepo()
+	appSvc := appTag.NewApplicationService(repo)
+	return ucTag.NewUsecase(&tagAppAdapter{svc: appSvc}), repo
 }
 
 func TestCreateTag(t *testing.T) {
@@ -225,4 +233,16 @@ func TestSearchTags(t *testing.T) {
 	result, err := uc.SearchTags(ctx, ucTag.SearchQuery{Page: 1, Limit: 20}, "/api/v1/tags")
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), result.Meta.Total)
+}
+
+func TestSearchTags_ClampsLimit(t *testing.T) {
+	uc, repo := newTagUsecaseWithRepo()
+	ctx := context.Background()
+
+	result, err := uc.SearchTags(ctx, ucTag.SearchQuery{Page: 1, Limit: 1000}, "/api/v1/tags")
+
+	require.NoError(t, err)
+	assert.Equal(t, 100, result.Meta.PerPage)
+	assert.Equal(t, 100, repo.lastCriteria.Limit)
+	assert.Equal(t, "/api/v1/tags?page=1&limit=100", result.Links.First)
 }
