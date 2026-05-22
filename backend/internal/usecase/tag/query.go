@@ -14,10 +14,22 @@ type SearchQuery struct {
 
 // ToCriteria はクエリをドメインの検索条件に変換する
 func (q SearchQuery) ToCriteria() (tag.SearchCriteria, error) {
+	page := q.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := q.Limit
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
 	criteria := tag.SearchCriteria{
 		Name:  q.Name,
-		Page:  q.Page,
-		Limit: q.Limit,
+		Page:  page,
+		Limit: limit,
 	}
 
 	if q.Category != nil && *q.Category != "" {

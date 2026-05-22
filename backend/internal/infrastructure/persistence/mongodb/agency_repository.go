@@ -101,7 +101,7 @@ func (r *AgencyRepository) FindWithPagination(ctx context.Context, opts agency.S
 	filter := bson.M{"is_deleted": bson.M{"$ne": true}}
 
 	if opts.Name != nil {
-		filter["name"] = bson.M{"$regex": *opts.Name, "$options": "i"}
+		filter["name"] = bson.M{"$regex": safePartialMatchRegex(*opts.Name), "$options": "i"}
 	}
 	if opts.Country != nil {
 		filter["country"] = *opts.Country

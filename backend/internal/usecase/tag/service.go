@@ -80,6 +80,9 @@ func (u *Usecase) SearchTags(ctx context.Context, query SearchQuery, baseURL str
 	if limit < 1 {
 		limit = 20
 	}
+	if limit > 100 {
+		limit = 100
+	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(limit)))
 
@@ -92,6 +95,8 @@ func (u *Usecase) SearchTags(ctx context.Context, query SearchQuery, baseURL str
 		HasPrev:    page > 1,
 	}
 
+	query.Page = page
+	query.Limit = limit
 	links := buildPaginationLinks(baseURL, query, totalPages)
 
 	return SearchResult{

@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"log/slog"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +26,7 @@ func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
-		query := c.Request.URL.RawQuery
+		query := sanitizeRawQuery(c.Request.URL.RawQuery)
 
 		// リクエストIDを生成してコンテキストに設定
 		requestID := generateRequestID()
@@ -61,5 +63,30 @@ func Logger() gin.HandlerFunc {
 				)
 			}
 		}
+	}
+}
+
+func sanitizeRawQuery(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	values, err := url.ParseQuery(raw)
+	if err != nil {
+		return "[invalid-query]"
+	}
+	for key := range values {
+		if isSensitiveQueryKey(key) {
+			values[key] = []string{"[REDACTED]"}
+		}
+	}
+	return values.Encode()
+}
+
+func isSensitiveQueryKey(key string) bool {
+	switch strings.ToLower(key) {
+	case "access_token", "token", "id_token", "api_key", "key", "email":
+		return true
+	default:
+		return false
 	}
 }

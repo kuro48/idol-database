@@ -251,7 +251,7 @@ func (r *TagRepository) Search(ctx context.Context, criteria tag.SearchCriteria)
 
 	// 名前による部分一致検索
 	if criteria.Name != nil && *criteria.Name != "" {
-		filter["name"] = bson.M{"$regex": *criteria.Name, "$options": "i"}
+		filter["name"] = bson.M{"$regex": safePartialMatchRegex(*criteria.Name), "$options": "i"}
 	}
 
 	// カテゴリフィルタ
@@ -273,6 +273,9 @@ func (r *TagRepository) Search(ctx context.Context, criteria tag.SearchCriteria)
 	limit := criteria.Limit
 	if limit < 1 {
 		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
 	}
 
 	skip := int64((page - 1) * limit)

@@ -1,5 +1,7 @@
 package group
 
+import "errors"
+
 // GetGroupQuery はグループ取得クエリ
 type GetGroupQuery struct {
 	ID string
@@ -41,6 +43,32 @@ func (q *ListGroupQuery) Normalize() {
 		defaultOrder := "desc"
 		q.Order = &defaultOrder
 	}
+}
+
+// Validate は検索条件の許可リスト検証を行う。
+func (q *ListGroupQuery) Validate() error {
+	if q.Sort != nil {
+		allowedSorts := []string{"name", "formation_date", "created_at"}
+		if !contains(allowedSorts, *q.Sort) {
+			return errors.New("無効なソート項目です")
+		}
+	}
+	if q.Order != nil {
+		allowedOrders := []string{"asc", "desc"}
+		if !contains(allowedOrders, *q.Order) {
+			return errors.New("無効なソート順です")
+		}
+	}
+	return nil
+}
+
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
 
 // GroupDTO はグループのデータ転送オブジェクト

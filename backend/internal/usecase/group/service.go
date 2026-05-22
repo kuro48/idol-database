@@ -46,6 +46,9 @@ func (u *Usecase) GetGroup(ctx context.Context, query GetGroupQuery) (*GroupDTO,
 // ListGroup はグループ一覧を取得する（ページネーション付き）
 func (u *Usecase) ListGroup(ctx context.Context, query ListGroupQuery) (*GroupSearchResult, error) {
 	query.Normalize()
+	if err := query.Validate(); err != nil {
+		return nil, err
+	}
 
 	result, err := u.appService.ListGroupWithPagination(ctx, domain.SearchOptions{
 		Name:  query.Name,
