@@ -10,7 +10,7 @@ cd "$repo_root"
 
 mkdir -p "$payload_dir/backend/scripts" "$payload_dir/backend/static" "$payload_dir/frontend"
 
-cp docker-compose.yml .env.example .gitignore "$payload_dir"/
+cp docker-compose.yml .env.example .gitignore deploy.sh "$payload_dir"/
 
 cp backend/Dockerfile backend/.dockerignore backend/go.mod backend/go.sum "$payload_dir/backend"/
 rsync -a --exclude='*_test.go' backend/cmd "$payload_dir/backend"/
