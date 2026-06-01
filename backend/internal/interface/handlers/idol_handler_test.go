@@ -29,14 +29,6 @@ func (m *MockIdolUseCase) CreateIdol(ctx context.Context, cmd idol.CreateIdolCom
 	return args.Get(0).(*idol.IdolDTO), args.Error(1)
 }
 
-func (m *MockIdolUseCase) BulkCreateIdols(ctx context.Context, cmds []idol.CreateIdolCommand) (*idol.BulkResult, error) {
-	args := m.Called(ctx, cmds)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*idol.BulkResult), args.Error(1)
-}
-
 func (m *MockIdolUseCase) GetIdol(ctx context.Context, query idol.GetIdolQuery) (*idol.IdolDTO, error) {
 	args := m.Called(ctx, query)
 	if args.Get(0) == nil {

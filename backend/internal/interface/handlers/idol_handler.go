@@ -307,52 +307,6 @@ func (h *IdolHandler) GetDuplicateCandidates(c *gin.Context) {
 	})
 }
 
-// BulkCreateIdolsRequest はバルクアイドル作成リクエスト（JSONL: JSON Lines形式）
-type BulkCreateIdolsRequest struct {
-	Idols []struct {
-		Name      string  `json:"name" binding:"required,min=1,max=100"`
-		Birthdate *string `json:"birthdate"`
-		AgencyID  *string `json:"agency_id"`
-	} `json:"idols" binding:"required,min=1,max=100"`
-}
-
-// BulkCreateIdols はアイドルを一括作成する（最大100件）
-// @Summary      アイドル一括作成
-// @Description  複数のアイドルを一括作成する（write認証必須、最大100件）
-// @Tags         idols
-// @Accept       json
-// @Produce      json
-// @Param        request body BulkCreateIdolsRequest true "バルク作成リクエスト"
-// @Success      200 {object} idol.BulkResult
-// @Failure      400 {object} middleware.ErrorResponse
-// @Failure      500 {object} middleware.ErrorResponse
-// @Router       /idols/bulk [post]
-func (h *IdolHandler) BulkCreateIdols(c *gin.Context) {
-	var req BulkCreateIdolsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
-		return
-	}
-
-	cmds := make([]idol.CreateIdolCommand, len(req.Idols))
-	for i, item := range req.Idols {
-		cmds[i] = idol.CreateIdolCommand{
-			Name:      item.Name,
-			Birthdate: item.Birthdate,
-			AgencyID:  item.AgencyID,
-		}
-	}
-
-	result, err := h.usecase.BulkCreateIdols(middleware.AuditContextFor(c), cmds)
-	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "バルク作成処理中にエラーが発生しました"})
-		return
-	}
-
-	// 部分成功の場合は200を返す（全失敗でも200 + error_count > 0）
-	c.JSON(http.StatusOK, result)
-}
-
 // GetExternalIDs はアイドルの外部IDマッピングを取得する
 // @Summary      外部IDマッピング取得
 // @Description  アイドルの外部サービスIDマッピングを取得する

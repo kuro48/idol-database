@@ -33,6 +33,17 @@ func TestFreeAPIKeyRouteIsDisabled(t *testing.T) {
 	}
 }
 
+func TestIdolBulkCreateRouteIsDisabled(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("main.go を読み込めません: %v", err)
+	}
+
+	if strings.Contains(string(source), `POST("/bulk"`) {
+		t.Fatal("アイドル一括作成ルートを公開してはいけません")
+	}
+}
+
 func TestLegacyFrontendShellRoutesAreDevelopmentOnly(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {

@@ -486,7 +486,6 @@ func main() {
 		idolsWrite := v1.Group("/idols", writeAuth)
 		{
 			idolsWrite.POST("", idolHandler.CreateIdol)                        // 新規作成
-			idolsWrite.POST("/bulk", idolHandler.BulkCreateIdols)              // バルク作成
 			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                     // 更新
 			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                  // 削除
 			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
