@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
@@ -74,8 +74,24 @@ func (h *TermHandler) ShowPrivacyPolicy(c *gin.Context) {
 
 // readTermFile は利用規約ファイルを読み込む
 func (h *TermHandler) readTermFile(filename string) (string, error) {
-	filePath := filepath.Join(h.staticPath, "terms", filename)
-	content, err := os.ReadFile(filePath)
+	switch filename {
+	case "terms_of_service.md", "privacy_policy.md":
+	default:
+		return "", os.ErrNotExist
+	}
+	root, err := os.OpenRoot(h.staticPath)
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+
+	file, err := root.Open("terms/" + filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
 	if err != nil {
 		return "", err
 	}

@@ -15,7 +15,7 @@ type webhookService interface {
 	CreateSubscription(ctx context.Context, url string, events []webhook.EventType, createdBy string) (*webhook.Subscription, error)
 	ListSubscriptions(ctx context.Context) ([]*webhook.Subscription, error)
 	DeleteSubscription(ctx context.Context, id string) error
-	VerifyWebhookRequest(ctx context.Context, subscriptionID, signature string, payload []byte) error
+	VerifyWebhookRequest(ctx context.Context, subscriptionID, signature, timestamp, nonce string, payload []byte) error
 }
 
 // WebhookHandler はWebhook管理ハンドラー
@@ -128,6 +128,8 @@ func (h *WebhookHandler) DeleteSubscription(c *gin.Context) {
 // @Produce      json
 // @Param        subscription_id path string true "サブスクリプションID"
 // @Param        X-Webhook-Signature header string true "Webhook署名"
+// @Param        X-Webhook-Timestamp header string true "Unix timestamp"
+// @Param        X-Webhook-Nonce header string true "Replay prevention nonce"
 // @Success      200 {object} map[string]string
 // @Failure      400 {object} middleware.ErrorResponse
 // @Failure      401 {object} middleware.ErrorResponse
@@ -145,6 +147,16 @@ func (h *WebhookHandler) ReceiveWebhook(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
 		return
 	}
+	timestamp := c.GetHeader("X-Webhook-Timestamp")
+	if timestamp == "" {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
+	nonce := c.GetHeader("X-Webhook-Nonce")
+	if nonce == "" {
+		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
+		return
+	}
 
 	// リクエストボディを読み取る
 	body, err := io.ReadAll(c.Request.Body)
@@ -154,7 +166,7 @@ func (h *WebhookHandler) ReceiveWebhook(c *gin.Context) {
 	}
 
 	// 署名検証
-	if err := h.appService.VerifyWebhookRequest(c.Request.Context(), subscriptionID, signature, body); err != nil {
+	if err := h.appService.VerifyWebhookRequest(c.Request.Context(), subscriptionID, signature, timestamp, nonce, body); err != nil {
 		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
 		return
 	}

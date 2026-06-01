@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	appBilling "github.com/kuro48/idol-api/internal/application/billing"
@@ -20,12 +22,28 @@ type BillingService interface {
 
 // BillingHandler は Stripe 課金導線の HTTP ハンドラー。
 type BillingHandler struct {
-	service BillingService
+	service                BillingService
+	allowedRedirectOrigins map[string]struct{}
 }
 
 // NewBillingHandler は BillingHandler を作成する。
 func NewBillingHandler(service BillingService) *BillingHandler {
 	return &BillingHandler{service: service}
+}
+
+// NewBillingHandlerWithAllowedRedirectOrigins は Checkout/Portal の戻り先URLを許可originに制限する。
+func NewBillingHandlerWithAllowedRedirectOrigins(service BillingService, origins []string) *BillingHandler {
+	allowed := make(map[string]struct{}, len(origins))
+	for _, origin := range origins {
+		normalized := normalizeOrigin(origin)
+		if normalized != "" {
+			allowed[normalized] = struct{}{}
+		}
+	}
+	return &BillingHandler{
+		service:                service,
+		allowedRedirectOrigins: allowed,
+	}
 }
 
 type createCheckoutSessionRequest struct {
@@ -66,6 +84,10 @@ func (h *BillingHandler) CreateCheckoutSession(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
 		return
 	}
+	if !h.isAllowedRedirectURL(req.SuccessURL) || !h.isAllowedRedirectURL(req.CancelURL) {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リダイレクトURLのoriginが許可されていません"))
+		return
+	}
 
 	result, err := h.service.CreateCheckoutSession(c.Request.Context(), appBilling.CreateCheckoutSessionInput{
 		Email:      req.Email,
@@ -96,7 +118,7 @@ func (h *BillingHandler) CreateCheckoutSession(c *gin.Context) {
 // @Failure     500 {object} middleware.ErrorResponse
 // @Router      /billing/portal-sessions [post]
 func (h *BillingHandler) CreatePortalSession(c *gin.Context) {
-	email := c.GetString(middleware.CtxKeyAPIKeyEmail)
+	email := c.GetString(middleware.CtxPlanEmail)
 	if email == "" {
 		c.JSON(http.StatusUnauthorized, middleware.NewUnauthorizedError())
 		return
@@ -105,6 +127,10 @@ func (h *BillingHandler) CreatePortalSession(c *gin.Context) {
 	var req createPortalSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
+		return
+	}
+	if !h.isAllowedRedirectURL(req.ReturnURL) {
+		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リダイレクトURLのoriginが許可されていません"))
 		return
 	}
 
@@ -150,4 +176,24 @@ func (h *BillingHandler) HandleStripeWebhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (h *BillingHandler) isAllowedRedirectURL(raw string) bool {
+	if len(h.allowedRedirectOrigins) == 0 {
+		return true
+	}
+	origin := normalizeOrigin(raw)
+	if origin == "" {
+		return false
+	}
+	_, ok := h.allowedRedirectOrigins[origin]
+	return ok
+}
+
+func normalizeOrigin(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+		return ""
+	}
+	return "https://" + strings.ToLower(parsed.Host)
 }

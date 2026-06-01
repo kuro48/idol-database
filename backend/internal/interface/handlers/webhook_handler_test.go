@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -78,8 +80,10 @@ func (r *stubDeliveryRepo) FindPendingRetries(_ context.Context) ([]*webhook.Del
 }
 
 // computeTestSignature はテスト用にHMAC-SHA256署名を計算する
-func computeTestSignature(secret string, payload []byte) string {
+func computeTestSignature(secret string, timestamp string, payload []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(timestamp))
+	mac.Write([]byte("."))
 	mac.Write(payload)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
@@ -101,8 +105,14 @@ func (a *webhookAppAdapter) DeleteSubscription(ctx context.Context, id string) e
 	return a.svc.DeleteSubscription(ctx, id)
 }
 
-func (a *webhookAppAdapter) VerifyWebhookRequest(ctx context.Context, subscriptionID, signature string, payload []byte) error {
-	return a.svc.VerifyWebhookRequest(ctx, subscriptionID, signature, payload)
+func (a *webhookAppAdapter) VerifyWebhookRequest(ctx context.Context, subscriptionID, signature, timestamp, nonce string, payload []byte) error {
+	return a.svc.VerifyWebhookRequest(ctx, appWebhook.VerifyWebhookRequestInput{
+		SubscriptionID: subscriptionID,
+		Signature:      signature,
+		Timestamp:      timestamp,
+		Nonce:          nonce,
+		Payload:        payload,
+	})
 }
 
 func setupTestRouter() (*gin.Engine, *stubSubscriptionRepo) {
@@ -149,6 +159,8 @@ func TestReceiveWebhook_InvalidSignature(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/receive/test-sub-id-2", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Webhook-Signature", "sha256=invalidsignature")
+	req.Header.Set("X-Webhook-Timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	req.Header.Set("X-Webhook-Nonce", "nonce-invalid-signature")
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -166,11 +178,14 @@ func TestReceiveWebhook_ValidSignature(t *testing.T) {
 	require.NoError(t, err)
 
 	body := []byte(`{"event":"idol.created"}`)
-	signature := computeTestSignature(secret, body)
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := computeTestSignature(secret, timestamp, body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/receive/test-sub-id-3", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Webhook-Signature", signature)
+	req.Header.Set("X-Webhook-Timestamp", timestamp)
+	req.Header.Set("X-Webhook-Nonce", "nonce-valid-signature")
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -185,9 +200,55 @@ func TestReceiveWebhook_SubscriptionNotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/receive/nonexistent-id", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Webhook-Signature", "sha256=somesignature")
+	req.Header.Set("X-Webhook-Timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	req.Header.Set("X-Webhook-Nonce", "nonce-subscription-not-found")
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestReceiveWebhook_NoTimestampHeader(t *testing.T) {
+	router, subRepo := setupTestRouter()
+
+	secret := "valid-secret-for-test"
+	sub := webhook.NewSubscription("test-sub-id-4", "https://example.com", secret, []webhook.EventType{webhook.EventIdolCreated}, "test")
+	require.NoError(t, subRepo.Save(context.Background(), sub))
+
+	body := []byte(`{"event":"idol.created"}`)
+	signature := computeTestSignature(secret, strconv.FormatInt(time.Now().Unix(), 10), body)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/receive/test-sub-id-4", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Webhook-Signature", signature)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestReceiveWebhook_ReplayNonceRejected(t *testing.T) {
+	router, subRepo := setupTestRouter()
+
+	secret := "valid-secret-for-test"
+	sub := webhook.NewSubscription("test-sub-id-5", "https://example.com", secret, []webhook.EventType{webhook.EventIdolCreated}, "test")
+	require.NoError(t, subRepo.Save(context.Background(), sub))
+
+	body := []byte(`{"event":"idol.created"}`)
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := computeTestSignature(secret, timestamp, body)
+
+	for i, expected := range []int{http.StatusOK, http.StatusUnauthorized} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/receive/test-sub-id-5", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Webhook-Signature", signature)
+		req.Header.Set("X-Webhook-Timestamp", timestamp)
+		req.Header.Set("X-Webhook-Nonce", "nonce-replay")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, expected, w.Code, "request %d", i+1)
+	}
 }

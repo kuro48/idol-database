@@ -49,10 +49,22 @@ func setupBillingRouter(service handlers.BillingService) *gin.Engine {
 	h := handlers.NewBillingHandler(service)
 	router.POST("/billing/checkout-sessions", h.CreateCheckoutSession)
 	router.POST("/billing/portal-sessions", func(c *gin.Context) {
-		c.Set(middleware.CtxKeyAPIKeyEmail, "paid@example.com")
+		c.Set(middleware.CtxPlanEmail, "paid@example.com")
 		h.CreatePortalSession(c)
 	})
 	router.POST("/billing/webhooks/stripe", h.HandleStripeWebhook)
+	return router
+}
+
+func setupBillingRouterWithRedirectOrigins(service handlers.BillingService, origins []string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	h := handlers.NewBillingHandlerWithAllowedRedirectOrigins(service, origins)
+	router.POST("/billing/checkout-sessions", h.CreateCheckoutSession)
+	router.POST("/billing/portal-sessions", func(c *gin.Context) {
+		c.Set(middleware.CtxPlanEmail, "paid@example.com")
+		h.CreatePortalSession(c)
+	})
 	return router
 }
 
@@ -98,6 +110,46 @@ func TestCreatePortalSession_UsesAuthenticatedEmail(t *testing.T) {
 	require.NotNil(t, service.portalInput)
 	assert.Equal(t, "paid@example.com", service.portalInput.Email)
 	assert.Equal(t, "https://example.com/account", service.portalInput.ReturnURL)
+}
+
+func TestCreateCheckoutSession_RejectsUntrustedRedirectOrigin(t *testing.T) {
+	t.Parallel()
+
+	service := &stubBillingService{}
+	router := setupBillingRouterWithRedirectOrigins(service, []string{"https://app.example.com"})
+
+	body := `{
+		"email":"paid@example.com",
+		"name":"Paid App",
+		"plan_type":"developer",
+		"success_url":"https://evil.example.com/success",
+		"cancel_url":"https://app.example.com/cancel"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/billing/checkout-sessions", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Nil(t, service.checkoutInput)
+}
+
+func TestCreatePortalSession_RejectsUntrustedReturnOrigin(t *testing.T) {
+	t.Parallel()
+
+	service := &stubBillingService{}
+	router := setupBillingRouterWithRedirectOrigins(service, []string{"https://app.example.com"})
+
+	body := `{"return_url":"https://evil.example.com/account"}`
+	req := httptest.NewRequest(http.MethodPost, "/billing/portal-sessions", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Nil(t, service.portalInput)
 }
 
 func TestHandleStripeWebhook_UsesRawBodyAndSignature(t *testing.T) {

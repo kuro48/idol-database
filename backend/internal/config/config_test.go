@@ -195,6 +195,44 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, "CORS_ALLOWED_ORIGINS", valErr.Field)
 	})
 
+	t.Run("release mode rejects insecure auth URL", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "8081")
+		t.Setenv("GIN_MODE", "release")
+		t.Setenv("IDOL_AUTH_URL", "http://auth.example.com")
+		t.Setenv("IDOL_AUTH_ISSUER_URL", "https://issuer.example.com")
+		t.Setenv("IDOL_AUTH_CLIENT_ID", "idol-db-frontend")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com")
+
+		cfg, err := Load()
+
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+		var valErr *ValidationError
+		assert.ErrorAs(t, err, &valErr)
+		assert.Equal(t, "IDOL_AUTH_URL", valErr.Field)
+	})
+
+	t.Run("release mode rejects insecure auth issuer URL", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", "mongodb://test:test@localhost:27017")
+		t.Setenv("MONGODB_DATABASE", "test_database")
+		t.Setenv("SERVER_PORT", "8081")
+		t.Setenv("GIN_MODE", "release")
+		t.Setenv("IDOL_AUTH_URL", "https://auth.example.com")
+		t.Setenv("IDOL_AUTH_ISSUER_URL", "http://issuer.example.com")
+		t.Setenv("IDOL_AUTH_CLIENT_ID", "idol-db-frontend")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com")
+
+		cfg, err := Load()
+
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+		var valErr *ValidationError
+		assert.ErrorAs(t, err, &valErr)
+		assert.Equal(t, "IDOL_AUTH_ISSUER_URL", valErr.Field)
+	})
+
 	t.Run("public mutation rate limit defaults are restrictive", func(t *testing.T) {
 		t.Setenv("PUBLIC_MUTATION_RATE_LIMIT_RPS", "")
 		t.Setenv("PUBLIC_MUTATION_RATE_LIMIT_BURST", "")

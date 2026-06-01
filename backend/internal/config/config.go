@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -177,10 +178,22 @@ func (c *Config) Validate() error {
 			Message: "本番環境では IDOL_AUTH_URL の設定が必須です",
 		}
 	}
+	if c.GinMode == "release" && !isHTTPSURL(c.IdolAuthURL) {
+		return &ValidationError{
+			Field:   "IDOL_AUTH_URL",
+			Message: "本番環境では IDOL_AUTH_URL は https URL である必要があります",
+		}
+	}
 	if c.GinMode == "release" && c.IdolAuthIssuerURL == "" {
 		return &ValidationError{
 			Field:   "IDOL_AUTH_ISSUER_URL",
 			Message: "本番環境では IDOL_AUTH_ISSUER_URL の設定が必須です",
+		}
+	}
+	if c.GinMode == "release" && !isHTTPSURL(c.IdolAuthIssuerURL) {
+		return &ValidationError{
+			Field:   "IDOL_AUTH_ISSUER_URL",
+			Message: "本番環境では IDOL_AUTH_ISSUER_URL は https URL である必要があります",
 		}
 	}
 	if c.GinMode == "release" && c.IdolAuthClientID == "" {
@@ -232,4 +245,9 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func isHTTPSURL(raw string) bool {
+	parsed, err := url.Parse(raw)
+	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
 }

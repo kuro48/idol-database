@@ -56,3 +56,5 @@ CLAUDE.md
 backend/docs/docs.go
 backend/docs/swagger.json
 backend/docs/swagger.yaml
+
+*.log
