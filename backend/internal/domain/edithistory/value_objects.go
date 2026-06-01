@@ -25,7 +25,6 @@ const (
 	EntityTypeAgency     EntityType = "agency"
 	EntityTypeEvent      EntityType = "event"
 	EntityTypeRelease    EntityType = "release"
-	EntityTypeSong       EntityType = "song"
 	EntityTypeVenue      EntityType = "venue"
 	EntityTypeMembership EntityType = "membership"
 )
@@ -33,7 +32,7 @@ const (
 func NewEntityType(value string) (EntityType, error) {
 	switch EntityType(value) {
 	case EntityTypeIdol, EntityTypeGroup, EntityTypeAgency, EntityTypeEvent,
-		EntityTypeRelease, EntityTypeSong, EntityTypeVenue, EntityTypeMembership:
+		EntityTypeRelease, EntityTypeVenue, EntityTypeMembership:
 		return EntityType(value), nil
 	}
 	return "", errors.New("無効なエンティティ種別です")

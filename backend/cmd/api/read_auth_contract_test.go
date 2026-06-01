@@ -77,6 +77,17 @@ func TestIdolDuplicateCandidateRouteIsDisabled(t *testing.T) {
 	}
 }
 
+func TestSongsRouteIsDisabled(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("main.go を読み込めません: %v", err)
+	}
+
+	if strings.Contains(string(source), `Group("/songs"`) {
+		t.Fatal("楽曲は Release.tracks に寄せ、/songs ルートを公開してはいけません")
+	}
+}
+
 func TestLegacyFrontendShellRoutesAreDevelopmentOnly(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {
