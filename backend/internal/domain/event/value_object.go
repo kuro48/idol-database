@@ -79,6 +79,63 @@ func (t EventType) Value() string {
 	return t.value
 }
 
+// EventStatus はイベントの状態
+type EventStatus string
+
+const (
+	EventStatusScheduled EventStatus = "scheduled"
+	EventStatusCancelled EventStatus = "cancelled"
+	EventStatusPostponed EventStatus = "postponed"
+	EventStatusCompleted EventStatus = "completed"
+)
+
+func NewEventStatus(value string) (EventStatus, error) {
+	switch EventStatus(value) {
+	case EventStatusScheduled, EventStatusCancelled, EventStatusPostponed, EventStatusCompleted:
+		return EventStatus(value), nil
+	}
+	return "", errors.New("無効なイベントステータスです")
+}
+
+func (s EventStatus) IsValid() bool {
+	_, err := NewEventStatus(string(s))
+	return err == nil
+}
+
+// BillingStatus はパフォーマーのビリングステータス
+type BillingStatus string
+
+const (
+	BillingStatusHeadliner    BillingStatus = "headliner"
+	BillingStatusSupport      BillingStatus = "support"
+	BillingStatusSpecialGuest BillingStatus = "special_guest"
+	BillingStatusUnknown      BillingStatus = "unknown"
+)
+
+func NewBillingStatus(value string) BillingStatus {
+	switch BillingStatus(value) {
+	case BillingStatusHeadliner, BillingStatusSupport, BillingStatusSpecialGuest:
+		return BillingStatus(value)
+	}
+	return BillingStatusUnknown
+}
+
+// Performer はイベントへの出演者
+type Performer struct {
+	PerformerID   string
+	BillingStatus BillingStatus
+}
+
+func NewPerformer(performerID string, billingStatus string) (Performer, error) {
+	if performerID == "" {
+		return Performer{}, errors.New("パフォーマーIDは空にできません")
+	}
+	return Performer{
+		PerformerID:   performerID,
+		BillingStatus: NewBillingStatus(billingStatus),
+	}, nil
+}
+
 // contains はスライスに要素が含まれているかチェック
 func contains(slice []string, item string) bool {
 	for _, s := range slice {

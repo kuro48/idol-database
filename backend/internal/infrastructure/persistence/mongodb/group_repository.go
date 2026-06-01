@@ -139,18 +139,26 @@ func NewGroupRepository(db *mongo.Database) *GroupRepository {
 }
 
 type groupDocument struct {
-	ID            bson.ObjectID `bson:"_id,omitempty"`
-	Name          string        `bson:"name"`
-	FormationDate *time.Time    `bson:"formation_date,omitempty"`
-	DisbandDate   *time.Time    `bson:"disband_date,omitempty"`
-	CreatedAt     time.Time     `bson:"created_at"`
-	UpdatedAt     time.Time     `bson:"updated_at"`
-	CreatedBy     string        `bson:"created_by,omitempty"`
-	UpdatedBy     string        `bson:"updated_by,omitempty"`
-	Source        string        `bson:"source,omitempty"`
-	IsDeleted     bool          `bson:"is_deleted,omitempty"`
-	DeletedAt     *time.Time    `bson:"deleted_at,omitempty"`
-	DeletedBy     string        `bson:"deleted_by,omitempty"`
+	ID            bson.ObjectID     `bson:"_id,omitempty"`
+	Name          string            `bson:"name"`
+	NameKana      *string           `bson:"name_kana,omitempty"`
+	NameLatin     *string           `bson:"name_latin,omitempty"`
+	Status        string            `bson:"status,omitempty"`
+	FormationDate *time.Time        `bson:"formation_date,omitempty"`
+	DisbandDate   *time.Time        `bson:"disband_date,omitempty"`
+	AgencyID      *string           `bson:"agency_id,omitempty"`
+	LogoURL       *string           `bson:"logo_url,omitempty"`
+	ExternalIDs   map[string]string `bson:"external_ids,omitempty"`
+	Sources       []sourceDocument  `bson:"sources,omitempty"`
+	Version       int               `bson:"version"`
+	CreatedAt     time.Time         `bson:"created_at"`
+	UpdatedAt     time.Time         `bson:"updated_at"`
+	CreatedBy     string            `bson:"created_by,omitempty"`
+	UpdatedBy     string            `bson:"updated_by,omitempty"`
+	Source        string            `bson:"source,omitempty"`
+	IsDeleted     bool              `bson:"is_deleted,omitempty"`
+	DeletedAt     *time.Time        `bson:"deleted_at,omitempty"`
+	DeletedBy     string            `bson:"deleted_by,omitempty"`
 }
 
 func toGroupDocument(g *group.Group) (*groupDocument, error) {
@@ -171,11 +179,27 @@ func toGroupDocument(g *group.Group) (*groupDocument, error) {
 		disbandDate = &t
 	}
 
+	var externalIDsDoc map[string]string
+	if extIDs := g.ExternalIDs(); !extIDs.IsEmpty() {
+		rawIDs := extIDs.All()
+		externalIDsDoc = make(map[string]string, len(rawIDs))
+		for k, v := range rawIDs {
+			externalIDsDoc[string(k)] = v
+		}
+	}
+
 	return &groupDocument{
 		ID:            objectID,
 		Name:          g.Name().Value(),
+		NameKana:      g.Name().Kana(),
+		NameLatin:     g.Name().Latin(),
+		Status:        string(g.Status()),
 		FormationDate: formationDate,
 		DisbandDate:   disbandDate,
+		AgencyID:      g.AgencyID(),
+		LogoURL:       g.LogoURL(),
+		ExternalIDs:   externalIDsDoc,
+		Sources:       toSourceDocuments(g.Sources()),
 		CreatedAt:     g.CreatedAt(),
 		UpdatedAt:     g.UpdatedAt(),
 	}, nil
@@ -187,12 +211,21 @@ func toGroupDomain(doc *groupDocument) (*group.Group, error) {
 		return nil, err
 	}
 
-	name, err := group.NewGroupName(doc.Name)
+	name, err := group.NewGroupNameFull(doc.Name, doc.NameKana, doc.NameLatin)
 	if err != nil {
 		return nil, err
 	}
 
-	// FormationDateの変換（nilの場合はnilのまま）
+	// 既存ドキュメントに status がない場合は active とみなす
+	status := group.GroupStatusActive
+	if doc.Status != "" {
+		s, err := group.NewGroupStatus(doc.Status)
+		if err != nil {
+			return nil, fmt.Errorf("無効なグループステータス %q: %w", doc.Status, err)
+		}
+		status = s
+	}
+
 	var formationDate *group.FormationDate
 	if doc.FormationDate != nil {
 		fdYear, fdMonth, fdDay := doc.FormationDate.Date()
@@ -203,7 +236,6 @@ func toGroupDomain(doc *groupDocument) (*group.Group, error) {
 		formationDate = &fd
 	}
 
-	// DisbandDateの変換（nilの場合はnilのまま）
 	var disbandDate *group.DisbandDate
 	if doc.DisbandDate != nil {
 		ddYear, ddMonth, ddDay := doc.DisbandDate.Date()
@@ -214,8 +246,20 @@ func toGroupDomain(doc *groupDocument) (*group.Group, error) {
 		disbandDate = &dd
 	}
 
-	return group.Reconstruct(id, name, formationDate, disbandDate, doc.CreatedAt, doc.UpdatedAt), nil
+	var externalIDs *group.ExternalIDs
+	if len(doc.ExternalIDs) > 0 {
+		typedIDs := make(map[group.ExternalIDKind]string, len(doc.ExternalIDs))
+		for k, v := range doc.ExternalIDs {
+			typedIDs[group.ExternalIDKind(k)] = v
+		}
+		externalIDs = group.ReconstructExternalIDs(typedIDs)
+	}
+
+	sources := fromSourceDocuments(doc.Sources)
+
+	return group.Reconstruct(id, name, status, formationDate, disbandDate, doc.AgencyID, doc.LogoURL, externalIDs, sources, doc.CreatedAt, doc.UpdatedAt), nil
 }
+
 
 func (r *GroupRepository) Save(ctx context.Context, g *group.Group) error {
 	doc, err := toGroupDocument(g)

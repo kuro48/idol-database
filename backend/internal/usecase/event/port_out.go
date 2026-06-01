@@ -18,6 +18,12 @@ type EventAppPort interface {
 	FindUpcoming(ctx context.Context, limit int) ([]*domain.Event, error)
 }
 
+// EventPerformerInput はパフォーマー入力データ
+type EventPerformerInput struct {
+	PerformerID   string
+	BillingStatus string
+}
+
 // EventCreateInput はイベント作成の入力
 type EventCreateInput struct {
 	Title         string
@@ -25,7 +31,7 @@ type EventCreateInput struct {
 	StartDateTime string
 	EndDateTime   *string
 	VenueID       *string
-	PerformerIDs  []string
+	Performers    []EventPerformerInput
 	TicketURL     *string
 	OfficialURL   *string
 	Description   *string
@@ -46,8 +52,9 @@ type EventUpdateInput struct {
 
 // EventAddPerformerInput はパフォーマー追加の入力
 type EventAddPerformerInput struct {
-	EventID     string
-	PerformerID string
+	EventID       string
+	PerformerID   string
+	BillingStatus string
 }
 
 // EventRemovePerformerInput はパフォーマー削除の入力

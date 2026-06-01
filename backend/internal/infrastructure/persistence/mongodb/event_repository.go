@@ -25,19 +25,27 @@ func NewEventRepository(db *mongo.Database) *EventRepository {
 	}
 }
 
+type performerDocument struct {
+	PerformerID   string `bson:"performer_id"`
+	BillingStatus string `bson:"billing_status"`
+}
+
 // eventDocument はMongoDBに保存するイベントドキュメント
 type eventDocument struct {
-	ID            string     `bson:"_id,omitempty"`
-	Title         string     `bson:"title"`
-	EventType     string     `bson:"event_type"`
-	StartDateTime time.Time  `bson:"start_date_time"`
-	EndDateTime   *time.Time `bson:"end_date_time,omitempty"`
-	VenueID       *string    `bson:"venue_id,omitempty"`
-	PerformerIDs  []string   `bson:"performer_ids"`
-	TicketURL     *string    `bson:"ticket_url,omitempty"`
-	OfficialURL   *string    `bson:"official_url,omitempty"`
-	Description   *string    `bson:"description,omitempty"`
-	Tags          []string   `bson:"tags"`
+	ID             string               `bson:"_id,omitempty"`
+	Title          string               `bson:"title"`
+	EventType      string               `bson:"event_type"`
+	Status         string               `bson:"status,omitempty"`
+	StartDateTime  time.Time            `bson:"start_date_time"`
+	EndDateTime    *time.Time           `bson:"end_date_time,omitempty"`
+	VenueID        *string              `bson:"venue_id,omitempty"`
+	Performers     []performerDocument  `bson:"performers,omitempty"`
+	PerformerIDs   []string             `bson:"performer_ids,omitempty"` // 旧フィールド（移行用）
+	TicketURL      *string              `bson:"ticket_url,omitempty"`
+	OfficialURL    *string              `bson:"official_url,omitempty"`
+	Description    *string              `bson:"description,omitempty"`
+	Tags           []string             `bson:"tags"`
+	Version       int        `bson:"version"`
 	CreatedAt     time.Time  `bson:"created_at"`
 	UpdatedAt     time.Time  `bson:"updated_at"`
 	CreatedBy     string     `bson:"created_by,omitempty"`
@@ -218,7 +226,10 @@ func (r *EventRepository) FindUpcoming(ctx context.Context, limit int) ([]*event
 // FindByPerformer はパフォーマーIDでイベントを検索する
 func (r *EventRepository) FindByPerformer(ctx context.Context, performerID string, limit int) ([]*event.Event, error) {
 	filter := bson.M{
-		"performer_ids": bson.M{"$in": []string{performerID}},
+		"$or": []bson.M{
+			{"performers.performer_id": performerID},
+			{"performer_ids": bson.M{"$in": []string{performerID}}},
+		},
 		"is_deleted":    bson.M{"$ne": true},
 	}
 
@@ -251,14 +262,22 @@ func (r *EventRepository) FindByPerformer(ctx context.Context, performerID strin
 
 // toEventDocument はドメインモデルをMongoDBドキュメントに変換する
 func toEventDocument(e *event.Event) *eventDocument {
+	performers := make([]performerDocument, 0, len(e.Performers()))
+	for _, p := range e.Performers() {
+		performers = append(performers, performerDocument{
+			PerformerID:   p.PerformerID,
+			BillingStatus: string(p.BillingStatus),
+		})
+	}
 	return &eventDocument{
 		ID:            e.ID().Value(),
 		Title:         e.Title().Value(),
 		EventType:     e.EventType().Value(),
+		Status:        string(e.Status()),
 		StartDateTime: e.StartDateTime(),
 		EndDateTime:   e.EndDateTime(),
 		VenueID:       e.VenueID(),
-		PerformerIDs:  e.PerformerIDs(),
+		Performers:    performers,
 		TicketURL:     e.TicketURL(),
 		OfficialURL:   e.OfficialURL(),
 		Description:   e.Description(),
@@ -285,14 +304,40 @@ func fromEventDocument(doc *eventDocument) (*event.Event, error) {
 		return nil, err
 	}
 
+	status := event.EventStatusScheduled
+	if doc.Status != "" {
+		if s, err := event.NewEventStatus(doc.Status); err == nil {
+			status = s
+		}
+	}
+
+	// 新形式 performers を優先し、なければ旧形式 performer_ids から移行
+	performers := make([]event.Performer, 0)
+	if len(doc.Performers) > 0 {
+		for _, p := range doc.Performers {
+			performers = append(performers, event.Performer{
+				PerformerID:   p.PerformerID,
+				BillingStatus: event.NewBillingStatus(p.BillingStatus),
+			})
+		}
+	} else if len(doc.PerformerIDs) > 0 {
+		for _, id := range doc.PerformerIDs {
+			performers = append(performers, event.Performer{
+				PerformerID:   id,
+				BillingStatus: event.BillingStatusUnknown,
+			})
+		}
+	}
+
 	return event.Reconstruct(
 		id,
 		title,
 		eventType,
+		status,
 		doc.StartDateTime,
 		doc.EndDateTime,
 		doc.VenueID,
-		doc.PerformerIDs,
+		performers,
 		doc.TicketURL,
 		doc.OfficialURL,
 		doc.Description,
@@ -330,9 +375,12 @@ func buildEventFilter(criteria event.SearchCriteria) bson.M {
 		filter["venue_id"] = *criteria.VenueID
 	}
 
-	// パフォーマーID
+	// パフォーマーID（新形式 + 旧形式の両方を検索）
 	if criteria.PerformerID != nil {
-		filter["performer_ids"] = bson.M{"$in": []string{*criteria.PerformerID}}
+		filter["$or"] = []bson.M{
+			{"performers.performer_id": *criteria.PerformerID},
+			{"performer_ids": bson.M{"$in": []string{*criteria.PerformerID}}},
+		}
 	}
 
 	// タグ
@@ -364,7 +412,12 @@ func (r *EventRepository) EnsureIndexes(ctx context.Context) error {
 				{Key: "venue_id", Value: 1},
 			},
 		},
-		// パフォーマーIDインデックス
+		// パフォーマーIDインデックス（新旧両形式）
+		{
+			Keys: bson.D{
+				{Key: "performers.performer_id", Value: 1},
+			},
+		},
 		{
 			Keys: bson.D{
 				{Key: "performer_ids", Value: 1},

@@ -77,17 +77,23 @@ type AgencyCreateInput struct {
 }
 
 // EventCreateInput は承認済み event 投稿の作成入力
+// EventPerformerInput はイベントパフォーマーの入力（投稿経由）
+type EventPerformerInput struct {
+	PerformerID   string `json:"performer_id"`
+	BillingStatus string `json:"billing_status,omitempty"`
+}
+
 type EventCreateInput struct {
-	Title         string   `json:"title"`
-	EventType     string   `json:"event_type"`
-	StartDateTime string   `json:"start_date_time"`
-	EndDateTime   *string  `json:"end_date_time,omitempty"`
-	VenueID       *string  `json:"venue_id,omitempty"`
-	PerformerIDs  []string `json:"performer_ids,omitempty"`
-	TicketURL     *string  `json:"ticket_url,omitempty"`
-	OfficialURL   *string  `json:"official_url,omitempty"`
-	Description   *string  `json:"description,omitempty"`
-	Tags          []string `json:"tags,omitempty"`
+	Title         string                `json:"title"`
+	EventType     string                `json:"event_type"`
+	StartDateTime string                `json:"start_date_time"`
+	EndDateTime   *string               `json:"end_date_time,omitempty"`
+	VenueID       *string               `json:"venue_id,omitempty"`
+	Performers    []EventPerformerInput `json:"performers,omitempty"`
+	TicketURL     *string               `json:"ticket_url,omitempty"`
+	OfficialURL   *string               `json:"official_url,omitempty"`
+	Description   *string               `json:"description,omitempty"`
+	Tags          []string              `json:"tags,omitempty"`
 }
 
 // EmailNotifier は審査結果メール送信の Output Port

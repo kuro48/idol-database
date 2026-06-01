@@ -38,35 +38,43 @@ import (
 	appAnalytics "github.com/kuro48/idol-api/internal/application/analytics"
 	appAPIKey "github.com/kuro48/idol-api/internal/application/apikey"
 	appBilling "github.com/kuro48/idol-api/internal/application/billing"
+	appEditHistory "github.com/kuro48/idol-api/internal/application/edithistory"
 	appEvent "github.com/kuro48/idol-api/internal/application/event"
 	appExport "github.com/kuro48/idol-api/internal/application/export"
 	appGroup "github.com/kuro48/idol-api/internal/application/group"
 	appIdol "github.com/kuro48/idol-api/internal/application/idol"
 	appJob "github.com/kuro48/idol-api/internal/application/job"
+	appMembership "github.com/kuro48/idol-api/internal/application/membership"
 	appRelease "github.com/kuro48/idol-api/internal/application/release"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
+	appSong "github.com/kuro48/idol-api/internal/application/song"
 	appSubmission "github.com/kuro48/idol-api/internal/application/submission"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
+	appVenue "github.com/kuro48/idol-api/internal/application/venue"
 	appWebhook "github.com/kuro48/idol-api/internal/application/webhook"
 	"github.com/kuro48/idol-api/internal/config"
 	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
 	"github.com/kuro48/idol-api/internal/domain/plan"
+	"github.com/kuro48/idol-api/internal/infrastructure/adapters/email"
 	infraAuth "github.com/kuro48/idol-api/internal/infrastructure/auth"
 	"github.com/kuro48/idol-api/internal/infrastructure/database"
-	"github.com/kuro48/idol-api/internal/infrastructure/adapters/email"
 	"github.com/kuro48/idol-api/internal/infrastructure/persistence/mongodb"
 	infraStripe "github.com/kuro48/idol-api/internal/infrastructure/stripe"
 	"github.com/kuro48/idol-api/internal/interface/handlers"
 	"github.com/kuro48/idol-api/internal/interface/middleware"
 	"github.com/kuro48/idol-api/internal/shared/logger"
 	usecaseAgency "github.com/kuro48/idol-api/internal/usecase/agency"
+	usecaseEditHistory "github.com/kuro48/idol-api/internal/usecase/edithistory"
 	usecaseEvent "github.com/kuro48/idol-api/internal/usecase/event"
 	usecaseGroup "github.com/kuro48/idol-api/internal/usecase/group"
 	usecaseIdol "github.com/kuro48/idol-api/internal/usecase/idol"
+	usecaseMembership "github.com/kuro48/idol-api/internal/usecase/membership"
 	usecaseRelease "github.com/kuro48/idol-api/internal/usecase/release"
 	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
+	usecaseSong "github.com/kuro48/idol-api/internal/usecase/song"
 	usecaseSubmission "github.com/kuro48/idol-api/internal/usecase/submission"
 	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
+	usecaseVenue "github.com/kuro48/idol-api/internal/usecase/venue"
 
 	_ "github.com/kuro48/idol-api/docs" // Swagger docs
 
@@ -114,6 +122,10 @@ func main() {
 	usageRepo := mongodb.NewUsageRepository(db.Database)
 	billingRepo := mongodb.NewBillingFulfillmentRepository(db.Database)
 	releaseRepo := mongodb.NewReleaseRepository(db.Database)
+	editHistoryRepo := mongodb.NewEditHistoryRepository(db.Database)
+	membershipRepo := mongodb.NewMembershipRepository(db.Database)
+	songRepo := mongodb.NewSongRepository(db.Database)
+	venueRepo := mongodb.NewVenueRepository(db.Database)
 
 	// MongoDBインデックスの作成
 	ctx := context.Background()
@@ -197,6 +209,26 @@ func main() {
 	} else {
 		slog.Info("Releaseインデックス作成完了", "collection", "releases")
 	}
+	if err := editHistoryRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("EditHistoryインデックス作成失敗（続行）", "error", err, "collection", "edit_history")
+	} else {
+		slog.Info("EditHistoryインデックス作成完了", "collection", "edit_history")
+	}
+	if err := membershipRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Membershipインデックス作成失敗（続行）", "error", err, "collection", "memberships")
+	} else {
+		slog.Info("Membershipインデックス作成完了", "collection", "memberships")
+	}
+	if err := songRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Songインデックス作成失敗（続行）", "error", err, "collection", "songs")
+	} else {
+		slog.Info("Songインデックス作成完了", "collection", "songs")
+	}
+	if err := venueRepo.EnsureIndexes(ctx); err != nil {
+		slog.Warn("Venueインデックス作成失敗（続行）", "error", err, "collection", "venues")
+	} else {
+		slog.Info("Venueインデックス作成完了", "collection", "venues")
+	}
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
@@ -212,6 +244,10 @@ func main() {
 	submissionAppService := appSubmission.NewApplicationService(submissionRepo)
 	apikeyAppService := appAPIKey.NewApplicationService(apikeyRepo)
 	releaseAppService := appRelease.NewApplicationService(releaseRepo, webhookAppService)
+	editHistoryAppService := appEditHistory.NewApplicationService(editHistoryRepo)
+	membershipAppService := appMembership.NewApplicationService(membershipRepo)
+	songAppService := appSong.NewApplicationService(songRepo)
+	venueAppService := appVenue.NewApplicationService(venueRepo)
 
 	// 起動時に RUNNING 状態で止まっているジョブを PENDING に戻す
 	if err := jobAppService.RecoverStuckJobs(ctx); err != nil {
@@ -233,6 +269,10 @@ func main() {
 	releaseAppPort := adapters.NewReleaseAppAdapter(releaseAppService)
 	releaseIdolPort := adapters.NewIdolExistenceAdapter(idolAppService)
 	releaseGroupPort := adapters.NewGroupExistenceAdapter(groupAppService)
+	editHistoryAppPort := adapters.NewEditHistoryAppAdapter(editHistoryAppService)
+	membershipAppPort := adapters.NewMembershipAppAdapter(membershipAppService)
+	songAppPort := adapters.NewSongAppAdapter(songAppService)
+	venueAppPort := adapters.NewVenueAppAdapter(venueAppService)
 
 	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
 	var smtpNotifier *email.SMTPNotifier
@@ -261,6 +301,10 @@ func main() {
 	tagUsecase := usecaseTag.NewUsecase(tagAppPort)
 	submissionUsecase := usecaseSubmission.NewUsecase(submissionAppPort, submissionTargetPort, emailNotifier)
 	releaseUsecase := usecaseRelease.NewUsecase(releaseAppPort, releaseIdolPort, releaseGroupPort)
+	editHistoryUsecase := usecaseEditHistory.NewUsecase(editHistoryAppPort)
+	membershipUsecase := usecaseMembership.NewUsecase(membershipAppPort)
+	songUsecase := usecaseSong.NewUsecase(songAppPort)
+	venueUsecase := usecaseVenue.NewUsecase(venueAppPort)
 
 	// プレゼンテーション層: ハンドラー
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsAppService)
@@ -276,6 +320,10 @@ func main() {
 	exportHandler := handlers.NewExportHandler(exportAppService)
 	submissionHandler := handlers.NewSubmissionHandler(submissionUsecase)
 	releaseHandler := handlers.NewReleaseHandler(releaseUsecase)
+	editHistoryHandler := handlers.NewEditHistoryHandler(editHistoryUsecase)
+	membershipHandler := handlers.NewMembershipHandler(membershipUsecase)
+	songHandler := handlers.NewSongHandler(songUsecase)
+	venueHandler := handlers.NewVenueHandler(venueUsecase)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 	meHandler := handlers.NewMeHandler()
 	healthHandler := handlers.NewHealthHandler(db)
@@ -313,7 +361,7 @@ func main() {
 	} else {
 		slog.Info("Stripe課金導線は無効です", "stripe_enabled", cfg.StripeSecretKey != "", "smtp_enabled", smtpNotifier != nil)
 	}
-	billingHandler = handlers.NewBillingHandler(billingService)
+	billingHandler = handlers.NewBillingHandlerWithAllowedRedirectOrigins(billingService, parseCORSOrigins(cfg.CORSAllowedOrigins, cfg.GinMode))
 
 	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
 	// Auth: APIキー必須。検証に成功したリクエストのみ使用量をカウントして通過させる。
@@ -430,9 +478,10 @@ func main() {
 		// アイドル: 読み取りは公開、書き込みは write スコープ必須
 		idols := v1.Group("/idols")
 		{
-			idols.GET("", idolHandler.ListIdols)                       // 一覧取得
-			idols.GET("/:id", idolHandler.GetIdol)                     // 詳細取得
-			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs) // 外部IDマッピング取得
+			idols.GET("", idolHandler.ListIdols)                                 // 一覧取得
+			idols.GET("/:id", idolHandler.GetIdol)                               // 詳細取得
+			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs)           // 外部IDマッピング取得
+			idols.GET("/:id/memberships", membershipHandler.ListIdolMemberships) // メンバーシップ一覧
 		}
 		idolsWrite := v1.Group("/idols", writeAuth)
 		{
@@ -448,7 +497,7 @@ func main() {
 		removalRequests := v1.Group("/removal-requests")
 		{
 			removalRequests.POST("", userAuth, publicMutationLimiter.Limit(), removalHandler.CreateRemovalRequest) // 削除申請作成
-			removalRequests.GET("/:id", removalHandler.GetRemovalRequest)                                          // 削除申請詳細取得（公開）
+			removalRequests.GET("/:id", userAuth, removalHandler.GetRemovalRequest)                                // 削除申請詳細取得（ログイン必須）
 		}
 		adminRemoval := v1.Group("/removal-requests", adminAuth)
 		{
@@ -496,6 +545,13 @@ func main() {
 		// Webhook受信エンドポイント（公開: 外部からの受信）
 		v1.POST("/webhooks/receive/:subscription_id", publicMutationLimiter.Limit(), webhookHandler.ReceiveWebhook)
 
+		// 編集履歴（admin スコープ必須）
+		adminEditHistory := v1.Group("/admin/edit-history", adminAuth)
+		{
+			adminEditHistory.GET("", editHistoryHandler.ListEditHistory)    // 編集履歴一覧
+			adminEditHistory.GET("/:id", editHistoryHandler.GetEditHistory) // 編集履歴詳細
+		}
+
 		// エクスポート（admin スコープ必須）
 		adminExport := v1.Group("/admin/export", adminAuth)
 		{
@@ -506,7 +562,7 @@ func main() {
 		if billingHandler != nil && cfg.StripeSecretKey != "" && smtpNotifier != nil {
 			billing := v1.Group("/billing")
 			{
-				billing.POST("/checkout-sessions", billingHandler.CreateCheckoutSession)
+				billing.POST("/checkout-sessions", publicMutationLimiter.Limit(), billingHandler.CreateCheckoutSession)
 				billing.POST("/webhooks/stripe", billingHandler.HandleStripeWebhook)
 			}
 
@@ -521,12 +577,52 @@ func main() {
 		{
 			groups.GET("", groupHandler.ListGroup)
 			groups.GET("/:id", groupHandler.GetGroup)
+			groups.GET("/:id/memberships", membershipHandler.ListGroupMemberships) // メンバーシップ一覧
 		}
 		groupsWrite := v1.Group("/groups", writeAuth)
 		{
 			groupsWrite.POST("", groupHandler.CreateGroup)
 			groupsWrite.PUT("/:id", groupHandler.UpdateGroup)
 			groupsWrite.DELETE("/:id", groupHandler.DeleteGroup)
+		}
+
+		// メンバーシップ: 読み取りは公開、書き込みは write スコープ必須
+		memberships := v1.Group("/memberships")
+		{
+			memberships.GET("", membershipHandler.ListMemberships)
+			memberships.GET("/:id", membershipHandler.GetMembership)
+		}
+		membershipsWrite := v1.Group("/memberships", writeAuth)
+		{
+			membershipsWrite.POST("", membershipHandler.CreateMembership)
+			membershipsWrite.PUT("/:id", membershipHandler.UpdateMembership)
+			membershipsWrite.DELETE("/:id", membershipHandler.DeleteMembership)
+		}
+
+		// 楽曲: 読み取りは公開、書き込みは write スコープ必須
+		songs := v1.Group("/songs")
+		{
+			songs.GET("", songHandler.ListSongs)
+			songs.GET("/:id", songHandler.GetSong)
+		}
+		songsWrite := v1.Group("/songs", writeAuth)
+		{
+			songsWrite.POST("", songHandler.CreateSong)
+			songsWrite.PUT("/:id", songHandler.UpdateSong)
+			songsWrite.DELETE("/:id", songHandler.DeleteSong)
+		}
+
+		// 会場: 読み取りは公開、書き込みは write スコープ必須
+		venues := v1.Group("/venues")
+		{
+			venues.GET("", venueHandler.ListVenues)
+			venues.GET("/:id", venueHandler.GetVenue)
+		}
+		venuesWrite := v1.Group("/venues", writeAuth)
+		{
+			venuesWrite.POST("", venueHandler.CreateVenue)
+			venuesWrite.PUT("/:id", venueHandler.UpdateVenue)
+			venuesWrite.DELETE("/:id", venueHandler.DeleteVenue)
 		}
 
 		// 事務所: 読み取りは公開、書き込みは write スコープ必須
@@ -586,9 +682,9 @@ func main() {
 		// 投稿審査: 作成はログイン必須、取得は投稿者トークン、審査は admin スコープ必須
 		submissions := v1.Group("/submissions")
 		{
-			submissions.POST("", userAuth, publicMutationLimiter.Limit(), submissionHandler.CreateSubmission) // 投稿作成
-			submissions.GET("/:id", submissionHandler.GetSubmission)                                          // 投稿詳細取得（公開）
-			submissions.PUT("/:id/revise", publicMutationLimiter.Limit(), submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（公開）
+			submissions.POST("", userAuth, publicMutationLimiter.Limit(), submissionHandler.CreateSubmission)           // 投稿作成
+			submissions.GET("/:id", userAuth, submissionHandler.GetSubmission)                                          // 投稿詳細取得（ログイン必須）
+			submissions.PUT("/:id/revise", userAuth, publicMutationLimiter.Limit(), submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（ログイン必須）
 		}
 		adminSubmissions := v1.Group("/submissions", adminAuth)
 		{

@@ -35,6 +35,7 @@ type agencyDocument struct {
 	OfficialWebsite *string    `bson:"official_website,omitempty"`
 	Description     *string    `bson:"description,omitempty"`
 	LogoURL         *string    `bson:"logo_url,omitempty"`
+	Version         int        `bson:"version"`
 	CreatedAt       time.Time  `bson:"created_at"`
 	UpdatedAt       time.Time  `bson:"updated_at"`
 	CreatedBy       string     `bson:"created_by,omitempty"`

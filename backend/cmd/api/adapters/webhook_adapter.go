@@ -33,6 +33,12 @@ func (a *WebhookAppAdapter) DeleteSubscription(ctx context.Context, id string) e
 	return a.svc.DeleteSubscription(ctx, id)
 }
 
-func (a *WebhookAppAdapter) VerifyWebhookRequest(ctx context.Context, subscriptionID, signature string, payload []byte) error {
-	return a.svc.VerifyWebhookRequest(ctx, subscriptionID, signature, payload)
+func (a *WebhookAppAdapter) VerifyWebhookRequest(ctx context.Context, subscriptionID, signature, timestamp, nonce string, payload []byte) error {
+	return a.svc.VerifyWebhookRequest(ctx, appWebhook.VerifyWebhookRequestInput{
+		SubscriptionID: subscriptionID,
+		Signature:      signature,
+		Timestamp:      timestamp,
+		Nonce:          nonce,
+		Payload:        payload,
+	})
 }

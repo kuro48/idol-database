@@ -34,7 +34,7 @@ func (s *ApplicationService) RecordUsage(ctx context.Context, record *domainAnal
 	case s.sem <- struct{}{}:
 		go func() {
 			defer func() { <-s.sem }()
-			saveCtx, cancel := context.WithTimeout(context.Background(), recordSaveTimeout)
+			saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordSaveTimeout)
 			defer cancel()
 			if err := s.repo.Save(saveCtx, record); err != nil {
 				slog.Error("API利用記録の保存に失敗しました",

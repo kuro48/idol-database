@@ -66,13 +66,20 @@ func (a *SubmissionTargetAppAdapter) CreateAgency(ctx context.Context, input ucS
 }
 
 func (a *SubmissionTargetAppAdapter) CreateEvent(ctx context.Context, input ucSubmission.EventCreateInput) error {
+	performers := make([]appEvent.PerformerInput, 0, len(input.Performers))
+	for _, p := range input.Performers {
+		performers = append(performers, appEvent.PerformerInput{
+			PerformerID:   p.PerformerID,
+			BillingStatus: p.BillingStatus,
+		})
+	}
 	_, err := a.eventSvc.CreateEvent(ctx, appEvent.CreateInput{
 		Title:         input.Title,
 		EventType:     input.EventType,
 		StartDateTime: input.StartDateTime,
 		EndDateTime:   input.EndDateTime,
 		VenueID:       input.VenueID,
-		PerformerIDs:  input.PerformerIDs,
+		Performers:    performers,
 		TicketURL:     input.TicketURL,
 		OfficialURL:   input.OfficialURL,
 		Description:   input.Description,

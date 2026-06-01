@@ -19,13 +19,20 @@ func NewEventAppAdapter(svc *appEvent.ApplicationService) ucEvent.EventAppPort {
 }
 
 func (a *EventAppAdapter) CreateEvent(ctx context.Context, input ucEvent.EventCreateInput) (*eventDomain.Event, error) {
+	performers := make([]appEvent.PerformerInput, 0, len(input.Performers))
+	for _, p := range input.Performers {
+		performers = append(performers, appEvent.PerformerInput{
+			PerformerID:   p.PerformerID,
+			BillingStatus: p.BillingStatus,
+		})
+	}
 	return a.svc.CreateEvent(ctx, appEvent.CreateInput{
 		Title:         input.Title,
 		EventType:     input.EventType,
 		StartDateTime: input.StartDateTime,
 		EndDateTime:   input.EndDateTime,
 		VenueID:       input.VenueID,
-		PerformerIDs:  input.PerformerIDs,
+		Performers:    performers,
 		TicketURL:     input.TicketURL,
 		OfficialURL:   input.OfficialURL,
 		Description:   input.Description,
@@ -60,8 +67,9 @@ func (a *EventAppAdapter) DeleteEvent(ctx context.Context, id string) error {
 
 func (a *EventAppAdapter) AddPerformer(ctx context.Context, input ucEvent.EventAddPerformerInput) error {
 	return a.svc.AddPerformer(ctx, appEvent.AddPerformerInput{
-		EventID:     input.EventID,
-		PerformerID: input.PerformerID,
+		EventID:       input.EventID,
+		PerformerID:   input.PerformerID,
+		BillingStatus: input.BillingStatus,
 	})
 }
 

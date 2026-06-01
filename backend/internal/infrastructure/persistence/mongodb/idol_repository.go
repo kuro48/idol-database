@@ -9,6 +9,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/idol"
 	"github.com/kuro48/idol-api/internal/shared/audit"
+	src "github.com/kuro48/idol-api/internal/shared/source"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -35,12 +36,18 @@ func NewIdolRepository(db *mongo.Database) *IdolRepository {
 type idolDocument struct {
 	ID          bson.ObjectID        `bson:"_id,omitempty"`
 	Name        string               `bson:"name"`
+	NameKana    *string              `bson:"name_kana,omitempty"`
+	NameLatin   *string              `bson:"name_latin,omitempty"`
 	Birthdate   *time.Time           `bson:"birthdate,omitempty"`
-	AgencyID    *string              `bson:"agency_id,omitempty"`
-	SocialLinks *socialLinksDocument `bson:"social_links,omitempty"`
+	Status      string               `bson:"status,omitempty"`
+	AgencyID        *string              `bson:"agency_id,omitempty"`
+	ProfileImageURL *string              `bson:"profile_image_url,omitempty"`
+	SocialLinks     *socialLinksDocument `bson:"social_links,omitempty"`
 	ExternalIDs map[string]string    `bson:"external_ids,omitempty"`
 	TagIDs      []string             `bson:"tag_ids,omitempty"`
 	Aliases     []string             `bson:"aliases,omitempty"`
+	Sources     []sourceDocument     `bson:"sources,omitempty"`
+	Version     int                  `bson:"version"`
 	CreatedAt   time.Time            `bson:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"`
 	CreatedBy   string               `bson:"created_by,omitempty"`
@@ -49,6 +56,14 @@ type idolDocument struct {
 	IsDeleted   bool                 `bson:"is_deleted,omitempty"`
 	DeletedAt   *time.Time           `bson:"deleted_at,omitempty"`
 	DeletedBy   string               `bson:"deleted_by,omitempty"`
+}
+
+// sourceDocument は出典のドキュメント構造（全コレクション共通）
+type sourceDocument struct {
+	URL       string    `bson:"url"`
+	Type      string    `bson:"type"`
+	IsPrimary bool      `bson:"is_primary"`
+	NotedAt   time.Time `bson:"noted_at"`
 }
 
 // socialLinksDocument はSNS/外部リンクのドキュメント構造
@@ -64,7 +79,6 @@ type socialLinksDocument struct {
 
 // toDocument はドメインモデルをMongoDBドキュメントに変換する
 func toIdolDocument(i *idol.Idol) (*idolDocument, error) {
-	// IDの文字列をObjectIDに変換
 	objectID, err := bson.ObjectIDFromHex(i.ID().Value())
 	if err != nil && i.ID().Value() != "" {
 		return nil, fmt.Errorf("無効なアイドルID %q: %w", i.ID().Value(), err)
@@ -81,7 +95,6 @@ func toIdolDocument(i *idol.Idol) (*idolDocument, error) {
 		birthdate = &bd
 	}
 
-	// ExternalIDs の変換
 	var externalIDsDoc map[string]string
 	if extIDs := i.ExternalIDs(); !extIDs.IsEmpty() {
 		rawIDs := extIDs.All()
@@ -91,18 +104,54 @@ func toIdolDocument(i *idol.Idol) (*idolDocument, error) {
 		}
 	}
 
+	sourceDocs := toSourceDocuments(i.Sources())
+
 	return &idolDocument{
 		ID:          objectID,
 		Name:        i.Name().Value(),
+		NameKana:    i.Name().Kana(),
+		NameLatin:   i.Name().Latin(),
 		Birthdate:   birthdate,
-		AgencyID:    i.AgencyID(),
-		SocialLinks: socialLinksDoc,
+		Status:          string(i.Status()),
+		AgencyID:        i.AgencyID(),
+		ProfileImageURL: i.ProfileImageURL(),
+		SocialLinks:     socialLinksDoc,
 		ExternalIDs: externalIDsDoc,
 		TagIDs:      i.TagIDs(),
 		Aliases:     i.Aliases(),
+		Sources:     sourceDocs,
 		CreatedAt:   i.CreatedAt(),
 		UpdatedAt:   i.UpdatedAt(),
 	}, nil
+}
+
+// toSourceDocuments は出典スライスをドキュメントに変換する
+func toSourceDocuments(sources []src.Source) []sourceDocument {
+	if len(sources) == 0 {
+		return nil
+	}
+	docs := make([]sourceDocument, len(sources))
+	for idx, s := range sources {
+		docs[idx] = sourceDocument{
+			URL:       s.URL(),
+			Type:      string(s.Type()),
+			IsPrimary: s.IsPrimary(),
+			NotedAt:   s.NotedAt(),
+		}
+	}
+	return docs
+}
+
+// fromSourceDocuments はドキュメントから出典スライスを再構築する
+func fromSourceDocuments(docs []sourceDocument) []src.Source {
+	if len(docs) == 0 {
+		return []src.Source{}
+	}
+	sources := make([]src.Source, len(docs))
+	for i, d := range docs {
+		sources[i] = src.Reconstruct(d.URL, src.Type(d.Type), d.IsPrimary, d.NotedAt)
+	}
+	return sources
 }
 
 // toSocialLinksDocument はSocialLinksをドキュメントに変換する
@@ -125,14 +174,13 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		return nil, err
 	}
 
-	name, err := idol.NewIdolName(doc.Name)
+	name, err := idol.NewIdolNameFull(doc.Name, doc.NameKana, doc.NameLatin)
 	if err != nil {
 		return nil, err
 	}
 
 	var birthdate *idol.Birthdate
 	if doc.Birthdate != nil && !doc.Birthdate.IsZero() {
-		// time.Timeから年月日を抽出してBirthdateを作成
 		year, month, day := doc.Birthdate.Date()
 		bd, err := idol.NewBirthdate(year, int(month), day)
 		if err != nil {
@@ -141,12 +189,21 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		birthdate = &bd
 	}
 
+	// 既存ドキュメントに status がない場合は active とみなす
+	status := idol.IdolStatusActive
+	if doc.Status != "" {
+		s, err := idol.NewIdolStatus(doc.Status)
+		if err != nil {
+			return nil, fmt.Errorf("無効なステータス %q: %w", doc.Status, err)
+		}
+		status = s
+	}
+
 	var socialLinks *idol.SocialLinks
 	if doc.SocialLinks != nil {
 		socialLinks = toSocialLinksDomain(doc.SocialLinks)
 	}
 
-	// ExternalIDs の再構築
 	var externalIDs *idol.ExternalIDs
 	if len(doc.ExternalIDs) > 0 {
 		typedIDs := make(map[idol.ExternalIDKind]string, len(doc.ExternalIDs))
@@ -166,7 +223,9 @@ func toDomain(doc *idolDocument) (*idol.Idol, error) {
 		aliases = []string{}
 	}
 
-	return idol.Reconstruct(id, name, birthdate, doc.AgencyID, socialLinks, externalIDs, tagIDs, aliases, doc.CreatedAt, doc.UpdatedAt), nil
+	sources := fromSourceDocuments(doc.Sources)
+
+	return idol.Reconstruct(id, name, birthdate, status, doc.AgencyID, doc.ProfileImageURL, socialLinks, externalIDs, tagIDs, aliases, sources, doc.CreatedAt, doc.UpdatedAt), nil
 }
 
 // toSocialLinksDomain はドキュメントからSocialLinksドメインモデルを作成する

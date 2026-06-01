@@ -3,6 +3,8 @@ package idol
 import (
 	"errors"
 	"time"
+
+	"github.com/kuro48/idol-api/internal/shared/source"
 )
 
 // Idol はアイドル集約のルートエンティティ
@@ -10,11 +12,14 @@ type Idol struct {
 	id          IdolID
 	name        IdolName
 	birthdate   *Birthdate
-	agencyID    *string      // 所属事務所ID（オプショナル）
-	socialLinks *SocialLinks // SNS/外部リンク（オプショナル）
-	externalIDs *ExternalIDs // 外部サービスIDマッピング（オプショナル）
-	tagIDs      []string     // タグID一覧
-	aliases     []string     // 別名一覧（多言語・旧名）
+	status      IdolStatus
+	agencyID    *string      // 所属事務所ID（Phase2でMembershipに移行予定）
+	socialLinks *SocialLinks
+	externalIDs *ExternalIDs
+	profileImageURL *string
+	tagIDs          []string
+	aliases         []string
+	sources         []source.Source
 	createdAt   time.Time
 	updatedAt   time.Time
 }
@@ -29,6 +34,7 @@ func NewIdol(
 	return &Idol{
 		name:      name,
 		birthdate: birthdate,
+		status:    IdolStatusActive,
 		createdAt: now,
 		updatedAt: now,
 	}, nil
@@ -39,25 +45,31 @@ func Reconstruct(
 	id IdolID,
 	name IdolName,
 	birthdate *Birthdate,
+	status IdolStatus,
 	agencyID *string,
+	profileImageURL *string,
 	socialLinks *SocialLinks,
 	externalIDs *ExternalIDs,
 	tagIDs []string,
 	aliases []string,
+	sources []source.Source,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Idol {
 	return &Idol{
-		id:          id,
-		name:        name,
-		birthdate:   birthdate,
-		agencyID:    agencyID,
-		socialLinks: socialLinks,
-		externalIDs: externalIDs,
-		tagIDs:      tagIDs,
-		aliases:     aliases,
-		createdAt:   createdAt,
-		updatedAt:   updatedAt,
+		id:              id,
+		name:            name,
+		birthdate:       birthdate,
+		status:          status,
+		agencyID:        agencyID,
+		profileImageURL: profileImageURL,
+		socialLinks:     socialLinks,
+		externalIDs:     externalIDs,
+		tagIDs:          tagIDs,
+		aliases:         aliases,
+		sources:         sources,
+		createdAt:       createdAt,
+		updatedAt:       updatedAt,
 	}
 }
 
@@ -77,6 +89,10 @@ func (i *Idol) Birthdate() *Birthdate {
 
 func (i *Idol) AgencyID() *string {
 	return i.agencyID
+}
+
+func (i *Idol) ProfileImageURL() *string {
+	return i.profileImageURL
 }
 
 func (i *Idol) SocialLinks() *SocialLinks {
@@ -99,6 +115,17 @@ func (i *Idol) Aliases() []string {
 		return []string{}
 	}
 	return i.aliases
+}
+
+func (i *Idol) Status() IdolStatus {
+	return i.status
+}
+
+func (i *Idol) Sources() []source.Source {
+	if i.sources == nil {
+		return []source.Source{}
+	}
+	return i.sources
 }
 
 func (i *Idol) CreatedAt() time.Time {
@@ -130,6 +157,12 @@ func (i *Idol) UpdateBirthdate(birthdate *Birthdate) {
 // UpdateAgency は所属事務所を更新する
 func (i *Idol) UpdateAgency(agencyID *string) {
 	i.agencyID = agencyID
+	i.updatedAt = time.Now()
+}
+
+// SetProfileImageURL はプロフィール画像URLを設定する
+func (i *Idol) SetProfileImageURL(url *string) {
+	i.profileImageURL = url
 	i.updatedAt = time.Now()
 }
 
@@ -178,6 +211,22 @@ func (i *Idol) SetTags(tagIDs []string) {
 // SetAliases は別名一覧を設定する
 func (i *Idol) SetAliases(aliases []string) {
 	i.aliases = aliases
+	i.updatedAt = time.Now()
+}
+
+// UpdateStatus は活動状態を更新する
+func (i *Idol) UpdateStatus(status IdolStatus) error {
+	if !status.IsValid() {
+		return errors.New("無効なステータスです")
+	}
+	i.status = status
+	i.updatedAt = time.Now()
+	return nil
+}
+
+// SetSources は出典リストを設定する
+func (i *Idol) SetSources(sources []source.Source) {
+	i.sources = sources
 	i.updatedAt = time.Now()
 }
 

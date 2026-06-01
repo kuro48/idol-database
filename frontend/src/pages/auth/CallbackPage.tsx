@@ -54,7 +54,6 @@ export default function CallbackPage() {
         useAuthStore.setState({
           accessToken: user.access_token,
           idToken: user.id_token,
-          refreshToken: user.refresh_token ?? null,
         })
         const me = await fetchMe(user.access_token)
         const oshiColor = me.oshi_color || DEFAULT_OSHI_COLOR
@@ -62,7 +61,6 @@ export default function CallbackPage() {
         setAuth(
           user.access_token,
           user.id_token,
-          user.refresh_token ?? null,
           me.email,
           me.display_name,
           oshiColor,

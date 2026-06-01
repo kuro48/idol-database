@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,12 +24,17 @@ import (
 // deliveryTimeout はWebhook配信の最大待ち時間
 const deliveryTimeout = 30 * time.Second
 
+const webhookSignatureTolerance = 5 * time.Minute
+
 // ApplicationService はWebhookアプリケーションサービス
 type ApplicationService struct {
 	subRepo        webhook.SubscriptionRepository
 	deliveryRepo   webhook.DeliveryRepository
 	httpClient     *http.Client
 	resolveIPAddrs func(ctx context.Context, host string) ([]net.IPAddr, error)
+	replayMu       sync.Mutex
+	replayNonces   map[string]time.Time
+	now            func() time.Time
 	wg             sync.WaitGroup
 }
 
@@ -43,6 +49,8 @@ func NewApplicationServiceWithTimeout(subRepo webhook.SubscriptionRepository, de
 		subRepo:        subRepo,
 		deliveryRepo:   deliveryRepo,
 		resolveIPAddrs: net.DefaultResolver.LookupIPAddr,
+		replayNonces:   make(map[string]time.Time),
+		now:            time.Now,
 	}
 	svc.httpClient = newWebhookHTTPClient(timeout, svc.resolveIPAddrs)
 	return svc
@@ -187,6 +195,7 @@ func (s *ApplicationService) Publish(ctx context.Context, event webhook.EventTyp
 		s.wg.Add(1)
 		localSub := sub
 		localDelivery := delivery
+		baseCtx := context.WithoutCancel(ctx)
 		go func() {
 			defer s.wg.Done()
 			defer func() {
@@ -194,7 +203,7 @@ func (s *ApplicationService) Publish(ctx context.Context, event webhook.EventTyp
 					slog.Error("Webhook配信パニック回復", "subscription_id", localSub.ID(), "panic", r)
 				}
 			}()
-			deliverCtx, cancel := context.WithTimeout(context.Background(), deliveryTimeout)
+			deliverCtx, cancel := context.WithTimeout(baseCtx, deliveryTimeout)
 			defer cancel()
 			s.deliver(deliverCtx, localSub, localDelivery)
 		}()
@@ -218,6 +227,7 @@ func (s *ApplicationService) RetryPendingDeliveries(ctx context.Context) error {
 		s.wg.Add(1)
 		localSub := sub
 		localDelivery := delivery
+		baseCtx := ctx
 		go func() {
 			defer s.wg.Done()
 			defer func() {
@@ -225,7 +235,7 @@ func (s *ApplicationService) RetryPendingDeliveries(ctx context.Context) error {
 					slog.Error("Webhook配信パニック回復", "subscription_id", localSub.ID(), "panic", r)
 				}
 			}()
-			deliverCtx, cancel := context.WithTimeout(context.Background(), deliveryTimeout)
+			deliverCtx, cancel := context.WithTimeout(baseCtx, deliveryTimeout)
 			defer cancel()
 			s.deliver(deliverCtx, localSub, localDelivery)
 		}()
@@ -236,7 +246,8 @@ func (s *ApplicationService) RetryPendingDeliveries(ctx context.Context) error {
 
 // deliver は実際のHTTPリクエストを送信する
 func (s *ApplicationService) deliver(ctx context.Context, sub *webhook.Subscription, delivery *webhook.Delivery) {
-	signature := computeSignature(sub.Secret(), delivery.Payload())
+	timestamp := strconv.FormatInt(s.now().Unix(), 10)
+	signature := computeSignature(sub.Secret(), timestamp, delivery.Payload())
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sub.URL(), bytes.NewReader(delivery.Payload()))
 	if err != nil {
@@ -249,6 +260,8 @@ func (s *ApplicationService) deliver(ctx context.Context, sub *webhook.Subscript
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Webhook-Signature", "sha256="+signature)
+	req.Header.Set("X-Webhook-Timestamp", timestamp)
+	req.Header.Set("X-Webhook-Nonce", delivery.ID())
 	req.Header.Set("X-Webhook-Event", string(delivery.Event()))
 	req.Header.Set("X-Delivery-ID", delivery.ID())
 
@@ -352,6 +365,8 @@ func isPrivateIP(ip net.IP) bool {
 		"172.16.0.0/12",
 		"192.168.0.0/16",
 		"169.254.0.0/16",
+		"100.64.0.0/10",
+		"198.18.0.0/15",
 		"fc00::/7",
 		"fe80::/10",
 	}
@@ -368,30 +383,84 @@ func isPrivateIP(ip net.IP) bool {
 }
 
 // computeSignature はHMAC-SHA256シグネチャを計算する
-func computeSignature(secret string, payload []byte) string {
+func computeSignature(secret string, timestamp string, payload []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(timestamp))
+	mac.Write([]byte("."))
 	mac.Write(payload)
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
 // VerifySignature はWebhookリクエストの署名を検証する
-func VerifySignature(secret, signature string, payload []byte) bool {
-	expected := "sha256=" + computeSignature(secret, payload)
+func VerifySignature(secret, signature string, timestamp string, payload []byte) bool {
+	expected := "sha256=" + computeSignature(secret, timestamp, payload)
 	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
+// VerifyWebhookRequestInput は受信Webhook検証に必要な入力。
+type VerifyWebhookRequestInput struct {
+	SubscriptionID string
+	Signature      string
+	Timestamp      string
+	Nonce          string
+	Payload        []byte
+}
+
 // VerifyWebhookRequest はサブスクリプションIDと署名を検証する
-func (s *ApplicationService) VerifyWebhookRequest(ctx context.Context, subscriptionID, signature string, payload []byte) error {
-	sub, err := s.subRepo.FindByID(ctx, subscriptionID)
+func (s *ApplicationService) VerifyWebhookRequest(ctx context.Context, input VerifyWebhookRequestInput) error {
+	sub, err := s.subRepo.FindByID(ctx, input.SubscriptionID)
 	if err != nil {
 		return fmt.Errorf("サブスクリプションが見つかりません: %w", err)
 	}
 	if !sub.Active() {
 		return fmt.Errorf("サブスクリプションが無効です")
 	}
-	if !VerifySignature(sub.Secret(), signature, payload) {
+	if err := s.validateTimestamp(input.Timestamp); err != nil {
+		return err
+	}
+	if !VerifySignature(sub.Secret(), input.Signature, input.Timestamp, input.Payload) {
 		return fmt.Errorf("署名が無効です")
 	}
+	if err := s.claimReplayNonce(input.SubscriptionID, input.Nonce); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ApplicationService) validateTimestamp(raw string) error {
+	ts, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Webhook timestamp が不正です")
+	}
+	signedAt := time.Unix(ts, 0)
+	now := s.now()
+	if signedAt.Before(now.Add(-webhookSignatureTolerance)) || signedAt.After(now.Add(webhookSignatureTolerance)) {
+		return fmt.Errorf("Webhook timestamp が許容範囲外です")
+	}
+	return nil
+}
+
+func (s *ApplicationService) claimReplayNonce(subscriptionID, nonce string) error {
+	if nonce == "" {
+		return fmt.Errorf("Webhook nonce が未設定です")
+	}
+
+	s.replayMu.Lock()
+	defer s.replayMu.Unlock()
+
+	now := s.now()
+	cutoff := now.Add(-webhookSignatureTolerance)
+	for key, seenAt := range s.replayNonces {
+		if seenAt.Before(cutoff) {
+			delete(s.replayNonces, key)
+		}
+	}
+
+	key := subscriptionID + ":" + nonce
+	if _, exists := s.replayNonces[key]; exists {
+		return fmt.Errorf("Webhook nonce が再利用されています")
+	}
+	s.replayNonces[key] = now
 	return nil
 }
 

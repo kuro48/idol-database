@@ -7,21 +7,28 @@ type GetEventQuery struct {
 	ID string
 }
 
+// PerformerDTO はパフォーマーのデータ転送オブジェクト
+type PerformerDTO struct {
+	PerformerID   string `json:"performer_id"`
+	BillingStatus string `json:"billing_status"`
+}
+
 // EventDTO はイベントのデータ転送オブジェクト
 type EventDTO struct {
-	ID            string   `json:"id"`
-	Title         string   `json:"title"`
-	EventType     string   `json:"event_type"`
-	StartDateTime string   `json:"start_date_time"`
-	EndDateTime   *string  `json:"end_date_time,omitempty"`
-	VenueID       *string  `json:"venue_id,omitempty"`
-	PerformerIDs  []string `json:"performer_ids"`
-	TicketURL     *string  `json:"ticket_url,omitempty"`
-	OfficialURL   *string  `json:"official_url,omitempty"`
-	Description   *string  `json:"description,omitempty"`
-	Tags          []string `json:"tags"`
-	CreatedAt     string   `json:"created_at"`
-	UpdatedAt     string   `json:"updated_at"`
+	ID            string         `json:"id"`
+	Title         string         `json:"title"`
+	EventType     string         `json:"event_type"`
+	Status        string         `json:"status"`
+	StartDateTime string         `json:"start_date_time"`
+	EndDateTime   *string        `json:"end_date_time,omitempty"`
+	VenueID       *string        `json:"venue_id,omitempty"`
+	Performers    []PerformerDTO `json:"performers"`
+	TicketURL     *string        `json:"ticket_url,omitempty"`
+	OfficialURL   *string        `json:"official_url,omitempty"`
+	Description   *string        `json:"description,omitempty"`
+	Tags          []string       `json:"tags"`
+	CreatedAt     string         `json:"created_at"`
+	UpdatedAt     string         `json:"updated_at"`
 }
 
 // ListEventsQuery はイベント一覧取得クエリ
