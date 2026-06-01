@@ -151,6 +151,39 @@ func TestCreateReleaseStoresTrackParticipants(t *testing.T) {
 	assert.Nil(t, participants[1].Position())
 }
 
+func TestCreateReleaseStoresTrackCredits(t *testing.T) {
+	svc := NewApplicationService(newInMemoryReleaseRepo(), nil)
+	titleKana := "ひょうだいきょく"
+
+	created, err := svc.CreateRelease(context.Background(), CreateInput{
+		Title:       "制作者情報付き楽曲",
+		ReleaseType: "single",
+		ReleaseDate: "2026-05-08",
+		Artists: []ArtistRefInput{
+			{Kind: "group", ID: "group-1", Role: "main"},
+		},
+		Tracks: []TrackInput{
+			{
+				TrackNumber: 1,
+				Title:       "表題曲",
+				TitleKana:   &titleKana,
+				Composers:   []string{"Composer A"},
+				Lyricists:   []string{"Lyricist A"},
+				Arrangers:   []string{"Arranger A"},
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, created.Tracks(), 1)
+	track := created.Tracks()[0]
+	require.NotNil(t, track.TitleKana())
+	assert.Equal(t, titleKana, *track.TitleKana())
+	assert.Equal(t, []string{"Composer A"}, track.Composers())
+	assert.Equal(t, []string{"Lyricist A"}, track.Lyricists())
+	assert.Equal(t, []string{"Arranger A"}, track.Arrangers())
+}
+
 func TestUpdateReleaseUpdatesStreamingLinks(t *testing.T) {
 	repo := newInMemoryReleaseRepo()
 	svc := NewApplicationService(repo, nil)

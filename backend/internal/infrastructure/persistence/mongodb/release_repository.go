@@ -57,9 +57,13 @@ type artistRefDocument struct {
 type trackDocument struct {
 	TrackNumber   int                        `bson:"track_number"`
 	Title         string                     `bson:"title"`
+	TitleKana     *string                    `bson:"title_kana,omitempty"`
 	DurationSec   *int                       `bson:"duration_sec,omitempty"`
 	ISRC          *string                    `bson:"isrc,omitempty"`
 	CoverImageURL *string                    `bson:"cover_image_url,omitempty"`
+	Composers     []string                   `bson:"composers,omitempty"`
+	Lyricists     []string                   `bson:"lyricists,omitempty"`
+	Arrangers     []string                   `bson:"arrangers,omitempty"`
 	Participants  []trackParticipantDocument `bson:"participants,omitempty"`
 }
 
@@ -97,9 +101,13 @@ func toReleaseDocument(r *release.Release) (*releaseDocument, error) {
 		tracks[i] = trackDocument{
 			TrackNumber:   t.TrackNumber(),
 			Title:         t.Title(),
+			TitleKana:     t.TitleKana(),
 			DurationSec:   t.DurationSec(),
 			ISRC:          t.ISRC(),
 			CoverImageURL: t.CoverImageURL(),
+			Composers:     t.Composers(),
+			Lyricists:     t.Lyricists(),
+			Arrangers:     t.Arrangers(),
 			Participants:  toTrackParticipantDocuments(t.Participants()),
 		}
 	}
@@ -194,7 +202,7 @@ func toReleaseDomain(doc *releaseDocument) (*release.Release, error) {
 		if err != nil {
 			return nil, fmt.Errorf("楽曲参加情報変換エラー: %w", err)
 		}
-		track, err := release.NewTrack(t.TrackNumber, t.Title, t.DurationSec, t.ISRC, t.CoverImageURL, participants)
+		track, err := release.NewTrack(t.TrackNumber, t.Title, t.TitleKana, t.DurationSec, t.ISRC, t.CoverImageURL, t.Composers, t.Lyricists, t.Arrangers, participants)
 		if err != nil {
 			return nil, fmt.Errorf("楽曲変換エラー: %w", err)
 		}
@@ -338,6 +346,9 @@ func (r *ReleaseRepository) Update(ctx context.Context, rel *release.Release) er
 	tracks := make(bson.A, len(doc.Tracks))
 	for i, t := range doc.Tracks {
 		m := bson.M{"track_number": t.TrackNumber, "title": t.Title}
+		if t.TitleKana != nil {
+			m["title_kana"] = t.TitleKana
+		}
 		if t.DurationSec != nil {
 			m["duration_sec"] = t.DurationSec
 		}
@@ -346,6 +357,15 @@ func (r *ReleaseRepository) Update(ctx context.Context, rel *release.Release) er
 		}
 		if t.CoverImageURL != nil {
 			m["cover_image_url"] = t.CoverImageURL
+		}
+		if len(t.Composers) > 0 {
+			m["composers"] = t.Composers
+		}
+		if len(t.Lyricists) > 0 {
+			m["lyricists"] = t.Lyricists
+		}
+		if len(t.Arrangers) > 0 {
+			m["arrangers"] = t.Arrangers
 		}
 		if len(t.Participants) > 0 {
 			participants := make(bson.A, 0, len(t.Participants))

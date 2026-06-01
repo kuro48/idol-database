@@ -94,9 +94,13 @@ type ArtistRefDTO struct {
 type TrackDTO struct {
 	TrackNumber   int                   `json:"track_number"`
 	Title         string                `json:"title"`
+	TitleKana     *string               `json:"title_kana,omitempty"`
 	DurationSec   *int                  `json:"duration_sec,omitempty"`
 	ISRC          *string               `json:"isrc,omitempty"`
 	CoverImageURL *string               `json:"cover_image_url,omitempty"`
+	Composers     []string              `json:"composers,omitempty"`
+	Lyricists     []string              `json:"lyricists,omitempty"`
+	Arrangers     []string              `json:"arrangers,omitempty"`
 	Participants  []TrackParticipantDTO `json:"participants,omitempty"`
 }
 
