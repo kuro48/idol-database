@@ -58,7 +58,9 @@ func (s *ApplicationService) CreateGroup(ctx context.Context, input CreateInput)
 		if err != nil {
 			return nil, fmt.Errorf("解散日の生成エラー: %w", err)
 		}
-		newGroup.UpdateDisbandDate(d)
+		if err := newGroup.UpdateDisbandDate(d); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := s.repository.Save(ctx, newGroup); err != nil {
@@ -139,7 +141,9 @@ func (s *ApplicationService) UpdateGroup(ctx context.Context, input UpdateInput)
 		if err != nil {
 			return fmt.Errorf("結成日の生成エラー: %w", err)
 		}
-		existingGroup.UpdateFormationDate(fd)
+		if err := existingGroup.UpdateFormationDate(fd); err != nil {
+			return err
+		}
 	}
 
 	if input.DisbandDate != nil {
@@ -147,7 +151,9 @@ func (s *ApplicationService) UpdateGroup(ctx context.Context, input UpdateInput)
 		if err != nil {
 			return fmt.Errorf("解散日の生成エラー: %w", err)
 		}
-		existingGroup.UpdateDisbandDate(d)
+		if err := existingGroup.UpdateDisbandDate(d); err != nil {
+			return err
+		}
 	}
 
 	// 更新の保存

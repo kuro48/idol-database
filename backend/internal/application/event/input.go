@@ -1,5 +1,11 @@
 package event
 
+// PerformerInput はパフォーマー入力データ
+type PerformerInput struct {
+	PerformerID   string
+	BillingStatus string
+}
+
 // CreateInput はイベント作成の入力
 type CreateInput struct {
 	Title         string
@@ -7,7 +13,7 @@ type CreateInput struct {
 	StartDateTime string
 	EndDateTime   *string
 	VenueID       *string
-	PerformerIDs  []string
+	Performers    []PerformerInput
 	TicketURL     *string
 	OfficialURL   *string
 	Description   *string
@@ -28,8 +34,9 @@ type UpdateInput struct {
 
 // AddPerformerInput はパフォーマー追加の入力
 type AddPerformerInput struct {
-	EventID     string
-	PerformerID string
+	EventID       string
+	PerformerID   string
+	BillingStatus string
 }
 
 // RemovePerformerInput はパフォーマー削除の入力

@@ -15,7 +15,8 @@ type EventHandler struct {
 
 // AddPerformerRequest はパフォーマー追加リクエスト。
 type AddPerformerRequest struct {
-	PerformerID string `json:"performer_id" binding:"required"`
+	PerformerID   string `json:"performer_id" binding:"required"`
+	BillingStatus string `json:"billing_status,omitempty"`
 }
 
 // NewEventHandler はイベントハンドラーを作成する
@@ -228,8 +229,9 @@ func (h *EventHandler) AddPerformer(c *gin.Context) {
 	}
 
 	cmd := event.AddPerformerCommand{
-		EventID:     eventID,
-		PerformerID: req.PerformerID,
+		EventID:       eventID,
+		PerformerID:   req.PerformerID,
+		BillingStatus: req.BillingStatus,
 	}
 
 	err := h.usecase.AddPerformer(middleware.AuditContextFor(c), cmd)

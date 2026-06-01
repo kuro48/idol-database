@@ -38,6 +38,7 @@ type releaseDocument struct {
 	CoverImageURL  *string                 `bson:"cover_image_url,omitempty"`
 	Aliases        []string                `bson:"aliases,omitempty"`
 	TagIDs         []string                `bson:"tag_ids,omitempty"`
+	Version        int                     `bson:"version"`
 	CreatedAt      time.Time               `bson:"created_at"`
 	UpdatedAt      time.Time               `bson:"updated_at"`
 	CreatedBy      string                  `bson:"created_by,omitempty"`

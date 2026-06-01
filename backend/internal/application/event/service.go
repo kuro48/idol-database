@@ -83,8 +83,12 @@ func (s *ApplicationService) CreateEvent(ctx context.Context, input CreateInput)
 	)
 
 	// パフォーマーの追加
-	for _, performerID := range input.PerformerIDs {
-		if err := newEvent.AddPerformer(performerID); err != nil {
+	for _, pi := range input.Performers {
+		performer, err := event.NewPerformer(pi.PerformerID, pi.BillingStatus)
+		if err != nil {
+			return nil, fmt.Errorf("パフォーマー生成エラー: %w", err)
+		}
+		if err := newEvent.AddPerformer(performer); err != nil {
 			return nil, fmt.Errorf("パフォーマー追加エラー: %w", err)
 		}
 	}
@@ -259,7 +263,11 @@ func (s *ApplicationService) AddPerformer(ctx context.Context, input AddPerforme
 		return fmt.Errorf("イベントの取得エラー: %w", err)
 	}
 
-	if err := existingEvent.AddPerformer(input.PerformerID); err != nil {
+	performer, err := event.NewPerformer(input.PerformerID, input.BillingStatus)
+	if err != nil {
+		return fmt.Errorf("パフォーマー生成エラー: %w", err)
+	}
+	if err := existingEvent.AddPerformer(performer); err != nil {
 		return err
 	}
 

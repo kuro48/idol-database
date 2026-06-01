@@ -10,10 +10,11 @@ type Event struct {
 	id            EventID
 	title         EventTitle
 	eventType     EventType
+	status        EventStatus
 	startDateTime time.Time
 	endDateTime   *time.Time
-	venueID       *string  // 会場ID（オプション）
-	performerIDs  []string // アイドルまたはグループのID
+	venueID       *string
+	performers    []Performer
 	ticketURL     *string
 	officialURL   *string
 	description   *string
@@ -33,8 +34,9 @@ func NewEvent(
 	return &Event{
 		title:         title,
 		eventType:     eventType,
+		status:        EventStatusScheduled,
 		startDateTime: startDateTime,
-		performerIDs:  []string{},
+		performers:    []Performer{},
 		tags:          []string{},
 		createdAt:     now,
 		updatedAt:     now,
@@ -46,10 +48,11 @@ func Reconstruct(
 	id EventID,
 	title EventTitle,
 	eventType EventType,
+	status EventStatus,
 	startDateTime time.Time,
 	endDateTime *time.Time,
 	venueID *string,
-	performerIDs []string,
+	performers []Performer,
 	ticketURL *string,
 	officialURL *string,
 	description *string,
@@ -57,14 +60,18 @@ func Reconstruct(
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Event {
+	if performers == nil {
+		performers = []Performer{}
+	}
 	return &Event{
 		id:            id,
 		title:         title,
 		eventType:     eventType,
+		status:        status,
 		startDateTime: startDateTime,
 		endDateTime:   endDateTime,
 		venueID:       venueID,
-		performerIDs:  performerIDs,
+		performers:    performers,
 		ticketURL:     ticketURL,
 		officialURL:   officialURL,
 		description:   description,
@@ -88,6 +95,10 @@ func (e *Event) EventType() EventType {
 	return e.eventType
 }
 
+func (e *Event) Status() EventStatus {
+	return e.status
+}
+
 func (e *Event) StartDateTime() time.Time {
 	return e.startDateTime
 }
@@ -100,8 +111,20 @@ func (e *Event) VenueID() *string {
 	return e.venueID
 }
 
+func (e *Event) Performers() []Performer {
+	if e.performers == nil {
+		return []Performer{}
+	}
+	return e.performers
+}
+
+// PerformerIDs は後方互換用にパフォーマーIDのみを返す
 func (e *Event) PerformerIDs() []string {
-	return e.performerIDs
+	ids := make([]string, 0, len(e.performers))
+	for _, p := range e.performers {
+		ids = append(ids, p.PerformerID)
+	}
+	return ids
 }
 
 func (e *Event) TicketURL() *string {
@@ -169,27 +192,37 @@ func (e *Event) UpdateDetails(
 	e.updatedAt = time.Now()
 }
 
+// UpdateStatus はイベントのステータスを更新する
+func (e *Event) UpdateStatus(status EventStatus) error {
+	if !status.IsValid() {
+		return errors.New("無効なイベントステータスです")
+	}
+	e.status = status
+	e.updatedAt = time.Now()
+	return nil
+}
+
 // AddPerformer はパフォーマーを追加する
-func (e *Event) AddPerformer(performerID string) error {
-	// 重複チェック
-	for _, id := range e.performerIDs {
-		if id == performerID {
+func (e *Event) AddPerformer(performer Performer) error {
+	for _, p := range e.performers {
+		if p.PerformerID == performer.PerformerID {
 			return errors.New("既に追加されています")
 		}
 	}
-	e.performerIDs = append(e.performerIDs, performerID)
+	e.performers = append(e.performers, performer)
 	e.updatedAt = time.Now()
 	return nil
 }
 
 // RemovePerformer はパフォーマーを削除する
 func (e *Event) RemovePerformer(performerID string) {
-	for i, id := range e.performerIDs {
-		if id == performerID {
-			e.performerIDs = append(e.performerIDs[:i], e.performerIDs[i+1:]...)
-			break
+	newPerformers := make([]Performer, 0, len(e.performers))
+	for _, p := range e.performers {
+		if p.PerformerID != performerID {
+			newPerformers = append(newPerformers, p)
 		}
 	}
+	e.performers = newPerformers
 	e.updatedAt = time.Now()
 }
 

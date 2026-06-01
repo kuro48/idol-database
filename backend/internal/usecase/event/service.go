@@ -22,13 +22,21 @@ func NewUsecase(appService EventAppPort) *Usecase {
 
 // CreateEvent はイベントを作成する
 func (u *Usecase) CreateEvent(ctx context.Context, cmd CreateEventCommand) (*EventDTO, error) {
+	performers := make([]EventPerformerInput, 0, len(cmd.Performers))
+	for _, p := range cmd.Performers {
+		performers = append(performers, EventPerformerInput{
+			PerformerID:   p.PerformerID,
+			BillingStatus: p.BillingStatus,
+		})
+	}
+
 	entity, err := u.appService.CreateEvent(ctx, EventCreateInput{
 		Title:         cmd.Title,
 		EventType:     cmd.EventType,
 		StartDateTime: cmd.StartDateTime,
 		EndDateTime:   cmd.EndDateTime,
 		VenueID:       cmd.VenueID,
-		PerformerIDs:  cmd.PerformerIDs,
+		Performers:    performers,
 		TicketURL:     cmd.TicketURL,
 		OfficialURL:   cmd.OfficialURL,
 		Description:   cmd.Description,
@@ -100,8 +108,9 @@ func (u *Usecase) DeleteEvent(ctx context.Context, cmd DeleteEventCommand) error
 // AddPerformer はパフォーマーを追加する
 func (u *Usecase) AddPerformer(ctx context.Context, cmd AddPerformerCommand) error {
 	return u.appService.AddPerformer(ctx, EventAddPerformerInput{
-		EventID:     cmd.EventID,
-		PerformerID: cmd.PerformerID,
+		EventID:       cmd.EventID,
+		PerformerID:   cmd.PerformerID,
+		BillingStatus: cmd.BillingStatus,
 	})
 }
 
@@ -245,14 +254,23 @@ func toDTO(e *domain.Event) EventDTO {
 		endDateTime = &str
 	}
 
+	performers := make([]PerformerDTO, 0, len(e.Performers()))
+	for _, p := range e.Performers() {
+		performers = append(performers, PerformerDTO{
+			PerformerID:   p.PerformerID,
+			BillingStatus: string(p.BillingStatus),
+		})
+	}
+
 	return EventDTO{
 		ID:            e.ID().Value(),
 		Title:         e.Title().Value(),
 		EventType:     e.EventType().Value(),
+		Status:        string(e.Status()),
 		StartDateTime: e.StartDateTime().Format(time.RFC3339),
 		EndDateTime:   endDateTime,
 		VenueID:       e.VenueID(),
-		PerformerIDs:  e.PerformerIDs(),
+		Performers:    performers,
 		TicketURL:     e.TicketURL(),
 		OfficialURL:   e.OfficialURL(),
 		Description:   e.Description(),

@@ -165,7 +165,7 @@ func TestUpdateStatus_ApprovedCreatesAgency(t *testing.T) {
 func TestUpdateStatus_ApprovedCreatesEvent(t *testing.T) {
 	t.Parallel()
 
-	sub := newSubmissionForTest(t, domain.SubmissionTypeEvent, `{"title":"単独ライブ","event_type":"live","start_date_time":"2026-06-01T18:00:00+09:00","end_date_time":"2026-06-01T20:00:00+09:00","venue_id":"venue-1","performer_ids":["idol-1","group-1"],"ticket_url":"https://ticket.example.com","official_url":"https://event.example.com","description":"イベント説明","tags":["live","tour"]}`)
+	sub := newSubmissionForTest(t, domain.SubmissionTypeEvent, `{"title":"単独ライブ","event_type":"live","start_date_time":"2026-06-01T18:00:00+09:00","end_date_time":"2026-06-01T20:00:00+09:00","venue_id":"venue-1","performers":[{"performer_id":"idol-1","billing_status":"confirmed"},{"performer_id":"group-1"}],"ticket_url":"https://ticket.example.com","official_url":"https://event.example.com","description":"イベント説明","tags":["live","tour"]}`)
 	app := &fakeSubmissionApp{submission: sub}
 	targets := &fakeApprovedTargetPort{}
 	uc := NewUsecase(app, targets, nil)
@@ -185,7 +185,10 @@ func TestUpdateStatus_ApprovedCreatesEvent(t *testing.T) {
 	assert.Equal(t, "2026-06-01T20:00:00+09:00", *targets.eventInput.EndDateTime)
 	require.NotNil(t, targets.eventInput.VenueID)
 	assert.Equal(t, "venue-1", *targets.eventInput.VenueID)
-	assert.Equal(t, []string{"idol-1", "group-1"}, targets.eventInput.PerformerIDs)
+	assert.Equal(t, []EventPerformerInput{
+		{PerformerID: "idol-1", BillingStatus: "confirmed"},
+		{PerformerID: "group-1"},
+	}, targets.eventInput.Performers)
 	require.NotNil(t, targets.eventInput.TicketURL)
 	assert.Equal(t, "https://ticket.example.com", *targets.eventInput.TicketURL)
 	require.NotNil(t, targets.eventInput.OfficialURL)
