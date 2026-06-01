@@ -66,6 +66,17 @@ func TestIdolUpdateUsesSinglePatchRoute(t *testing.T) {
 	}
 }
 
+func TestIdolDuplicateCandidateRouteIsDisabled(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("main.go を読み込めません: %v", err)
+	}
+
+	if strings.Contains(string(source), "duplicate-candidates") {
+		t.Fatal("アイドル重複候補取得ルートを公開してはいけません")
+	}
+}
+
 func TestLegacyFrontendShellRoutesAreDevelopmentOnly(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {

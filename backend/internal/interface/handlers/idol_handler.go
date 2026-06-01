@@ -250,34 +250,6 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
 
-// GetDuplicateCandidates は重複候補アイドルを返す（管理者向け）
-// @Summary      重複候補取得
-// @Description  指定したアイドルの重複候補を返す（管理者専用）
-// @Tags         idols
-// @Produce      json
-// @Param        id path string true "アイドルID"
-// @Success      200 {array} idol.DuplicateCandidateDTO
-// @Failure      404 {object} middleware.ErrorResponse
-// @Failure      500 {object} middleware.ErrorResponse
-// @Router       /idols/{id}/duplicate-candidates [get]
-func (h *IdolHandler) GetDuplicateCandidates(c *gin.Context) {
-	id, ok := getPathID(c)
-	if !ok {
-		return
-	}
-
-	candidates, err := h.usecase.FindDuplicateCandidates(c.Request.Context(), id)
-	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data":  candidates,
-		"total": len(candidates),
-	})
-}
-
 // GetExternalIDs はアイドルの外部IDマッピングを取得する
 // @Summary      外部IDマッピング取得
 // @Description  アイドルの外部サービスIDマッピングを取得する

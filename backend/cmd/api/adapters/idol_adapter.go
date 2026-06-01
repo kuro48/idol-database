@@ -75,10 +75,6 @@ func (a *IdolAppAdapter) SearchIdols(ctx context.Context, criteria idolDomain.Se
 	return a.svc.SearchIdols(ctx, criteria)
 }
 
-func (a *IdolAppAdapter) FindDuplicateCandidates(ctx context.Context, id string) ([]*idolDomain.DuplicateCandidate, error) {
-	return a.svc.FindDuplicateCandidates(ctx, id)
-}
-
 func (a *IdolAppAdapter) UpdateExternalIDs(ctx context.Context, input ucIdol.IdolUpdateExternalIDsInput) error {
 	return a.svc.UpdateExternalIDs(ctx, appIdol.UpdateExternalIDsInput{
 		ID:          input.ID,

@@ -503,11 +503,6 @@ func main() {
 			adminRemoval.GET("/overdue", removalHandler.ListOverdueRemovalRequests) // SLA超過取得
 			adminRemoval.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新
 		}
-		idolsAdmin := v1.Group("/idols", adminAuth)
-		{
-			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates) // 重複候補取得
-		}
-
 		// APIキー管理（admin スコープ必須）
 		adminAPIKeys := v1.Group("/admin/apikeys", adminAuth)
 		{

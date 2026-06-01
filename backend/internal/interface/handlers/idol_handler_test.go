@@ -73,14 +73,6 @@ func (m *MockIdolUseCase) UpdateSocialLinks(ctx context.Context, cmd idol.Update
 	return args.Error(0)
 }
 
-func (m *MockIdolUseCase) FindDuplicateCandidates(ctx context.Context, id string) ([]*idol.DuplicateCandidateDTO, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*idol.DuplicateCandidateDTO), args.Error(1)
-}
-
 func (m *MockIdolUseCase) GetExternalIDs(ctx context.Context, id string) (map[string]string, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {

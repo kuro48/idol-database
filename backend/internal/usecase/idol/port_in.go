@@ -12,7 +12,6 @@ type IdolUseCase interface {
 	DeleteIdol(ctx context.Context, cmd DeleteIdolCommand) error
 	RestoreIdol(ctx context.Context, id string) error
 	UpdateSocialLinks(ctx context.Context, cmd UpdateSocialLinksCommand) error
-	FindDuplicateCandidates(ctx context.Context, id string) ([]*DuplicateCandidateDTO, error)
 	GetExternalIDs(ctx context.Context, id string) (map[string]string, error)
 	UpdateExternalIDs(ctx context.Context, cmd UpdateExternalIDsCommand) error
 }

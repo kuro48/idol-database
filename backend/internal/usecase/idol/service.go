@@ -341,32 +341,6 @@ func (u *Usecase) toDTO(i *domain.Idol) *IdolDTO {
 	}
 }
 
-// DuplicateCandidateDTO は重複候補のDTO
-type DuplicateCandidateDTO struct {
-	Idol   *IdolDTO `json:"idol"`
-	Reason string   `json:"reason"`
-	Score  int      `json:"score"`
-}
-
-// FindDuplicateCandidates は指定したアイドルIDの重複候補を返す
-func (u *Usecase) FindDuplicateCandidates(ctx context.Context, id string) ([]*DuplicateCandidateDTO, error) {
-	candidates, err := u.appService.FindDuplicateCandidates(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	dtos := make([]*DuplicateCandidateDTO, 0, len(candidates))
-	for _, c := range candidates {
-		dtos = append(dtos, &DuplicateCandidateDTO{
-			Idol:   u.toDTO(c.Idol),
-			Reason: c.Reason,
-			Score:  c.Score,
-		})
-	}
-
-	return dtos, nil
-}
-
 // GetExternalIDs は外部IDマッピングを取得する
 func (u *Usecase) GetExternalIDs(ctx context.Context, id string) (map[string]string, error) {
 	entity, err := u.appService.GetIdol(ctx, id)
