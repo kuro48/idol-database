@@ -102,9 +102,8 @@ func setupIdolRouter(usecase idol.IdolUseCase) *gin.Engine {
 	router.POST("/idols", h.CreateIdol)
 	router.GET("/idols/:id", h.GetIdol)
 	router.GET("/idols", h.ListIdols)
-	router.PUT("/idols/:id", h.UpdateIdol)
+	router.PATCH("/idols/:id", h.PatchIdol)
 	router.DELETE("/idols/:id", h.DeleteIdol)
-	router.PUT("/idols/:id/restore", h.RestoreIdol)
 	return router
 }
 
@@ -231,7 +230,7 @@ func TestUpdateIdol_Success(t *testing.T) {
 
 	router := setupIdolRouter(mockUC)
 	body := `{"name": "更新されたアイドル"}`
-	req := httptest.NewRequest(http.MethodPut, "/idols/idol-001", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/idols/idol-001", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -245,12 +244,33 @@ func TestUpdateIdol_InvalidJSON(t *testing.T) {
 	router := setupIdolRouter(mockUC)
 
 	body := `{invalid}`
-	req := httptest.NewRequest(http.MethodPut, "/idols/idol-001", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPatch, "/idols/idol-001", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+	mockUC.AssertNotCalled(t, "UpdateIdol")
+}
+
+func TestPatchIdol_UpdatesSocialLinksAndExternalIDs(t *testing.T) {
+	mockUC := new(MockIdolUseCase)
+	mockUC.On("UpdateSocialLinks", mock.Anything, mock.MatchedBy(func(cmd idol.UpdateSocialLinksCommand) bool {
+		return cmd.ID == "idol-001" && cmd.Twitter != nil && *cmd.Twitter == "@idol"
+	})).Return(nil)
+	mockUC.On("UpdateExternalIDs", mock.Anything, mock.MatchedBy(func(cmd idol.UpdateExternalIDsCommand) bool {
+		return cmd.ID == "idol-001" && cmd.ExternalIDs["spotify_artist"] == "artist-123"
+	})).Return(nil)
+
+	router := setupIdolRouter(mockUC)
+	body := `{"social_links":{"twitter":"@idol"},"external_ids":{"spotify_artist":"artist-123"}}`
+	req := httptest.NewRequest(http.MethodPatch, "/idols/idol-001", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockUC.AssertExpectations(t)
 	mockUC.AssertNotCalled(t, "UpdateIdol")
 }
 
@@ -285,7 +305,8 @@ func TestRestoreIdol_Success(t *testing.T) {
 	mockUC.On("RestoreIdol", mock.Anything, "idol-001").Return(nil)
 
 	router := setupIdolRouter(mockUC)
-	req := httptest.NewRequest(http.MethodPut, "/idols/idol-001/restore", nil)
+	req := httptest.NewRequest(http.MethodPatch, "/idols/idol-001", bytes.NewBufferString(`{"restore": true}`))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -298,7 +319,8 @@ func TestRestoreIdol_NotFound(t *testing.T) {
 	mockUC.On("RestoreIdol", mock.Anything, "nonexistent").Return(errors.New("アイドルが見つかりません"))
 
 	router := setupIdolRouter(mockUC)
-	req := httptest.NewRequest(http.MethodPut, "/idols/nonexistent/restore", nil)
+	req := httptest.NewRequest(http.MethodPatch, "/idols/nonexistent", bytes.NewBufferString(`{"restore": true}`))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

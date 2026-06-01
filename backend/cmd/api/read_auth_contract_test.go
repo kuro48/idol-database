@@ -44,6 +44,28 @@ func TestIdolBulkCreateRouteIsDisabled(t *testing.T) {
 	}
 }
 
+func TestIdolUpdateUsesSinglePatchRoute(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("main.go を読み込めません: %v", err)
+	}
+
+	forbidden := []string{
+		`idolsWrite.PUT("/:id"`,
+		`idolsWrite.PUT("/:id/social-links"`,
+		`idolsWrite.PUT("/:id/external-ids"`,
+		`idolsAdmin.PUT("/:id/restore"`,
+	}
+	for _, route := range forbidden {
+		if strings.Contains(string(source), route) {
+			t.Fatalf("アイドル更新PUTルートを公開してはいけません: %s", route)
+		}
+	}
+	if !strings.Contains(string(source), `PATCH("/:id"`) {
+		t.Fatal("アイドル更新は PATCH /idols/:id に集約してください")
+	}
+}
+
 func TestLegacyFrontendShellRoutesAreDevelopmentOnly(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {

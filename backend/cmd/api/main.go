@@ -398,7 +398,7 @@ func main() {
 	corsOrigins := parseCORSOrigins(cfg.CORSAllowedOrigins, cfg.GinMode)
 	corsConfig := cors.Config{
 		AllowOrigins:     corsOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-ID-Token"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -485,11 +485,9 @@ func main() {
 		}
 		idolsWrite := v1.Group("/idols", writeAuth)
 		{
-			idolsWrite.POST("", idolHandler.CreateIdol)                        // 新規作成
-			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                     // 更新
-			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                  // 削除
-			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
-			idolsWrite.PUT("/:id/external-ids", idolHandler.UpdateExternalIDs) // 外部IDマッピング更新
+			idolsWrite.POST("", idolHandler.CreateIdol)       // 新規作成
+			idolsWrite.PATCH("/:id", idolHandler.PatchIdol)   // 更新
+			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol) // 削除
 		}
 
 		// 削除申請: 申請はログイン必須、参照は投稿者トークン、管理は admin スコープ必須
@@ -507,7 +505,6 @@ func main() {
 		}
 		idolsAdmin := v1.Group("/idols", adminAuth)
 		{
-			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                         // アイドル復元
 			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates) // 重複候補取得
 		}
 
