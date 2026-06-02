@@ -17,7 +17,6 @@ type IdolAppPort interface {
 	RestoreIdol(ctx context.Context, id string) error
 	UpdateSocialLinks(ctx context.Context, input IdolUpdateSocialLinksInput) error
 	SearchIdols(ctx context.Context, criteria domain.SearchCriteria) ([]*domain.Idol, int64, error)
-	FindDuplicateCandidates(ctx context.Context, id string) ([]*domain.DuplicateCandidate, error)
 	UpdateExternalIDs(ctx context.Context, input IdolUpdateExternalIDsInput) error
 }
 

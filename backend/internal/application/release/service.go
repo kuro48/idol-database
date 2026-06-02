@@ -340,7 +340,7 @@ func buildTracks(inputs []TrackInput) ([]release.Track, error) {
 		if err != nil {
 			return nil, fmt.Errorf("楽曲参加情報エラー (track %d): %w", t.TrackNumber, err)
 		}
-		track, err := release.NewTrack(t.TrackNumber, t.Title, t.DurationSec, t.ISRC, t.CoverImageURL, participants)
+		track, err := release.NewTrack(t.TrackNumber, t.Title, t.TitleKana, t.DurationSec, t.ISRC, t.CoverImageURL, t.Composers, t.Lyricists, t.Arrangers, participants)
 		if err != nil {
 			return nil, fmt.Errorf("楽曲エラー (track %d): %w", t.TrackNumber, err)
 		}

@@ -47,7 +47,6 @@ import (
 	appMembership "github.com/kuro48/idol-api/internal/application/membership"
 	appRelease "github.com/kuro48/idol-api/internal/application/release"
 	appRemoval "github.com/kuro48/idol-api/internal/application/removal"
-	appSong "github.com/kuro48/idol-api/internal/application/song"
 	appSubmission "github.com/kuro48/idol-api/internal/application/submission"
 	appTag "github.com/kuro48/idol-api/internal/application/tag"
 	appVenue "github.com/kuro48/idol-api/internal/application/venue"
@@ -71,7 +70,6 @@ import (
 	usecaseMembership "github.com/kuro48/idol-api/internal/usecase/membership"
 	usecaseRelease "github.com/kuro48/idol-api/internal/usecase/release"
 	usecaseRemoval "github.com/kuro48/idol-api/internal/usecase/removal"
-	usecaseSong "github.com/kuro48/idol-api/internal/usecase/song"
 	usecaseSubmission "github.com/kuro48/idol-api/internal/usecase/submission"
 	usecaseTag "github.com/kuro48/idol-api/internal/usecase/tag"
 	usecaseVenue "github.com/kuro48/idol-api/internal/usecase/venue"
@@ -124,7 +122,6 @@ func main() {
 	releaseRepo := mongodb.NewReleaseRepository(db.Database)
 	editHistoryRepo := mongodb.NewEditHistoryRepository(db.Database)
 	membershipRepo := mongodb.NewMembershipRepository(db.Database)
-	songRepo := mongodb.NewSongRepository(db.Database)
 	venueRepo := mongodb.NewVenueRepository(db.Database)
 
 	// MongoDBインデックスの作成
@@ -219,11 +216,6 @@ func main() {
 	} else {
 		slog.Info("Membershipインデックス作成完了", "collection", "memberships")
 	}
-	if err := songRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Songインデックス作成失敗（続行）", "error", err, "collection", "songs")
-	} else {
-		slog.Info("Songインデックス作成完了", "collection", "songs")
-	}
 	if err := venueRepo.EnsureIndexes(ctx); err != nil {
 		slog.Warn("Venueインデックス作成失敗（続行）", "error", err, "collection", "venues")
 	} else {
@@ -246,7 +238,6 @@ func main() {
 	releaseAppService := appRelease.NewApplicationService(releaseRepo, webhookAppService)
 	editHistoryAppService := appEditHistory.NewApplicationService(editHistoryRepo)
 	membershipAppService := appMembership.NewApplicationService(membershipRepo)
-	songAppService := appSong.NewApplicationService(songRepo)
 	venueAppService := appVenue.NewApplicationService(venueRepo)
 
 	// 起動時に RUNNING 状態で止まっているジョブを PENDING に戻す
@@ -271,7 +262,6 @@ func main() {
 	releaseGroupPort := adapters.NewGroupExistenceAdapter(groupAppService)
 	editHistoryAppPort := adapters.NewEditHistoryAppAdapter(editHistoryAppService)
 	membershipAppPort := adapters.NewMembershipAppAdapter(membershipAppService)
-	songAppPort := adapters.NewSongAppAdapter(songAppService)
 	venueAppPort := adapters.NewVenueAppAdapter(venueAppService)
 
 	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
@@ -303,7 +293,6 @@ func main() {
 	releaseUsecase := usecaseRelease.NewUsecase(releaseAppPort, releaseIdolPort, releaseGroupPort)
 	editHistoryUsecase := usecaseEditHistory.NewUsecase(editHistoryAppPort)
 	membershipUsecase := usecaseMembership.NewUsecase(membershipAppPort)
-	songUsecase := usecaseSong.NewUsecase(songAppPort)
 	venueUsecase := usecaseVenue.NewUsecase(venueAppPort)
 
 	// プレゼンテーション層: ハンドラー
@@ -322,7 +311,6 @@ func main() {
 	releaseHandler := handlers.NewReleaseHandler(releaseUsecase)
 	editHistoryHandler := handlers.NewEditHistoryHandler(editHistoryUsecase)
 	membershipHandler := handlers.NewMembershipHandler(membershipUsecase)
-	songHandler := handlers.NewSongHandler(songUsecase)
 	venueHandler := handlers.NewVenueHandler(venueUsecase)
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 	meHandler := handlers.NewMeHandler()
@@ -398,7 +386,7 @@ func main() {
 	corsOrigins := parseCORSOrigins(cfg.CORSAllowedOrigins, cfg.GinMode)
 	corsConfig := cors.Config{
 		AllowOrigins:     corsOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-ID-Token"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -485,12 +473,9 @@ func main() {
 		}
 		idolsWrite := v1.Group("/idols", writeAuth)
 		{
-			idolsWrite.POST("", idolHandler.CreateIdol)                        // 新規作成
-			idolsWrite.POST("/bulk", idolHandler.BulkCreateIdols)              // バルク作成
-			idolsWrite.PUT("/:id", idolHandler.UpdateIdol)                     // 更新
-			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol)                  // 削除
-			idolsWrite.PUT("/:id/social-links", idolHandler.UpdateSocialLinks) // SNSリンク更新
-			idolsWrite.PUT("/:id/external-ids", idolHandler.UpdateExternalIDs) // 外部IDマッピング更新
+			idolsWrite.POST("", idolHandler.CreateIdol)       // 新規作成
+			idolsWrite.PATCH("/:id", idolHandler.PatchIdol)   // 更新
+			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol) // 削除
 		}
 
 		// 削除申請: 申請はログイン必須、参照は投稿者トークン、管理は admin スコープ必須
@@ -506,12 +491,6 @@ func main() {
 			adminRemoval.GET("/overdue", removalHandler.ListOverdueRemovalRequests) // SLA超過取得
 			adminRemoval.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新
 		}
-		idolsAdmin := v1.Group("/idols", adminAuth)
-		{
-			idolsAdmin.PUT("/:id/restore", idolHandler.RestoreIdol)                         // アイドル復元
-			idolsAdmin.GET("/:id/duplicate-candidates", idolHandler.GetDuplicateCandidates) // 重複候補取得
-		}
-
 		// APIキー管理（admin スコープ必須）
 		adminAPIKeys := v1.Group("/admin/apikeys", adminAuth)
 		{
@@ -597,19 +576,6 @@ func main() {
 			membershipsWrite.POST("", membershipHandler.CreateMembership)
 			membershipsWrite.PUT("/:id", membershipHandler.UpdateMembership)
 			membershipsWrite.DELETE("/:id", membershipHandler.DeleteMembership)
-		}
-
-		// 楽曲: 読み取りは公開、書き込みは write スコープ必須
-		songs := v1.Group("/songs")
-		{
-			songs.GET("", songHandler.ListSongs)
-			songs.GET("/:id", songHandler.GetSong)
-		}
-		songsWrite := v1.Group("/songs", writeAuth)
-		{
-			songsWrite.POST("", songHandler.CreateSong)
-			songsWrite.PUT("/:id", songHandler.UpdateSong)
-			songsWrite.DELETE("/:id", songHandler.DeleteSong)
 		}
 
 		// 会場: 読み取りは公開、書き込みは write スコープ必須

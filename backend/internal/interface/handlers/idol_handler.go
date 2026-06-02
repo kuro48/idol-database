@@ -30,10 +30,13 @@ type CreateIdolRequest struct {
 
 // UpdateIdolRequest はアイドル更新リクエスト
 type UpdateIdolRequest struct {
-	Name      *string  `json:"name" binding:"omitempty,min=1,max=100"`
-	Birthdate *string  `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
-	AgencyID  *string  `json:"agency_id" binding:"omitempty"`
-	Aliases   []string `json:"aliases" binding:"omitempty"`
+	Name        *string                        `json:"name" binding:"omitempty,min=1,max=100"`
+	Birthdate   *string                        `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
+	AgencyID    *string                        `json:"agency_id" binding:"omitempty"`
+	Aliases     []string                       `json:"aliases" binding:"omitempty"`
+	SocialLinks *idol.UpdateSocialLinksCommand `json:"social_links" binding:"omitempty"`
+	ExternalIDs map[string]string              `json:"external_ids" binding:"omitempty"`
+	Restore     *bool                          `json:"restore" binding:"omitempty"`
 }
 
 // CreateIdol はアイドルを作成する
@@ -152,9 +155,9 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// UpdateIdol はアイドルを更新する
-// @Summary      アイドル更新
-// @Description  IDを指定してアイドル情報を更新する
+// PatchIdol はアイドルを部分更新する
+// @Summary      アイドル部分更新
+// @Description  基本情報、SNSリンク、外部ID、復元を PATCH /idols/{id} で更新する
 // @Tags         idols
 // @Accept       json
 // @Produce      json
@@ -163,8 +166,8 @@ func (h *IdolHandler) ListIdols(c *gin.Context) {
 // @Success      200 {object} map[string]string
 // @Failure      400 {object} middleware.ErrorResponse
 // @Failure      500 {object} middleware.ErrorResponse
-// @Router       /idols/{id} [put]
-func (h *IdolHandler) UpdateIdol(c *gin.Context) {
+// @Router       /idols/{id} [patch]
+func (h *IdolHandler) PatchIdol(c *gin.Context) {
 	id, ok := getPathID(c)
 	if !ok {
 		return
@@ -176,18 +179,44 @@ func (h *IdolHandler) UpdateIdol(c *gin.Context) {
 		return
 	}
 
-	cmd := idol.UpdateIdolCommand{
-		ID:        id,
-		Name:      req.Name,
-		Birthdate: req.Birthdate,
-		AgencyID:  req.AgencyID,
-		Aliases:   req.Aliases,
+	if req.Restore != nil && *req.Restore {
+		if err := h.usecase.RestoreIdol(middleware.AuditContextFor(c), id); err != nil {
+			middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
+			return
+		}
 	}
 
-	err := h.usecase.UpdateIdol(middleware.AuditContextFor(c), cmd)
-	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "アイドルの更新に失敗しました"})
-		return
+	if req.Name != nil || req.Birthdate != nil || req.AgencyID != nil || req.Aliases != nil {
+		cmd := idol.UpdateIdolCommand{
+			ID:        id,
+			Name:      req.Name,
+			Birthdate: req.Birthdate,
+			AgencyID:  req.AgencyID,
+			Aliases:   req.Aliases,
+		}
+		if err := h.usecase.UpdateIdol(middleware.AuditContextFor(c), cmd); err != nil {
+			middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "アイドルの更新に失敗しました"})
+			return
+		}
+	}
+
+	if req.SocialLinks != nil {
+		cmd := *req.SocialLinks
+		cmd.ID = id
+		if err := h.usecase.UpdateSocialLinks(middleware.AuditContextFor(c), cmd); err != nil {
+			c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
+			return
+		}
+	}
+
+	if req.ExternalIDs != nil {
+		if err := h.usecase.UpdateExternalIDs(middleware.AuditContextFor(c), idol.UpdateExternalIDsCommand{
+			ID:          id,
+			ExternalIDs: req.ExternalIDs,
+		}); err != nil {
+			middleware.WriteError(c, err, middleware.ErrorContext{Resource: "外部ID"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "アイドルが更新されました"})
@@ -221,138 +250,6 @@ func (h *IdolHandler) DeleteIdol(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
 
-// RestoreIdol はソフトデリートされたアイドルを復元する
-// @Summary      アイドル復元
-// @Description  削除されたアイドルを復元する（管理者専用）
-// @Tags         idols
-// @Produce      json
-// @Param        id path string true "アイドルID"
-// @Success      200 {object} map[string]string
-// @Failure      404 {object} middleware.ErrorResponse
-// @Failure      500 {object} middleware.ErrorResponse
-// @Router       /idols/{id}/restore [put]
-func (h *IdolHandler) RestoreIdol(c *gin.Context) {
-	id, ok := getPathID(c)
-	if !ok {
-		return
-	}
-
-	if err := h.usecase.RestoreIdol(middleware.AuditContextFor(c), id); err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "アイドルが復元されました"})
-}
-
-// UpdateSocialLinks はSNS/外部リンクを更新する
-// @Summary      SNS/外部リンク更新
-// @Description  アイドルのSNS/外部リンク情報を更新する
-// @Tags         idols
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "アイドルID"
-// @Param        social_links body idol.UpdateSocialLinksCommand true "SNS/外部リンク更新リクエスト"
-// @Success      200 {object} map[string]string
-// @Failure      400 {object} middleware.ErrorResponse
-// @Router       /idols/{id}/social-links [put]
-func (h *IdolHandler) UpdateSocialLinks(c *gin.Context) {
-	id, ok := getPathID(c)
-	if !ok {
-		return
-	}
-
-	var cmd idol.UpdateSocialLinksCommand
-	if err := c.ShouldBindJSON(&cmd); err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
-		return
-	}
-
-	cmd.ID = id
-
-	err := h.usecase.UpdateSocialLinks(middleware.AuditContextFor(c), cmd)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "SNSリンクが更新されました"})
-}
-
-// GetDuplicateCandidates は重複候補アイドルを返す（管理者向け）
-// @Summary      重複候補取得
-// @Description  指定したアイドルの重複候補を返す（管理者専用）
-// @Tags         idols
-// @Produce      json
-// @Param        id path string true "アイドルID"
-// @Success      200 {array} idol.DuplicateCandidateDTO
-// @Failure      404 {object} middleware.ErrorResponse
-// @Failure      500 {object} middleware.ErrorResponse
-// @Router       /idols/{id}/duplicate-candidates [get]
-func (h *IdolHandler) GetDuplicateCandidates(c *gin.Context) {
-	id, ok := getPathID(c)
-	if !ok {
-		return
-	}
-
-	candidates, err := h.usecase.FindDuplicateCandidates(c.Request.Context(), id)
-	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data":  candidates,
-		"total": len(candidates),
-	})
-}
-
-// BulkCreateIdolsRequest はバルクアイドル作成リクエスト（JSONL: JSON Lines形式）
-type BulkCreateIdolsRequest struct {
-	Idols []struct {
-		Name      string  `json:"name" binding:"required,min=1,max=100"`
-		Birthdate *string `json:"birthdate"`
-		AgencyID  *string `json:"agency_id"`
-	} `json:"idols" binding:"required,min=1,max=100"`
-}
-
-// BulkCreateIdols はアイドルを一括作成する（最大100件）
-// @Summary      アイドル一括作成
-// @Description  複数のアイドルを一括作成する（write認証必須、最大100件）
-// @Tags         idols
-// @Accept       json
-// @Produce      json
-// @Param        request body BulkCreateIdolsRequest true "バルク作成リクエスト"
-// @Success      200 {object} idol.BulkResult
-// @Failure      400 {object} middleware.ErrorResponse
-// @Failure      500 {object} middleware.ErrorResponse
-// @Router       /idols/bulk [post]
-func (h *IdolHandler) BulkCreateIdols(c *gin.Context) {
-	var req BulkCreateIdolsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
-		return
-	}
-
-	cmds := make([]idol.CreateIdolCommand, len(req.Idols))
-	for i, item := range req.Idols {
-		cmds[i] = idol.CreateIdolCommand{
-			Name:      item.Name,
-			Birthdate: item.Birthdate,
-			AgencyID:  item.AgencyID,
-		}
-	}
-
-	result, err := h.usecase.BulkCreateIdols(middleware.AuditContextFor(c), cmds)
-	if err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "バルク作成処理中にエラーが発生しました"})
-		return
-	}
-
-	// 部分成功の場合は200を返す（全失敗でも200 + error_count > 0）
-	c.JSON(http.StatusOK, result)
-}
-
 // GetExternalIDs はアイドルの外部IDマッピングを取得する
 // @Summary      外部IDマッピング取得
 // @Description  アイドルの外部サービスIDマッピングを取得する
@@ -375,42 +272,4 @@ func (h *IdolHandler) GetExternalIDs(c *gin.Context) {
 // UpdateExternalIDsRequest は外部IDマッピング更新リクエスト
 type UpdateExternalIDsRequest struct {
 	ExternalIDs map[string]string `json:"external_ids" binding:"required"`
-}
-
-// UpdateExternalIDs はアイドルの外部IDマッピングを更新する
-// @Summary      外部IDマッピング更新
-// @Description  アイドルの外部サービスIDマッピングを更新する（write認証必須）。空文字列を指定した場合は該当IDを削除。
-// @Tags         idols
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "アイドルID"
-// @Param        request body UpdateExternalIDsRequest true "外部IDマッピング"
-// @Success      200 {object} map[string]string
-// @Failure      400 {object} middleware.ErrorResponse
-// @Failure      404 {object} middleware.ErrorResponse
-// @Failure      409 {object} middleware.ErrorResponse
-// @Router       /idols/{id}/external-ids [put]
-func (h *IdolHandler) UpdateExternalIDs(c *gin.Context) {
-	id := c.Param("id")
-	var req UpdateExternalIDsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, middleware.NewBadRequestError("リクエストが不正です: "+err.Error()))
-		return
-	}
-
-	if err := h.usecase.UpdateExternalIDs(middleware.AuditContextFor(c), idol.UpdateExternalIDsCommand{
-		ID:          id,
-		ExternalIDs: req.ExternalIDs,
-	}); err != nil {
-		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "外部ID"})
-		return
-	}
-
-	// 更新後の外部IDを返す
-	result, err := h.usecase.GetExternalIDs(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"external_ids": req.ExternalIDs})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"external_ids": result})
 }

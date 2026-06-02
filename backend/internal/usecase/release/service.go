@@ -276,9 +276,13 @@ func (u *Usecase) toDTO(r *domainRelease.Release) *ReleaseDTO {
 		tracks = append(tracks, TrackDTO{
 			TrackNumber:   t.TrackNumber(),
 			Title:         t.Title(),
+			TitleKana:     t.TitleKana(),
 			DurationSec:   t.DurationSec(),
 			ISRC:          t.ISRC(),
 			CoverImageURL: t.CoverImageURL(),
+			Composers:     t.Composers(),
+			Lyricists:     t.Lyricists(),
+			Arrangers:     t.Arrangers(),
 			Participants:  participants,
 		})
 	}
@@ -342,9 +346,13 @@ func toAppTracks(cmds []TrackCommand) []appRelease.TrackInput {
 		tracks = append(tracks, appRelease.TrackInput{
 			TrackNumber:   c.TrackNumber,
 			Title:         c.Title,
+			TitleKana:     c.TitleKana,
 			DurationSec:   c.DurationSec,
 			ISRC:          c.ISRC,
 			CoverImageURL: c.CoverImageURL,
+			Composers:     c.Composers,
+			Lyricists:     c.Lyricists,
+			Arrangers:     c.Arrangers,
 			Participants:  toAppTrackParticipants(c.Participants),
 		})
 	}

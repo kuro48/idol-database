@@ -11,9 +11,13 @@ type ArtistRefCommand struct {
 type TrackCommand struct {
 	TrackNumber   int
 	Title         string
+	TitleKana     *string
 	DurationSec   *int
 	ISRC          *string
 	CoverImageURL *string
+	Composers     []string
+	Lyricists     []string
+	Arrangers     []string
 	Participants  []TrackParticipantCommand
 }
 

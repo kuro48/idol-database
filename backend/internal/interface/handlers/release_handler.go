@@ -29,9 +29,13 @@ type ArtistRefRequest struct {
 type TrackRequest struct {
 	TrackNumber   int                       `json:"track_number" binding:"required,min=1"`
 	Title         string                    `json:"title" binding:"required,min=1,max=200"`
+	TitleKana     *string                   `json:"title_kana" binding:"omitempty,max=200"`
 	DurationSec   *int                      `json:"duration_sec" binding:"omitempty,min=0"`
 	ISRC          *string                   `json:"isrc" binding:"omitempty"`
 	CoverImageURL *string                   `json:"cover_image_url" binding:"omitempty,url"`
+	Composers     []string                  `json:"composers" binding:"omitempty,dive,max=100"`
+	Lyricists     []string                  `json:"lyricists" binding:"omitempty,dive,max=100"`
+	Arrangers     []string                  `json:"arrangers" binding:"omitempty,dive,max=100"`
 	Participants  []TrackParticipantRequest `json:"participants" binding:"omitempty,dive"`
 }
 
@@ -402,9 +406,13 @@ func toTrackCommands(reqs []TrackRequest) []release.TrackCommand {
 		cmds = append(cmds, release.TrackCommand{
 			TrackNumber:   r.TrackNumber,
 			Title:         r.Title,
+			TitleKana:     r.TitleKana,
 			DurationSec:   r.DurationSec,
 			ISRC:          r.ISRC,
 			CoverImageURL: r.CoverImageURL,
+			Composers:     r.Composers,
+			Lyricists:     r.Lyricists,
+			Arrangers:     r.Arrangers,
 			Participants:  toTrackParticipantCommands(r.Participants),
 		})
 	}

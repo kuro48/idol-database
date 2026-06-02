@@ -51,7 +51,7 @@ func (q *ListEditHistoryQuery) ApplyDefaults() {
 
 func (q *ListEditHistoryQuery) Validate() error {
 	if q.EntityType != nil {
-		valid := []string{"idol", "group", "agency", "event", "release", "song", "venue", "membership"}
+		valid := []string{"idol", "group", "agency", "event", "release", "venue", "membership"}
 		if !contains(valid, *q.EntityType) {
 			return errors.New("無効なエンティティ種別です")
 		}
