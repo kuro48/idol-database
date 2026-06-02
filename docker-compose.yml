@@ -35,6 +35,19 @@ services:
       mongodb:
         condition: service_healthy
 
+  docs:
+    build:
+      context: .
+      dockerfile: docs/Dockerfile
+      args:
+        API_HOST: ${API_HOST:-localhost:8081}
+    container_name: idol-api-docs
+    restart: always
+    ports:
+      - '4000:80'
+    networks:
+      - app_network
+
 volumes:
   mongodb_data:
     driver: local

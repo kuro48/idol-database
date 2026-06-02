@@ -45,6 +45,11 @@ frontend/dist/
 frontend/.vite/
 frontend-deploy/
 
+# Docs site build artifacts (source is tracked, build output is not)
+docs/node_modules/
+docs/dist/
+docs/public/openapi.json
+
 # Local build artifacts
 backend/api
 
