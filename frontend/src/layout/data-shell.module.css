@@ -177,3 +177,21 @@
   max-width: 1280px;
   width: 100%;
 }
+
+/* Footer */
+.footer {
+  display: flex;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-8);
+  border-top: 1px solid var(--color-border);
+}
+
+.footerLink {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.footerLink:hover {
+  color: var(--color-text-muted);
+}

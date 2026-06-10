@@ -155,6 +155,11 @@ export default function DataShell() {
         <main className={styles.content}>
           <Outlet />
         </main>
+
+        <footer className={styles.footer}>
+          <NavLink to="/terms/service" className={styles.footerLink}>利用規約</NavLink>
+          <NavLink to="/terms/privacy" className={styles.footerLink}>プライバシーポリシー</NavLink>
+        </footer>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, KeyRound, BarChart2, LogOut } from 'lucide-react'
+import { LayoutDashboard, KeyRound, BarChart2, ClipboardCheck, LogOut } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import { userManager } from '../auth/oidcClient'
 import { applyAdminTheme } from '../lib/applyTheme'
@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { to: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
   { to: '/dashboard/apikeys', label: 'APIキー', icon: KeyRound },
   { to: '/dashboard/analytics', label: '分析', icon: BarChart2 },
+  { to: '/dashboard/review', label: '審査', icon: ClipboardCheck },
 ]
 
 export default function AdminShell() {
