@@ -23,7 +23,7 @@ internal/
 
 ## 技術スタック
 
-- **言語**: Go 1.26.3+
+- **言語**: Go 1.26.4+
 - **フレームワーク**: Gin
 - **データベース**: MongoDB (go.mongodb.org/mongo-driver/v2)
 - **API ドキュメント**: Swaggo / Swagger UI
@@ -32,7 +32,7 @@ internal/
 
 ### 前提条件
 
-- Go 1.26.3 以上
+- Go 1.26.4 以上
 - Docker & Docker Compose
 
 ### 起動手順
