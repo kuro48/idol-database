@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
+import { getValidAuthHeaders } from '../../auth/tokenRefresh'
 import { applyOshiTheme } from '../../lib/applyTheme'
 import { useAuthStore } from '../../auth/authStore'
 import styles from '../idols/idol-list.module.css'
 
 const DEFAULT_COLOR = '#FF69B4'
 
-async function updateOshiColor(
-  accessToken: string,
-  idToken: string,
-  color: string,
-): Promise<void> {
+async function updateOshiColor(color: string): Promise<void> {
+  const { accessToken, idToken } = await getValidAuthHeaders()
+  if (!accessToken || !idToken) {
+    throw new Error('authentication required')
+  }
   const res = await fetch('/api/v1/me/oshi-color', {
     method: 'PATCH',
     headers: {
@@ -24,7 +25,7 @@ async function updateOshiColor(
 }
 
 export default function OshiColorPage() {
-  const { oshiColor, accessToken, idToken, isLoggedIn } = useAuth()
+  const { oshiColor, isLoggedIn } = useAuth()
   const setOshiColor = useAuthStore((s) => s.setOshiColor)
   const [color, setColor] = useState(oshiColor ?? DEFAULT_COLOR)
   const [isSaving, setIsSaving] = useState(false)
@@ -33,7 +34,7 @@ export default function OshiColorPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!isLoggedIn || !accessToken || !idToken) {
+    if (!isLoggedIn) {
       setError('You must be signed in to update your oshi color.')
       return
     }
@@ -41,7 +42,7 @@ export default function OshiColorPage() {
     setError(null)
     setSaved(false)
     try {
-      await updateOshiColor(accessToken, idToken, color)
+      await updateOshiColor(color)
       setOshiColor(color)
       applyOshiTheme(color)
       setSaved(true)

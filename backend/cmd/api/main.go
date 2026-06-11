@@ -1,18 +1,18 @@
 // @title           Idol API
 // @version         1.0
 // @description     包括的アイドル情報API - アイドル、グループ、事務所、イベント情報を提供
-// @termsOfService  http://swagger.io/terms/
+// @termsOfService  https://github.com/kuro48/idol-api/blob/main/backend/static/terms/terms_of_service.md
 
-// @contact.name   API Support
-// @contact.email  support@idol-api.com
+// @contact.name   Idol API Maintainers
+// @contact.url    https://github.com/kuro48/idol-api/issues
 
 // @license.name  MIT
 // @license.url   https://opensource.org/licenses/MIT
 
-// @host      localhost:8081
+// @host      api.example.com
 // @BasePath  /api/v1
 
-// @schemes http https
+// @schemes https
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
 // @name Authorization

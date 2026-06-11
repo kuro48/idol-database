@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
+import { getValidAuthHeaders } from '../../auth/tokenRefresh'
 import styles from './request.module.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 export default function SubmissionRequestPage() {
-  const { accessToken, idToken, isLoggedIn } = useAuth()
+  const { isLoggedIn } = useAuth()
   const [targetType, setTargetType] = useState('idol')
   const [payload, setPayload] = useState('{\n  "name": ""\n}')
   const [sourceUrls, setSourceUrls] = useState('')
@@ -15,7 +16,7 @@ export default function SubmissionRequestPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!isLoggedIn || !accessToken || !idToken) {
+    if (!isLoggedIn) {
       setError('申請にはサインインが必要です。')
       return
     }
@@ -28,6 +29,10 @@ export default function SubmissionRequestPage() {
         .split('\n')
         .map((url) => url.trim())
         .filter(Boolean)
+      const { accessToken, idToken } = await getValidAuthHeaders()
+      if (!accessToken || !idToken) {
+        throw new Error('サインイン情報を更新できませんでした。')
+      }
       const res = await fetch(`${API_BASE_URL}/submissions`, {
         method: 'POST',
         headers: {

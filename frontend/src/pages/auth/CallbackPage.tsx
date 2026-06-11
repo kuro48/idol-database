@@ -18,11 +18,11 @@ interface MeResponse {
   can_admin: boolean
 }
 
-async function fetchMe(accessToken: string): Promise<MeResponse> {
+async function fetchMe(accessToken: string, idToken: string): Promise<MeResponse> {
   const res = await fetch(ME_ENDPOINT, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'X-ID-Token': useAuthStore.getState().idToken ?? '',
+      'X-ID-Token': idToken,
     },
   })
   if (!res.ok) {
@@ -51,16 +51,21 @@ export default function CallbackPage() {
           throw new Error('No ID token returned from idol-auth.')
         }
 
+        const tokenExpiresAt = Date.now() + user.expires_in * 1000
         useAuthStore.setState({
           accessToken: user.access_token,
           idToken: user.id_token,
+          refreshToken: user.refresh_token ?? null,
+          tokenExpiresAt,
         })
-        const me = await fetchMe(user.access_token)
+        const me = await fetchMe(user.access_token, user.id_token)
         const oshiColor = me.oshi_color || DEFAULT_OSHI_COLOR
 
         setAuth(
           user.access_token,
           user.id_token,
+          user.refresh_token ?? null,
+          tokenExpiresAt,
           me.email,
           me.display_name,
           oshiColor,
@@ -68,7 +73,7 @@ export default function CallbackPage() {
           me.can_admin,
         )
         applyOshiTheme(oshiColor)
-        navigate('/idols', { replace: true })
+        navigate(userManager.consumeReturnTo() ?? '/idols', { replace: true })
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Unknown callback error'

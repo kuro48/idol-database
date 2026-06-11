@@ -14,7 +14,7 @@ const ADMIN_NAV = [
 ]
 
 export default function AdminShell() {
-  const { isAdmin, idToken, logout } = useAuth()
+  const { isAdmin, idToken, refreshToken, logout } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -33,6 +33,13 @@ export default function AdminShell() {
   }
 
   async function handleLogout() {
+    if (refreshToken) {
+      try {
+        await userManager.revoke(refreshToken)
+      } catch {
+        // Continue with browser logout even if token revocation is unavailable.
+      }
+    }
     logout()
     try {
       await userManager.signoutRedirect(idToken)

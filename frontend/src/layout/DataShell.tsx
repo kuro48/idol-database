@@ -37,7 +37,16 @@ const AUTH_NAV_ITEMS = [
 ]
 
 export default function DataShell() {
-  const { oshiColor, isLoggedIn, isAdmin, displayName, email, idToken, logout } = useAuth()
+  const {
+    oshiColor,
+    isLoggedIn,
+    isAdmin,
+    displayName,
+    email,
+    idToken,
+    refreshToken,
+    logout,
+  } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -45,6 +54,13 @@ export default function DataShell() {
   }, [oshiColor])
 
   async function handleLogout() {
+    if (refreshToken) {
+      try {
+        await userManager.revoke(refreshToken)
+      } catch {
+        // Continue with browser logout even if token revocation is unavailable.
+      }
+    }
     logout()
     try {
       await userManager.signoutRedirect(idToken)

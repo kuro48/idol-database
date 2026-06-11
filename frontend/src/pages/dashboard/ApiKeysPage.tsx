@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { Search, Plus, Trash2, Copy, Check } from 'lucide-react'
-import { useAuthStore } from '../../auth/authStore'
+import { getValidAuthHeaders } from '../../auth/tokenRefresh'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import styles from './dashboard.module.css'
@@ -22,9 +22,15 @@ interface CreateKeyResponse extends APIKey {
   raw_key: string
 }
 
-async function listKeys(email: string, token: string): Promise<APIKey[]> {
+async function adminHeaders() {
+  const { accessToken } = await getValidAuthHeaders()
+  if (!accessToken) throw new Error('authentication required')
+  return { Authorization: `Bearer ${accessToken}` }
+}
+
+async function listKeys(email: string): Promise<APIKey[]> {
   const res = await fetch(`/api/v1/admin/apikeys?email=${encodeURIComponent(email)}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminHeaders(),
   })
   if (!res.ok) throw new Error(`Failed: ${res.status}`)
   return res.json() as Promise<APIKey[]>
@@ -32,11 +38,10 @@ async function listKeys(email: string, token: string): Promise<APIKey[]> {
 
 async function createKey(
   data: { email: string; name: string; plan_type: string },
-  token: string,
 ): Promise<CreateKeyResponse> {
   const res = await fetch('/api/v1/admin/apikeys', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { ...(await adminHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
   if (!res.ok) {
@@ -46,10 +51,10 @@ async function createKey(
   return res.json() as Promise<CreateKeyResponse>
 }
 
-async function revokeKey(id: string, token: string): Promise<void> {
+async function revokeKey(id: string): Promise<void> {
   const res = await fetch(`/api/v1/admin/apikeys/${id}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminHeaders(),
   })
   if (!res.ok && res.status !== 204) throw new Error(`Failed: ${res.status}`)
 }
@@ -57,7 +62,6 @@ async function revokeKey(id: string, token: string): Promise<void> {
 const PLAN_TYPES = ['free', 'developer', 'business'] as const
 
 export default function ApiKeysPage() {
-  const accessToken = useAuthStore((s) => s.accessToken) ?? ''
   const queryClient = useQueryClient()
 
   const [emailInput, setEmailInput] = useState('')
@@ -72,13 +76,13 @@ export default function ApiKeysPage() {
 
   const { data: keys, isLoading, isError } = useQuery({
     queryKey: ['admin', 'apikeys', searchEmail],
-    queryFn: () => listKeys(searchEmail, accessToken),
+    queryFn: () => listKeys(searchEmail),
     enabled: searchEmail !== '',
   })
 
   const createMutation = useMutation({
     mutationFn: (d: { email: string; name: string; plan_type: string }) =>
-      createKey(d, accessToken),
+      createKey(d),
     onSuccess: (data) => {
       setCreatedKey(data)
       setShowCreate(false)
@@ -94,7 +98,7 @@ export default function ApiKeysPage() {
   })
 
   const revokeMutation = useMutation({
-    mutationFn: (id: string) => revokeKey(id, accessToken),
+    mutationFn: (id: string) => revokeKey(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'apikeys', searchEmail] })
     },

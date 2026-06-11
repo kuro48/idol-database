@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { CheckCircle2, XCircle, AlertTriangle, Clock } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useAuthStore } from '../../auth/authStore'
+import { getValidAuthHeaders } from '../../auth/tokenRefresh'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -76,18 +77,24 @@ function statusLabel(status: string): string {
   return map[status] ?? status
 }
 
-async function adminGet<T>(path: string, token: string): Promise<T> {
+async function adminAuthHeaders() {
+  const { accessToken } = await getValidAuthHeaders()
+  if (!accessToken) throw new Error('authentication required')
+  return { Authorization: `Bearer ${accessToken}` }
+}
+
+async function adminGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await adminAuthHeaders(),
   })
   if (!res.ok) throw new Error(`request failed: ${res.status}`)
   return (await res.json()) as T
 }
 
-async function adminPut(path: string, body: unknown, token: string): Promise<void> {
+async function adminPut(path: string, body: unknown): Promise<void> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { ...(await adminAuthHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -97,7 +104,6 @@ async function adminPut(path: string, body: unknown, token: string): Promise<voi
 }
 
 export default function ReviewPage() {
-  const accessToken = useAuthStore((s) => s.accessToken) ?? ''
   const email = useAuthStore((s) => s.email) ?? ''
   const queryClient = useQueryClient()
 
@@ -118,7 +124,6 @@ export default function ReviewPage() {
     queryFn: () =>
       adminGet<{ submissions: Submission[]; count: number }>(
         showAll ? '/submissions' : '/submissions/pending',
-        accessToken,
       ),
     enabled: tab === 'submissions',
   })
@@ -128,7 +133,6 @@ export default function ReviewPage() {
     queryFn: () =>
       adminGet<{ removal_requests: RemovalRequest[]; count: number }>(
         showAll ? '/removal-requests' : '/removal-requests/pending',
-        accessToken,
       ),
     enabled: tab === 'removals',
   })
@@ -138,7 +142,6 @@ export default function ReviewPage() {
       adminPut(
         `/submissions/${id}/status`,
         { status, reviewed_by: email, revision_note: note },
-        accessToken,
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'submissions'] })
@@ -151,7 +154,7 @@ export default function ReviewPage() {
 
   const updateRemovalMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: RemovalStatus }) =>
-      adminPut(`/removal-requests/${id}`, { status }, accessToken),
+      adminPut(`/removal-requests/${id}`, { status }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'removals'] })
       setSelectedRemoval(null)

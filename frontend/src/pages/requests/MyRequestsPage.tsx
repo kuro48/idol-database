@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { ClipboardList, Trash2, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../auth/useAuth'
+import { getValidAuthHeaders } from '../../auth/tokenRefresh'
 import { Skeleton } from '../../components/ui/Skeleton'
 import styles from './request.module.css'
 
@@ -22,7 +23,11 @@ interface RemovalRequest {
   created_at: string
 }
 
-async function authedGet<T>(path: string, accessToken: string, idToken: string): Promise<T> {
+async function authedGet<T>(path: string): Promise<T> {
+  const { accessToken, idToken } = await getValidAuthHeaders()
+  if (!accessToken || !idToken) {
+    throw new Error('authentication required')
+  }
   const res = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -88,19 +93,19 @@ function RemovalItem({ item }: { item: RemovalRequest }) {
 }
 
 export default function MyRequestsPage() {
-  const { accessToken, idToken, isLoggedIn } = useAuth()
+  const { isLoggedIn } = useAuth()
 
   const submissions = useQuery({
     queryKey: ['me', 'submissions'],
-    enabled: isLoggedIn && !!accessToken && !!idToken,
+    enabled: isLoggedIn,
     queryFn: () =>
-      authedGet<{ submissions: Submission[] }>('/me/submissions', accessToken!, idToken!),
+      authedGet<{ submissions: Submission[] }>('/me/submissions'),
   })
   const removals = useQuery({
     queryKey: ['me', 'removal-requests'],
-    enabled: isLoggedIn && !!accessToken && !!idToken,
+    enabled: isLoggedIn,
     queryFn: () =>
-      authedGet<{ removal_requests: RemovalRequest[] }>('/me/removal-requests', accessToken!, idToken!),
+      authedGet<{ removal_requests: RemovalRequest[] }>('/me/removal-requests'),
   })
 
   if (!isLoggedIn) {

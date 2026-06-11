@@ -3,6 +3,8 @@ import { useAuthStore } from './authStore'
 export function useAuth() {
   const accessToken = useAuthStore((s) => s.accessToken)
   const idToken = useAuthStore((s) => s.idToken)
+  const refreshToken = useAuthStore((s) => s.refreshToken)
+  const tokenExpiresAt = useAuthStore((s) => s.tokenExpiresAt)
   const email = useAuthStore((s) => s.email)
   const displayName = useAuthStore((s) => s.displayName)
   const oshiColor = useAuthStore((s) => s.oshiColor)
@@ -15,6 +17,8 @@ export function useAuth() {
   return {
     accessToken,
     idToken,
+    refreshToken,
+    tokenExpiresAt,
     email,
     displayName,
     oshiColor,

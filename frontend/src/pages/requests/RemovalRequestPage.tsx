@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
+import { getValidAuthHeaders } from '../../auth/tokenRefresh'
 import styles from './request.module.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 export default function RemovalRequestPage() {
-  const { accessToken, idToken, isLoggedIn } = useAuth()
+  const { isLoggedIn } = useAuth()
   const [targetType, setTargetType] = useState('idol')
   const [targetId, setTargetId] = useState('')
   const [requesterType, setRequesterType] = useState('third_party')
@@ -18,7 +19,7 @@ export default function RemovalRequestPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!isLoggedIn || !accessToken || !idToken) {
+    if (!isLoggedIn) {
       setError('申請にはサインインが必要です。')
       return
     }
@@ -26,6 +27,10 @@ export default function RemovalRequestPage() {
     setError(null)
     setMessage(null)
     try {
+      const { accessToken, idToken } = await getValidAuthHeaders()
+      if (!accessToken || !idToken) {
+        throw new Error('サインイン情報を更新できませんでした。')
+      }
       const res = await fetch(`${API_BASE_URL}/removal-requests`, {
         method: 'POST',
         headers: {

@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch'
-import { useAuthStore } from '../auth/authStore'
+import { getValidAuthHeaders } from '../auth/tokenRefresh'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -11,9 +11,8 @@ const baseClient = createClient<Record<string, unknown>>({
 
 // Middleware that injects the OIDC access token from the auth store on every request.
 baseClient.use({
-  onRequest({ request }) {
-    const accessToken = useAuthStore.getState().accessToken
-    const idToken = useAuthStore.getState().idToken
+  async onRequest({ request }) {
+    const { accessToken, idToken } = await getValidAuthHeaders()
     if (accessToken) {
       request.headers.set('Authorization', `Bearer ${accessToken}`)
     }
@@ -32,9 +31,8 @@ const adminBaseClient = createClient<Record<string, unknown>>({
 })
 
 adminBaseClient.use({
-  onRequest({ request }) {
-    const accessToken = useAuthStore.getState().accessToken
-    const idToken = useAuthStore.getState().idToken
+  async onRequest({ request }) {
+    const { accessToken, idToken } = await getValidAuthHeaders()
     if (accessToken) {
       request.headers.set('Authorization', `Bearer ${accessToken}`)
     }
