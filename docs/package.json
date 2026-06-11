@@ -10,7 +10,7 @@
     "gen-spec": "tsx scripts/gen-public-spec.ts"
   },
   "dependencies": {
-    "@scalar/api-reference": "^1.25.0"
+    "@scalar/api-reference": "^1.59.2"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
