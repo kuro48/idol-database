@@ -110,7 +110,7 @@ func (h *IdolHandler) GetIdol(c *gin.Context) {
 
 	dto, err := h.usecase.GetIdol(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusNotFound, middleware.NewNotFoundError("アイドル"))
+		middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル"})
 		return
 	}
 
@@ -224,7 +224,7 @@ func (h *IdolHandler) PatchIdol(c *gin.Context) {
 			FanClub:         sl.FanClub,
 		}
 		if err := h.usecase.UpdateSocialLinks(middleware.AuditContextFor(c), cmd); err != nil {
-			c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
+			middleware.WriteError(c, err, middleware.ErrorContext{Resource: "アイドル", Message: "SNSリンクの更新に失敗しました"})
 			return
 		}
 	}

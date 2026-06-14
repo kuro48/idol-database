@@ -42,7 +42,9 @@ func (s *ApplicationService) Shutdown() {
 	s.wg.Wait()
 }
 
-// RecoverStuckJobs は起動時にRUNNING状態で止まっているジョブをPENDINGに戻す
+// RecoverStuckJobs は起動時にRUNNING状態で止まっているジョブをPENDINGに戻す。
+// PENDING に戻ったジョブは管理者が /admin/jobs/:id/retry で手動再実行するまで実行されない。
+// これは意図した設計: クラッシュ起因の中途ジョブは管理者が状態を確認してから再実行する運用。
 func (s *ApplicationService) RecoverStuckJobs(ctx context.Context) error {
 	jobs, err := s.repo.FindByStatus(ctx, domainJob.JobStatusRunning, 100)
 	if err != nil {

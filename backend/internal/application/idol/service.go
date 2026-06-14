@@ -198,6 +198,8 @@ func (s *ApplicationService) RestoreIdol(ctx context.Context, id string) error {
 		return fmt.Errorf("アイドルの復元エラー: %w", err)
 	}
 
+	s.publishWebhook(ctx, domainWebhook.EventIdolUpdated, map[string]interface{}{"id": idolID.Value()})
+
 	return nil
 }
 
@@ -263,6 +265,8 @@ func (s *ApplicationService) UpdateSocialLinks(ctx context.Context, input Update
 	if err := s.repository.Update(ctx, existingIdol); err != nil {
 		return fmt.Errorf("アイドルの更新エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventIdolUpdated, idolWebhookPayload(existingIdol))
 
 	return nil
 }
@@ -366,6 +370,8 @@ func (s *ApplicationService) UpdateExternalIDs(ctx context.Context, input Update
 	if err := s.repository.Update(ctx, existingIdol); err != nil {
 		return fmt.Errorf("アイドルの更新エラー: %w", err)
 	}
+
+	s.publishWebhook(ctx, domainWebhook.EventIdolUpdated, idolWebhookPayload(existingIdol))
 
 	return nil
 }

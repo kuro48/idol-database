@@ -21,6 +21,12 @@ internal/
 
 **依存方向**: `interface → usecase → application → domain ← infrastructure`
 
+**依存ルール（実装上の方針）**:
+- usecase 層は application 層を直接 import してよい（`boundary_test.go` の layerOrder がこれを許可）
+- handler は usecase 経由（標準）または application 直結（analytics / job / apikey / export / billing）どちらも許容
+- cmd/api/adapters/ の pass-through アダプターは既存コードとの互換維持のため残存しているが、将来廃止できる
+- domain 層は他のどの内部パッケージも import しない（CI boundary-check で強制）
+
 ## 技術スタック
 
 - **言語**: Go 1.26.4+
