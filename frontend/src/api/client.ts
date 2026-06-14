@@ -1,11 +1,10 @@
 import createClient from 'openapi-fetch'
+import type { paths } from './schema'
 import { getValidAuthHeaders } from '../auth/tokenRefresh'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
-// Typed as unknown paths since we don't have generated OpenAPI types yet.
-// Replace `Record<string, unknown>` with the generated `paths` type once available.
-const baseClient = createClient<Record<string, unknown>>({
+const baseClient = createClient<paths>({
   baseUrl: API_BASE_URL,
 })
 
@@ -26,7 +25,7 @@ baseClient.use({
 export const api = baseClient
 
 // Separate admin client that hits /admin/* routes.
-const adminBaseClient = createClient<Record<string, unknown>>({
+const adminBaseClient = createClient<paths>({
   baseUrl: '/',
 })
 
