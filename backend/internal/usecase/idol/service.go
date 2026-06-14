@@ -66,21 +66,6 @@ func (u *Usecase) GetIdol(ctx context.Context, query GetIdolQuery) (*IdolDTO, er
 	return dto, nil
 }
 
-// ListIdols はアイドル一覧を取得する
-func (u *Usecase) ListIdols(ctx context.Context, query ListIdolsQuery) ([]*IdolDTO, error) {
-	idols, err := u.appService.ListIdols(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	dtos := make([]*IdolDTO, 0, len(idols))
-	for _, i := range idols {
-		dtos = append(dtos, u.toDTO(i))
-	}
-
-	return dtos, nil
-}
-
 // UpdateIdol はアイドルを更新する
 func (u *Usecase) UpdateIdol(ctx context.Context, cmd UpdateIdolCommand) error {
 	// AgencyIDが指定された場合は存在確認

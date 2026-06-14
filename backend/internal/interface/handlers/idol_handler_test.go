@@ -37,14 +37,6 @@ func (m *MockIdolUseCase) GetIdol(ctx context.Context, query idol.GetIdolQuery) 
 	return args.Get(0).(*idol.IdolDTO), args.Error(1)
 }
 
-func (m *MockIdolUseCase) ListIdols(ctx context.Context, query idol.ListIdolsQuery) ([]*idol.IdolDTO, error) {
-	args := m.Called(ctx, query)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*idol.IdolDTO), args.Error(1)
-}
-
 func (m *MockIdolUseCase) SearchIdols(ctx context.Context, query idol.ListIdolsQuery) (*idol.SearchResult, error) {
 	args := m.Called(ctx, query)
 	if args.Get(0) == nil {

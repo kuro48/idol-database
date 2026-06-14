@@ -11,7 +11,6 @@ import (
 type IdolAppPort interface {
 	CreateIdol(ctx context.Context, input IdolCreateInput) (*domain.Idol, error)
 	GetIdol(ctx context.Context, id string) (*domain.Idol, error)
-	ListIdols(ctx context.Context) ([]*domain.Idol, error)
 	UpdateIdol(ctx context.Context, input IdolUpdateInput) error
 	DeleteIdol(ctx context.Context, id string) error
 	RestoreIdol(ctx context.Context, id string) error

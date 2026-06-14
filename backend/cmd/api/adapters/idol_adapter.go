@@ -36,10 +36,6 @@ func (a *IdolAppAdapter) GetIdol(ctx context.Context, id string) (*idolDomain.Id
 	return a.svc.GetIdol(ctx, id)
 }
 
-func (a *IdolAppAdapter) ListIdols(ctx context.Context) ([]*idolDomain.Idol, error) {
-	return a.svc.ListIdols(ctx)
-}
-
 func (a *IdolAppAdapter) UpdateIdol(ctx context.Context, input ucIdol.IdolUpdateInput) error {
 	return a.svc.UpdateIdol(ctx, appIdol.UpdateInput{
 		ID:        input.ID,
