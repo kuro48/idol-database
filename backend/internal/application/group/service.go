@@ -7,6 +7,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/group"
 	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 )
 
 type ApplicationService struct {
@@ -31,7 +32,7 @@ func NewApplicationService(repository group.Repository, publisher WebhookPublish
 func (s *ApplicationService) CreateGroup(ctx context.Context, input CreateInput) (*group.Group, error) {
 	name, err := group.NewGroupName(input.Name)
 	if err != nil {
-		return nil, fmt.Errorf("名前の生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeNameValidation, "名前の生成エラー", err)
 	}
 
 	// ドメインサービスで重複チェック
@@ -75,7 +76,7 @@ func (s *ApplicationService) CreateGroup(ctx context.Context, input CreateInput)
 func (s *ApplicationService) GetGroup(ctx context.Context, id string) (*group.Group, error) {
 	groupID, err := group.NewGroupID(id)
 	if err != nil {
-		return nil, fmt.Errorf("IDの生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	foundGroup, err := s.repository.FindByID(ctx, groupID)
@@ -107,7 +108,7 @@ func (s *ApplicationService) ListGroupWithPagination(ctx context.Context, opts g
 func (s *ApplicationService) UpdateGroup(ctx context.Context, input UpdateInput) error {
 	id, err := group.NewGroupID(input.ID)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	existingGroup, err := s.repository.FindByID(ctx, id)
@@ -128,7 +129,7 @@ func (s *ApplicationService) UpdateGroup(ctx context.Context, input UpdateInput)
 			return err
 		}
 		if isDuplicate {
-			return fmt.Errorf("同じ名前のグループが既に存在します")
+			return domainerrors.New(domainerrors.ErrCodeDuplicate, "同じ名前のグループが既に存在します")
 		}
 
 		if err := existingGroup.ChangeName(name); err != nil {
@@ -169,7 +170,7 @@ func (s *ApplicationService) UpdateGroup(ctx context.Context, input UpdateInput)
 func (s *ApplicationService) DeleteGroup(ctx context.Context, id string) error {
 	groupID, err := group.NewGroupID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Delete(ctx, groupID); err != nil {
@@ -185,7 +186,7 @@ func (s *ApplicationService) DeleteGroup(ctx context.Context, id string) error {
 func (s *ApplicationService) RestoreGroup(ctx context.Context, id string) error {
 	groupID, err := group.NewGroupID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Restore(ctx, groupID); err != nil {

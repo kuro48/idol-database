@@ -8,6 +8,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/agency"
 	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 	sharedid "github.com/kuro48/idol-api/internal/shared/id"
 )
 
@@ -37,7 +38,7 @@ func (s *ApplicationService) CreateAgency(ctx context.Context, input CreateInput
 	// 値オブジェクトの生成
 	name, err := agency.NewAgencyName(input.Name)
 	if err != nil {
-		return nil, fmt.Errorf("名前の生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeNameValidation, "名前の生成エラー", err)
 	}
 
 	country, err := agency.NewCountry(input.Country)
@@ -53,7 +54,7 @@ func (s *ApplicationService) CreateAgency(ctx context.Context, input CreateInput
 	// IDを生成（MongoDB ObjectID hex文字列）
 	agID, err := agency.NewAgencyID(sharedid.Generate())
 	if err != nil {
-		return nil, fmt.Errorf("IDの生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	// エンティティの生成
@@ -83,7 +84,7 @@ func (s *ApplicationService) CreateAgency(ctx context.Context, input CreateInput
 func (s *ApplicationService) GetAgency(ctx context.Context, id string) (*agency.Agency, error) {
 	agencyID, err := agency.NewAgencyID(id)
 	if err != nil {
-		return nil, fmt.Errorf("IDの生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	foundAgency, err := s.repository.FindByID(ctx, agencyID)
@@ -117,7 +118,7 @@ func (s *ApplicationService) ListAgenciesWithPagination(ctx context.Context, opt
 func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput) error {
 	agID, err := agency.NewAgencyID(input.ID)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	existingAgency, err := s.repository.FindByID(ctx, agID)
@@ -130,7 +131,7 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput
 	if input.Name != nil {
 		name, err := agency.NewAgencyName(*input.Name)
 		if err != nil {
-			return fmt.Errorf("名前の生成エラー: %w", err)
+			return domainerrors.Wrap(domainerrors.ErrCodeNameValidation, "名前の生成エラー", err)
 		}
 
 		// 名前の重複チェック（自分自身は除外）
@@ -139,7 +140,7 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput
 			return err
 		}
 		if isDuplicate {
-			return fmt.Errorf("同じ名前の事務所が既に存在します")
+			return domainerrors.New(domainerrors.ErrCodeDuplicate, "同じ名前の事務所が既に存在します")
 		}
 
 		newName = &name
@@ -171,7 +172,7 @@ func (s *ApplicationService) UpdateAgency(ctx context.Context, input UpdateInput
 func (s *ApplicationService) DeleteAgency(ctx context.Context, id string) error {
 	agencyID, err := agency.NewAgencyID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Delete(ctx, agencyID); err != nil {
@@ -187,7 +188,7 @@ func (s *ApplicationService) DeleteAgency(ctx context.Context, id string) error 
 func (s *ApplicationService) RestoreAgency(ctx context.Context, id string) error {
 	agencyID, err := agency.NewAgencyID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Restore(ctx, agencyID); err != nil {
