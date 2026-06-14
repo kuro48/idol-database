@@ -265,8 +265,10 @@ func main() {
 	venueAppPort := adapters.NewVenueAppAdapter(venueAppService)
 
 	// メール通知の初期化（SMTP_HOST が設定されている場合のみ有効化）
+	// インターフェース型変数を使うことで SMTP 未設定時に真の nil（typed-nil ではない）になる。
 	var smtpNotifier *email.SMTPNotifier
 	var emailNotifier usecaseSubmission.EmailNotifier
+	var removalNotifier usecaseRemoval.RemovalNotifier
 	if cfg.SMTPHost != "" {
 		smtpNotifier = email.NewSMTPNotifier(email.SMTPConfig{
 			Host:     cfg.SMTPHost,
@@ -277,6 +279,7 @@ func main() {
 			FromName: cfg.SMTPFromName,
 		})
 		emailNotifier = smtpNotifier
+		removalNotifier = smtpNotifier
 		slog.Info("メール通知が有効です", "smtp_host", cfg.SMTPHost, "smtp_port", cfg.SMTPPort)
 	} else {
 		slog.Info("メール通知は無効です（SMTP_HOST 未設定）")
@@ -284,7 +287,7 @@ func main() {
 
 	// ユースケース層
 	idolUsecase := usecaseIdol.NewUsecase(idolAppPort, agencyAppPortForIdol)
-	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort, smtpNotifier, webhookAppService)
+	removalUsecase := usecaseRemoval.NewUsecase(removalAppPort, removalIdolPort, removalGroupPort, removalNotifier, webhookAppService)
 	groupUsecase := usecaseGroup.NewUsecase(groupAppPort)
 	agencyUsecase := usecaseAgency.NewUsecase(agencyAppPort)
 	eventUsecase := usecaseEvent.NewUsecase(eventAppPort)
@@ -315,23 +318,9 @@ func main() {
 	apikeyHandler := handlers.NewAPIKeyHandler(apikeyAppService)
 	meHandler := handlers.NewMeHandler()
 	healthHandler := handlers.NewHealthHandler(db)
-	billingService := appBilling.NewService(
-		nil,
-		billingRepo,
-		apikeyAppService,
-		smtpNotifier,
-		appBilling.Config{
-			StripeSigningSecret: cfg.StripeWebhookSecret,
-			KeySeedSecret:       cfg.StripeKeySeedSecret,
-			PriceIDs: map[plan.Type]string{
-				plan.TypeDeveloper: cfg.StripePriceDeveloper,
-				plan.TypeBusiness:  cfg.StripePriceBusiness,
-			},
-		},
-	)
 	var billingHandler *handlers.BillingHandler
 	if cfg.StripeSecretKey != "" && smtpNotifier != nil {
-		billingService = appBilling.NewService(
+		billingService := appBilling.NewService(
 			infraStripe.NewClient(cfg.StripeSecretKey, cfg.StripeWebhookSecret),
 			billingRepo,
 			apikeyAppService,
@@ -345,11 +334,11 @@ func main() {
 				},
 			},
 		)
+		billingHandler = handlers.NewBillingHandlerWithAllowedRedirectOrigins(billingService, parseCORSOrigins(cfg.CORSAllowedOrigins, cfg.GinMode))
 		slog.Info("Stripe課金導線が有効です")
 	} else {
 		slog.Info("Stripe課金導線は無効です", "stripe_enabled", cfg.StripeSecretKey != "", "smtp_enabled", smtpNotifier != nil)
 	}
-	billingHandler = handlers.NewBillingHandlerWithAllowedRedirectOrigins(billingService, parseCORSOrigins(cfg.CORSAllowedOrigins, cfg.GinMode))
 
 	// プランベース認証ミドルウェア（外部開発者向けAPIキー）
 	// Auth: APIキー必須。検証に成功したリクエストのみ使用量をカウントして通過させる。
