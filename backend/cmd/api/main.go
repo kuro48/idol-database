@@ -124,103 +124,29 @@ func main() {
 	membershipRepo := mongodb.NewMembershipRepository(db.Database)
 	venueRepo := mongodb.NewVenueRepository(db.Database)
 
-	// MongoDBインデックスの作成
+	// MongoDBインデックスの作成（失敗しても続行する）
 	ctx := context.Background()
-	if err := idolRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Idolインデックス作成失敗（続行）", "error", err, "collection", "idols")
-	} else {
-		slog.Info("Idolインデックス作成完了", "collection", "idols")
-	}
-	if err := eventRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Eventインデックス作成失敗（続行）", "error", err, "collection", "events")
-	} else {
-		slog.Info("Eventインデックス作成完了", "collection", "events")
-	}
-	if err := tagRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Tagインデックス作成失敗（続行）", "error", err, "collection", "tags")
-	} else {
-		slog.Info("Tagインデックス作成完了", "collection", "tags")
-	}
-	if err := groupRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Groupインデックス作成失敗（続行）", "error", err, "collection", "groups")
-	} else {
-		slog.Info("Groupインデックス作成完了", "collection", "groups")
-	}
-	if err := agencyRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Agencyインデックス作成失敗（続行）", "error", err, "collection", "agencies")
-	} else {
-		slog.Info("Agencyインデックス作成完了", "collection", "agencies")
-	}
-	if err := analyticsRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Analyticsインデックス作成失敗（続行）", "error", err, "collection", "api_usage_logs")
-	} else {
-		slog.Info("Analyticsインデックス作成完了", "collection", "api_usage_logs")
-	}
-	if err := jobRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Jobインデックス作成失敗（続行）", "error", err, "collection", "async_jobs")
-	} else {
-		slog.Info("Jobインデックス作成完了", "collection", "async_jobs")
-	}
-	if err := removalRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Removalインデックス作成失敗（続行）", "error", err, "collection", "removal_requests")
-	} else {
-		slog.Info("Removalインデックス作成完了", "collection", "removal_requests")
-	}
-	if err := submissionRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Submissionインデックス作成失敗（続行）", "error", err, "collection", "submissions")
-	} else {
-		slog.Info("Submissionインデックス作成完了", "collection", "submissions")
-	}
-	if err := apikeyRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("APIKeyインデックス作成失敗（続行）", "error", err, "collection", "api_keys")
-	} else {
-		slog.Info("APIKeyインデックス作成完了", "collection", "api_keys")
-	}
-	if err := usageRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Usageインデックス作成失敗（続行）", "error", err, "collection", "api_key_usage")
-	} else {
-		slog.Info("Usageインデックス作成完了", "collection", "api_key_usage")
-	}
-	if err := webhookSubRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("WebhookSubインデックス作成失敗（続行）", "error", err, "collection", "webhook_subscriptions")
-	} else {
-		slog.Info("WebhookSubインデックス作成完了", "collection", "webhook_subscriptions")
-	}
-	if err := webhookDelRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("WebhookDelインデックス作成失敗（続行）", "error", err, "collection", "webhook_delivery_logs")
-	} else {
-		slog.Info("WebhookDelインデックス作成完了", "collection", "webhook_delivery_logs")
-	}
-	if err := exportLogRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("ExportLogインデックス作成失敗（続行）", "error", err, "collection", "export_logs")
-	} else {
-		slog.Info("ExportLogインデックス作成完了", "collection", "export_logs")
-	}
-	if err := billingRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("BillingFulfillmentインデックス作成失敗（続行）", "error", err, "collection", "billing_fulfillments")
-	} else {
-		slog.Info("BillingFulfillmentインデックス作成完了", "collection", "billing_fulfillments")
-	}
-	if err := releaseRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Releaseインデックス作成失敗（続行）", "error", err, "collection", "releases")
-	} else {
-		slog.Info("Releaseインデックス作成完了", "collection", "releases")
-	}
-	if err := editHistoryRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("EditHistoryインデックス作成失敗（続行）", "error", err, "collection", "edit_history")
-	} else {
-		slog.Info("EditHistoryインデックス作成完了", "collection", "edit_history")
-	}
-	if err := membershipRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Membershipインデックス作成失敗（続行）", "error", err, "collection", "memberships")
-	} else {
-		slog.Info("Membershipインデックス作成完了", "collection", "memberships")
-	}
-	if err := venueRepo.EnsureIndexes(ctx); err != nil {
-		slog.Warn("Venueインデックス作成失敗（続行）", "error", err, "collection", "venues")
-	} else {
-		slog.Info("Venueインデックス作成完了", "collection", "venues")
-	}
+	ensureIndexes(ctx, []indexEnsurer{
+		{name: "Idol", collection: "idols", fn: idolRepo.EnsureIndexes},
+		{name: "Event", collection: "events", fn: eventRepo.EnsureIndexes},
+		{name: "Tag", collection: "tags", fn: tagRepo.EnsureIndexes},
+		{name: "Group", collection: "groups", fn: groupRepo.EnsureIndexes},
+		{name: "Agency", collection: "agencies", fn: agencyRepo.EnsureIndexes},
+		{name: "Analytics", collection: "api_usage_logs", fn: analyticsRepo.EnsureIndexes},
+		{name: "Job", collection: "async_jobs", fn: jobRepo.EnsureIndexes},
+		{name: "Removal", collection: "removal_requests", fn: removalRepo.EnsureIndexes},
+		{name: "Submission", collection: "submissions", fn: submissionRepo.EnsureIndexes},
+		{name: "APIKey", collection: "api_keys", fn: apikeyRepo.EnsureIndexes},
+		{name: "Usage", collection: "api_key_usage", fn: usageRepo.EnsureIndexes},
+		{name: "WebhookSub", collection: "webhook_subscriptions", fn: webhookSubRepo.EnsureIndexes},
+		{name: "WebhookDel", collection: "webhook_delivery_logs", fn: webhookDelRepo.EnsureIndexes},
+		{name: "ExportLog", collection: "export_logs", fn: exportLogRepo.EnsureIndexes},
+		{name: "BillingFulfillment", collection: "billing_fulfillments", fn: billingRepo.EnsureIndexes},
+		{name: "Release", collection: "releases", fn: releaseRepo.EnsureIndexes},
+		{name: "EditHistory", collection: "edit_history", fn: editHistoryRepo.EnsureIndexes},
+		{name: "Membership", collection: "memberships", fn: membershipRepo.EnsureIndexes},
+		{name: "Venue", collection: "venues", fn: venueRepo.EnsureIndexes},
+	})
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
@@ -708,6 +634,24 @@ func main() {
 		slog.Error("HTTPシャットダウンエラー", "error", err)
 	}
 	slog.Info("サーバーを正常に停止しました")
+}
+
+// indexEnsurer は EnsureIndexes 呼び出しのメタデータと関数をまとめる
+type indexEnsurer struct {
+	name       string
+	collection string
+	fn         func(ctx context.Context) error
+}
+
+// ensureIndexes は各リポジトリのインデックスを作成する。失敗しても続行する。
+func ensureIndexes(ctx context.Context, ensurers []indexEnsurer) {
+	for _, e := range ensurers {
+		if err := e.fn(ctx); err != nil {
+			slog.Warn(e.name+"インデックス作成失敗（続行）", "error", err, "collection", e.collection)
+		} else {
+			slog.Info(e.name+"インデックス作成完了", "collection", e.collection)
+		}
+	}
 }
 
 func parseCORSOrigins(raw string, ginMode string) []string {
