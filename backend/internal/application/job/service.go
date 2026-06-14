@@ -87,9 +87,15 @@ func (s *ApplicationService) EnqueueBulkImport(ctx context.Context, payload []by
 	}
 
 	s.wg.Add(1)
+	jobID := job.ID()
 	go func() {
 		defer s.wg.Done()
-		s.executeBulkImport(job.ID(), payload)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("バルクインポートジョブパニック回復", "job_id", jobID, "panic", r)
+			}
+		}()
+		s.executeBulkImport(jobID, payload)
 	}()
 
 	return job, nil
@@ -251,9 +257,16 @@ func (s *ApplicationService) RetryJob(ctx context.Context, id string) (*domainJo
 	}
 
 	s.wg.Add(1)
+	retryJobID := job.ID()
+	retryPayload := job.Payload()
 	go func() {
 		defer s.wg.Done()
-		s.executeBulkImport(job.ID(), job.Payload())
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("バルクインポートジョブパニック回復（リトライ）", "job_id", retryJobID, "panic", r)
+			}
+		}()
+		s.executeBulkImport(retryJobID, retryPayload)
 	}()
 
 	return job, nil
