@@ -159,3 +159,48 @@ func TestNewTooManyRequestsError(t *testing.T) {
 	resp := middleware.NewTooManyRequestsError("レート制限超過")
 	assert.Equal(t, "TOO_MANY_REQUESTS", resp.Code)
 }
+
+// D-07: エラー分類の文字列マッチ依存の回帰テスト。
+// エラーメッセージの文言変更が HTTP ステータスに影響しないよう現状のマッピングを固定する。
+func TestWriteError_StatusClassification(t *testing.T) {
+	t.Parallel()
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name     string
+		errMsg   string
+		wantCode int
+	}{
+		// 404 に分類される文言
+		{"notfound_jp", "アイドルが見つかりません", http.StatusNotFound},
+		{"notfound_jp2", "グループが見つかりません", http.StatusNotFound},
+		// 400 に分類される文言（文字列マッチフォールバック）
+		{"badrequest_id", "IDの生成エラー: invalid format", http.StatusBadRequest},
+		{"badrequest_invalid", "無効な値です", http.StatusBadRequest},
+		{"badrequest_wrong", "不正なリクエストです", http.StatusBadRequest},
+		{"badrequest_required", "必須フィールドがありません", http.StatusBadRequest},
+		{"badrequest_format", "形式が正しくありません", http.StatusBadRequest},
+		{"badrequest_input", "入力値が正しくありません", http.StatusBadRequest},
+		// 409 に分類される文言
+		{"conflict_already", "既に登録されています", http.StatusConflict},
+		{"conflict_dup", "重複しています", http.StatusConflict},
+		// それ以外は 500
+		{"internal_db", "データベースへの接続に失敗しました", http.StatusInternalServerError},
+		{"internal_generic", "予期しないエラーが発生しました", http.StatusInternalServerError},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			router := gin.New()
+			router.GET("/test", func(c *gin.Context) {
+				middleware.WriteError(c, errors.New(tt.errMsg), middleware.ErrorContext{Resource: "リソース"})
+			})
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantCode, w.Code, "errMsg=%q", tt.errMsg)
+		})
+	}
+}
