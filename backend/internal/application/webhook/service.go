@@ -189,6 +189,7 @@ func (s *ApplicationService) Publish(ctx context.Context, event webhook.EventTyp
 		}
 		delivery := webhook.NewDelivery(deliveryID, sub.ID(), event, payloadBytes)
 		if err := s.deliveryRepo.Save(ctx, delivery); err != nil {
+			slog.Error("Webhook配信レコードの保存に失敗しました", "subscription_id", sub.ID(), "error", err)
 			continue
 		}
 
