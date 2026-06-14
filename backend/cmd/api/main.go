@@ -224,7 +224,7 @@ func main() {
 
 	// アプリケーション層: アプリケーションサービス
 	analyticsAppService := appAnalytics.NewApplicationService(analyticsRepo)
-	webhookAppService := appWebhook.NewApplicationService(webhookSubRepo, webhookDelRepo)
+	webhookAppService := appWebhook.NewApplicationServiceWithTimeout(webhookSubRepo, webhookDelRepo, cfg.WebhookTimeout)
 	idolAppService := appIdol.NewApplicationService(idolRepo, webhookAppService)
 	removalAppService := appRemoval.NewApplicationService(removalRepo)
 	groupAppService := appGroup.NewApplicationService(groupRepo, webhookAppService)
