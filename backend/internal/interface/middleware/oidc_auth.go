@@ -9,7 +9,7 @@ import (
 	domainAuth "github.com/kuro48/idol-api/internal/domain/auth"
 )
 
-// OIDCWriteAuth は idol-auth トークンを検証し admin ロールを持つ場合のみ通過させる。
+// OIDCWriteAuth は idol-auth トークンを検証し write 操作（admin ロール）を持つ場合のみ通過させる。
 // verifier が nil（IDOL_AUTH_URL 未設定）の場合は 503 を返す。
 func OIDCWriteAuth(verifier domainAuth.TokenVerifier) gin.HandlerFunc {
 	return oidcAuth(verifier, (*domainAuth.Principal).CanWrite)

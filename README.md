@@ -49,6 +49,8 @@ cp .env.example .env.local
 cd backend && go run cmd/api/main.go
 ```
 
+環境変数ファイルの読み込み優先順位: `.env.local` → `.env`（先勝ち）。
+
 `.env.local` の設定例:
 
 ```env
