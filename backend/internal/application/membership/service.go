@@ -7,6 +7,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/membership"
 	"github.com/kuro48/idol-api/internal/shared/audit"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 )
 
 type ApplicationService struct {
@@ -49,7 +50,7 @@ func (s *ApplicationService) CreateMembership(ctx context.Context, input CreateI
 func (s *ApplicationService) GetMembership(ctx context.Context, id string) (*membership.Membership, error) {
 	mid, err := membership.NewMembershipID(id)
 	if err != nil {
-		return nil, fmt.Errorf("IDの生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	m, err := s.repository.FindByID(ctx, mid)
@@ -91,7 +92,7 @@ func (s *ApplicationService) CountMemberships(ctx context.Context, criteria memb
 func (s *ApplicationService) UpdateMembership(ctx context.Context, input UpdateInput) error {
 	mid, err := membership.NewMembershipID(input.ID)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	m, err := s.repository.FindByID(ctx, mid)
@@ -141,7 +142,7 @@ func (s *ApplicationService) UpdateMembership(ctx context.Context, input UpdateI
 func (s *ApplicationService) DeleteMembership(ctx context.Context, id string) error {
 	mid, err := membership.NewMembershipID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Delete(ctx, mid); err != nil {

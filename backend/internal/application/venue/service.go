@@ -6,6 +6,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/venue"
 	"github.com/kuro48/idol-api/internal/shared/audit"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 )
 
 // ApplicationService は会場に関するアプリケーションサービス
@@ -54,7 +55,7 @@ func (s *ApplicationService) CreateVenue(ctx context.Context, input CreateInput)
 func (s *ApplicationService) GetVenue(ctx context.Context, id string) (*venue.Venue, error) {
 	vid, err := venue.NewVenueID(id)
 	if err != nil {
-		return nil, fmt.Errorf("IDの生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	v, err := s.repository.FindByID(ctx, vid)
@@ -80,7 +81,7 @@ func (s *ApplicationService) CountVenues(ctx context.Context, criteria venue.Sea
 func (s *ApplicationService) UpdateVenue(ctx context.Context, input UpdateInput) error {
 	vid, err := venue.NewVenueID(input.ID)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	v, err := s.repository.FindByID(ctx, vid)
@@ -122,7 +123,7 @@ func (s *ApplicationService) UpdateVenue(ctx context.Context, input UpdateInput)
 func (s *ApplicationService) DeleteVenue(ctx context.Context, id string) error {
 	vid, err := venue.NewVenueID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Delete(ctx, vid); err != nil {

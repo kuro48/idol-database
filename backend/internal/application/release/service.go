@@ -8,6 +8,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/release"
 	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 )
 
 // WebhookPublisher はリリース変更イベントを通知する契約
@@ -34,7 +35,7 @@ func NewApplicationService(repository release.Repository, publisher WebhookPubli
 func (s *ApplicationService) CreateRelease(ctx context.Context, input CreateInput) (*release.Release, error) {
 	title, err := release.NewReleaseTitle(input.Title)
 	if err != nil {
-		return nil, fmt.Errorf("タイトルエラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeNameValidation, "タイトルエラー", err)
 	}
 
 	releaseType, err := release.NewReleaseType(input.ReleaseType)
@@ -125,7 +126,7 @@ func (s *ApplicationService) UpdateRelease(ctx context.Context, input UpdateInpu
 	if input.Title != nil {
 		t, err := release.NewReleaseTitle(*input.Title)
 		if err != nil {
-			return fmt.Errorf("タイトルエラー: %w", err)
+			return domainerrors.Wrap(domainerrors.ErrCodeNameValidation, "タイトルエラー", err)
 		}
 		if err := r.ChangeTitle(t); err != nil {
 			return err
@@ -287,7 +288,7 @@ func (s *ApplicationService) UpdateExternalIDs(ctx context.Context, input Update
 				return fmt.Errorf("外部ID重複チェックエラー: %w", err)
 			}
 			if existing != nil && existing.ID().Value() != input.ID {
-				return fmt.Errorf("外部ID '%s' の値 '%s' は既に別のリリースに登録されています", k, v)
+				return domainerrors.New(domainerrors.ErrCodeDuplicate, fmt.Sprintf("外部ID '%s' の値 '%s' は既に別のリリースに登録されています", k, v))
 			}
 		}
 

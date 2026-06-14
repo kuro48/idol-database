@@ -9,6 +9,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/event"
 	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 	sharedid "github.com/kuro48/idol-api/internal/shared/id"
 )
 
@@ -58,7 +59,7 @@ func (s *ApplicationService) CreateEvent(ctx context.Context, input CreateInput)
 	// IDを生成（MongoDB ObjectID hex文字列）
 	evID, err := event.NewEventID(sharedid.Generate())
 	if err != nil {
-		return nil, fmt.Errorf("IDの生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 	newEvent.SetID(evID)
 
@@ -114,7 +115,7 @@ func (s *ApplicationService) CreateEvent(ctx context.Context, input CreateInput)
 func (s *ApplicationService) GetEvent(ctx context.Context, id string) (*event.Event, error) {
 	eventID, err := event.NewEventID(id)
 	if err != nil {
-		return nil, fmt.Errorf("IDの生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	foundEvent, err := s.repository.FindByID(ctx, eventID)
@@ -162,7 +163,7 @@ func (s *ApplicationService) SearchEvents(ctx context.Context, criteria event.Se
 func (s *ApplicationService) UpdateEvent(ctx context.Context, input UpdateInput) error {
 	id, err := event.NewEventID(input.ID)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	existingEvent, err := s.repository.FindByID(ctx, id)
@@ -225,7 +226,7 @@ func (s *ApplicationService) UpdateEvent(ctx context.Context, input UpdateInput)
 func (s *ApplicationService) DeleteEvent(ctx context.Context, id string) error {
 	eventID, err := event.NewEventID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Delete(ctx, eventID); err != nil {
@@ -241,7 +242,7 @@ func (s *ApplicationService) DeleteEvent(ctx context.Context, id string) error {
 func (s *ApplicationService) RestoreEvent(ctx context.Context, id string) error {
 	eventID, err := event.NewEventID(id)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	if err := s.repository.Restore(ctx, eventID); err != nil {
@@ -255,7 +256,7 @@ func (s *ApplicationService) RestoreEvent(ctx context.Context, id string) error 
 func (s *ApplicationService) AddPerformer(ctx context.Context, input AddPerformerInput) error {
 	id, err := event.NewEventID(input.EventID)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	existingEvent, err := s.repository.FindByID(ctx, id)
@@ -284,7 +285,7 @@ func (s *ApplicationService) AddPerformer(ctx context.Context, input AddPerforme
 func (s *ApplicationService) RemovePerformer(ctx context.Context, input RemovePerformerInput) error {
 	id, err := event.NewEventID(input.EventID)
 	if err != nil {
-		return fmt.Errorf("IDの生成エラー: %w", err)
+		return domainerrors.Wrap(domainerrors.ErrCodeIDGeneration, "IDの生成エラー", err)
 	}
 
 	existingEvent, err := s.repository.FindByID(ctx, id)
