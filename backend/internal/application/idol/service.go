@@ -8,6 +8,7 @@ import (
 
 	"github.com/kuro48/idol-api/internal/domain/idol"
 	domainWebhook "github.com/kuro48/idol-api/internal/domain/webhook"
+	domainerrors "github.com/kuro48/idol-api/internal/shared/errors"
 )
 
 // ApplicationService はアイドルアプリケーションサービス
@@ -36,7 +37,7 @@ func (s *ApplicationService) CreateIdol(ctx context.Context, input CreateInput) 
 	// 値オブジェクトの生成
 	name, err := idol.NewIdolName(input.Name)
 	if err != nil {
-		return nil, fmt.Errorf("名前の生成エラー: %w", err)
+		return nil, domainerrors.Wrap(domainerrors.ErrCodeNameValidation, "名前の生成エラー", err)
 	}
 
 	// ドメインサービスで重複チェック
@@ -134,7 +135,7 @@ func (s *ApplicationService) UpdateIdol(ctx context.Context, input UpdateInput) 
 			return err
 		}
 		if isDuplicate {
-			return fmt.Errorf("同じ名前のアイドルが既に存在します")
+			return domainerrors.New(domainerrors.ErrCodeDuplicate, "同じ名前のアイドルが既に存在します")
 		}
 
 		if err := existingIdol.ChangeName(name); err != nil {
@@ -351,7 +352,7 @@ func (s *ApplicationService) UpdateExternalIDs(ctx context.Context, input Update
 				return fmt.Errorf("外部ID重複チェックエラー: %w", err)
 			}
 			if existing != nil && existing.ID().Value() != input.ID {
-				return fmt.Errorf("外部ID '%s' の値 '%s' は既に別のアイドルに登録されています", k, v)
+				return domainerrors.New(domainerrors.ErrCodeDuplicate, fmt.Sprintf("外部ID '%s' の値 '%s' は既に別のアイドルに登録されています", k, v))
 			}
 		}
 
