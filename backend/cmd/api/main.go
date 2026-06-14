@@ -373,220 +373,32 @@ func main() {
 	userAuth := middleware.OIDCUserAuth(oidcVerifier, identityVerifier)
 
 	v1 := router.Group("/api/v1")
-	{
-		v1.GET("/me", userAuth, meHandler.GetMe)
-		v1.GET("/me/submissions", userAuth, submissionHandler.ListMySubmissions)
-		v1.GET("/me/removal-requests", userAuth, removalHandler.ListMyRemovalRequests)
-
-		// アイドル: 読み取りは公開、書き込みは write スコープ必須
-		idols := v1.Group("/idols")
-		{
-			idols.GET("", idolHandler.ListIdols)                                 // 一覧取得
-			idols.GET("/:id", idolHandler.GetIdol)                               // 詳細取得
-			idols.GET("/:id/external-ids", idolHandler.GetExternalIDs)           // 外部IDマッピング取得
-			idols.GET("/:id/memberships", membershipHandler.ListIdolMemberships) // メンバーシップ一覧
-		}
-		idolsWrite := v1.Group("/idols", writeAuth)
-		{
-			idolsWrite.POST("", idolHandler.CreateIdol)       // 新規作成
-			idolsWrite.PATCH("/:id", idolHandler.PatchIdol)   // 更新
-			idolsWrite.DELETE("/:id", idolHandler.DeleteIdol) // 削除
-		}
-
-		// 削除申請: 申請はログイン必須、参照は投稿者トークン、管理は admin スコープ必須
-		removalRequests := v1.Group("/removal-requests")
-		{
-			removalRequests.POST("", userAuth, publicMutationLimiter.Limit(), removalHandler.CreateRemovalRequest) // 削除申請作成
-			removalRequests.GET("/:id", userAuth, removalHandler.GetRemovalRequest)                                // 削除申請詳細取得（ログイン必須）
-		}
-		adminRemoval := v1.Group("/removal-requests", adminAuth)
-		{
-			adminRemoval.GET("", removalHandler.ListAllRemovalRequests)             // 全削除申請取得
-			adminRemoval.GET("/pending", removalHandler.ListPendingRemovalRequests) // 保留中取得
-			adminRemoval.GET("/overdue", removalHandler.ListOverdueRemovalRequests) // SLA超過取得
-			adminRemoval.PUT("/:id", removalHandler.UpdateStatus)                   // ステータス更新
-		}
-		// APIキー管理（admin スコープ必須）
-		adminAPIKeys := v1.Group("/admin/apikeys", adminAuth)
-		{
-			adminAPIKeys.POST("", apikeyHandler.CreateAPIKey)       // APIキー作成
-			adminAPIKeys.GET("", apikeyHandler.ListAPIKeys)         // APIキー一覧（?email=）
-			adminAPIKeys.DELETE("/:id", apikeyHandler.RevokeAPIKey) // APIキー無効化
-		}
-
-		// API利用分析（admin スコープ必須）
-		adminAnalytics := v1.Group("/admin/analytics", adminAuth)
-		{
-			adminAnalytics.GET("/usage", analyticsHandler.GetUsageSummary) // API利用サマリー取得
-		}
-
-		// 非同期ジョブ管理（admin スコープ必須）
-		adminJobs := v1.Group("/admin/jobs", adminAuth)
-		{
-			adminJobs.POST("/bulk-import", jobHandler.EnqueueBulkImport) // バルクインポートジョブ作成
-			adminJobs.GET("/:id", jobHandler.GetJobStatus)               // ジョブステータス取得
-			adminJobs.POST("/:id/retry", jobHandler.RetryJob)            // ジョブリトライ
-		}
-
-		// Webhook管理（admin スコープ必須）
-		adminWebhooks := v1.Group("/admin/webhooks", adminAuth)
-		{
-			adminWebhooks.POST("", webhookHandler.CreateSubscription)       // 購読作成
-			adminWebhooks.GET("", webhookHandler.ListSubscriptions)         // 購読一覧
-			adminWebhooks.DELETE("/:id", webhookHandler.DeleteSubscription) // 購読削除
-		}
-
-		// Webhook受信エンドポイント（公開: 外部からの受信）
-		v1.POST("/webhooks/receive/:subscription_id", publicMutationLimiter.Limit(), webhookHandler.ReceiveWebhook)
-
-		// 編集履歴（admin スコープ必須）
-		adminEditHistory := v1.Group("/admin/edit-history", adminAuth)
-		{
-			adminEditHistory.GET("", editHistoryHandler.ListEditHistory)    // 編集履歴一覧
-			adminEditHistory.GET("/:id", editHistoryHandler.GetEditHistory) // 編集履歴詳細
-		}
-
-		// エクスポート（admin スコープ必須）
-		adminExport := v1.Group("/admin/export", adminAuth)
-		{
-			adminExport.GET("/idols", exportHandler.ExportIdols)   // アイドルエクスポート
-			adminExport.GET("/logs", exportHandler.ListExportLogs) // 実行履歴
-		}
-
-		if billingHandler != nil && cfg.StripeSecretKey != "" && smtpNotifier != nil {
-			billing := v1.Group("/billing")
-			{
-				billing.POST("/checkout-sessions", publicMutationLimiter.Limit(), billingHandler.CreateCheckoutSession)
-				billing.POST("/webhooks/stripe", billingHandler.HandleStripeWebhook)
-			}
-
-			billingAuth := v1.Group("/billing", planAuth.Auth())
-			{
-				billingAuth.POST("/portal-sessions", billingHandler.CreatePortalSession)
-			}
-		}
-
-		// グループ: 読み取りは公開、書き込みは write スコープ必須
-		groups := v1.Group("/groups")
-		{
-			groups.GET("", groupHandler.ListGroup)
-			groups.GET("/:id", groupHandler.GetGroup)
-			groups.GET("/:id/memberships", membershipHandler.ListGroupMemberships) // メンバーシップ一覧
-		}
-		groupsWrite := v1.Group("/groups", writeAuth)
-		{
-			groupsWrite.POST("", groupHandler.CreateGroup)
-			groupsWrite.PUT("/:id", groupHandler.UpdateGroup)
-			groupsWrite.DELETE("/:id", groupHandler.DeleteGroup)
-		}
-
-		// メンバーシップ: 読み取りは公開、書き込みは write スコープ必須
-		memberships := v1.Group("/memberships")
-		{
-			memberships.GET("", membershipHandler.ListMemberships)
-			memberships.GET("/:id", membershipHandler.GetMembership)
-		}
-		membershipsWrite := v1.Group("/memberships", writeAuth)
-		{
-			membershipsWrite.POST("", membershipHandler.CreateMembership)
-			membershipsWrite.PUT("/:id", membershipHandler.UpdateMembership)
-			membershipsWrite.DELETE("/:id", membershipHandler.DeleteMembership)
-		}
-
-		// 会場: 読み取りは公開、書き込みは write スコープ必須
-		venues := v1.Group("/venues")
-		{
-			venues.GET("", venueHandler.ListVenues)
-			venues.GET("/:id", venueHandler.GetVenue)
-		}
-		venuesWrite := v1.Group("/venues", writeAuth)
-		{
-			venuesWrite.POST("", venueHandler.CreateVenue)
-			venuesWrite.PUT("/:id", venueHandler.UpdateVenue)
-			venuesWrite.DELETE("/:id", venueHandler.DeleteVenue)
-		}
-
-		// 事務所: 読み取りは公開、書き込みは write スコープ必須
-		agencies := v1.Group("/agencies")
-		{
-			agencies.GET("", agencyHandler.ListAgencies)
-			agencies.GET("/:id", agencyHandler.GetAgency)
-		}
-		agenciesWrite := v1.Group("/agencies", writeAuth)
-		{
-			agenciesWrite.POST("", agencyHandler.CreateAgency)
-			agenciesWrite.PUT("/:id", agencyHandler.UpdateAgency)
-			agenciesWrite.DELETE("/:id", agencyHandler.DeleteAgency)
-		}
-
-		terms := v1.Group("/terms")
-		{
-			terms.GET("/service", termHandler.ShowTermsOfService)
-			terms.GET("/privacy", termHandler.ShowPrivacyPolicy)
-		}
-
-		// イベント: 読み取りは公開、書き込みは write スコープ必須
-		events := v1.Group("/events")
-		{
-			events.GET("", eventHandler.ListEvents)                 // イベント一覧取得（検索機能付き）
-			events.GET("/upcoming", eventHandler.GetUpcomingEvents) // 今後のイベント取得
-			events.GET("/:id", eventHandler.GetEvent)               // イベント詳細取得
-		}
-		eventsWrite := v1.Group("/events", writeAuth)
-		{
-			eventsWrite.POST("", eventHandler.CreateEvent)                                    // イベント作成
-			eventsWrite.PUT("/:id", eventHandler.UpdateEvent)                                 // イベント更新
-			eventsWrite.DELETE("/:id", eventHandler.DeleteEvent)                              // イベント削除
-			eventsWrite.POST("/:id/performers", eventHandler.AddPerformer)                    // パフォーマー追加
-			eventsWrite.DELETE("/:id/performers/:performer_id", eventHandler.RemovePerformer) // パフォーマー削除
-		}
-
-		// リリース: 読み取りは公開、書き込みは write スコープ必須
-		releases := v1.Group("/releases")
-		{
-			releases.GET("", releaseHandler.ListReleases)
-			releases.GET("/:id", releaseHandler.GetRelease)
-		}
-		releasesWrite := v1.Group("/releases", writeAuth)
-		{
-			releasesWrite.POST("", releaseHandler.CreateRelease)
-			releasesWrite.PUT("/:id", releaseHandler.UpdateRelease)
-			releasesWrite.DELETE("/:id", releaseHandler.DeleteRelease)
-			releasesWrite.PUT("/:id/streaming-links", releaseHandler.UpdateStreamingLinks)
-			releasesWrite.PUT("/:id/external-ids", releaseHandler.UpdateExternalIDs)
-		}
-		releasesAdmin := v1.Group("/releases", adminAuth)
-		{
-			releasesAdmin.PUT("/:id/restore", releaseHandler.RestoreRelease)
-		}
-
-		// 投稿審査: 作成はログイン必須、取得は投稿者トークン、審査は admin スコープ必須
-		submissions := v1.Group("/submissions")
-		{
-			submissions.POST("", userAuth, publicMutationLimiter.Limit(), submissionHandler.CreateSubmission)           // 投稿作成
-			submissions.GET("/:id", userAuth, submissionHandler.GetSubmission)                                          // 投稿詳細取得（ログイン必須）
-			submissions.PUT("/:id/revise", userAuth, publicMutationLimiter.Limit(), submissionHandler.ReviseSubmission) // 差し戻し後の再投稿（ログイン必須）
-		}
-		adminSubmissions := v1.Group("/submissions", adminAuth)
-		{
-			adminSubmissions.GET("", submissionHandler.ListAllSubmissions)             // 全投稿一覧
-			adminSubmissions.GET("/pending", submissionHandler.ListPendingSubmissions) // 審査待ち一覧
-			adminSubmissions.PUT("/:id/status", submissionHandler.UpdateStatus)        // ステータス更新
-		}
-
-		// タグ: 読み取りは公開、書き込みは write スコープ必須
-		tags := v1.Group("/tags")
-		{
-			tags.GET("", tagHandler.ListTags)   // タグ一覧取得
-			tags.GET("/:id", tagHandler.GetTag) // タグ詳細取得
-		}
-		tagsWrite := v1.Group("/tags", writeAuth)
-		{
-			tagsWrite.POST("", tagHandler.CreateTag)       // タグ作成
-			tagsWrite.PUT("/:id", tagHandler.UpdateTag)    // タグ更新
-			tagsWrite.DELETE("/:id", tagHandler.DeleteTag) // タグ削除
-		}
-	}
+	registerAPIRoutes(v1, routeDeps{
+		writeAuth:             writeAuth,
+		adminAuth:             adminAuth,
+		userAuth:              userAuth,
+		publicMutationLimiter: publicMutationLimiter,
+		planAuth:              planAuth,
+		idolHandler:           idolHandler,
+		removalHandler:        removalHandler,
+		groupHandler:          groupHandler,
+		agencyHandler:         agencyHandler,
+		eventHandler:          eventHandler,
+		tagHandler:            tagHandler,
+		webhookHandler:        webhookHandler,
+		exportHandler:         exportHandler,
+		submissionHandler:     submissionHandler,
+		releaseHandler:        releaseHandler,
+		editHistoryHandler:    editHistoryHandler,
+		membershipHandler:     membershipHandler,
+		venueHandler:          venueHandler,
+		apikeyHandler:         apikeyHandler,
+		meHandler:             meHandler,
+		analyticsHandler:      analyticsHandler,
+		jobHandler:            jobHandler,
+		termHandler:           termHandler,
+		billingHandler:        billingHandler,
+	})
 
 	// サーバー起動（グレースフルシャットダウン対応）
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
