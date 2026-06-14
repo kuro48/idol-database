@@ -30,13 +30,24 @@ type CreateIdolRequest struct {
 
 // UpdateIdolRequest はアイドル更新リクエスト
 type UpdateIdolRequest struct {
-	Name        *string                        `json:"name" binding:"omitempty,min=1,max=100"`
-	Birthdate   *string                        `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
-	AgencyID    *string                        `json:"agency_id" binding:"omitempty"`
-	Aliases     []string                       `json:"aliases" binding:"omitempty"`
-	SocialLinks *idol.UpdateSocialLinksCommand `json:"social_links" binding:"omitempty"`
-	ExternalIDs map[string]string              `json:"external_ids" binding:"omitempty"`
-	Restore     *bool                          `json:"restore" binding:"omitempty"`
+	Name        *string                   `json:"name" binding:"omitempty,min=1,max=100"`
+	Birthdate   *string                   `json:"birthdate" binding:"omitempty,datetime=2006-01-02"`
+	AgencyID    *string                   `json:"agency_id" binding:"omitempty"`
+	Aliases     []string                  `json:"aliases" binding:"omitempty"`
+	SocialLinks *updateSocialLinksRequest `json:"social_links" binding:"omitempty"`
+	ExternalIDs map[string]string         `json:"external_ids" binding:"omitempty"`
+	Restore     *bool                     `json:"restore" binding:"omitempty"`
+}
+
+// updateSocialLinksRequest はハンドラー層の SNS リンク更新リクエスト（usecase 型を直接埋め込まない）
+type updateSocialLinksRequest struct {
+	Twitter         *string `json:"twitter"`
+	Instagram       *string `json:"instagram"`
+	TikTok          *string `json:"tiktok"`
+	YouTube         *string `json:"youtube"`
+	Facebook        *string `json:"facebook"`
+	OfficialWebsite *string `json:"official_website"`
+	FanClub         *string `json:"fan_club"`
 }
 
 // CreateIdol はアイドルを作成する
@@ -201,8 +212,17 @@ func (h *IdolHandler) PatchIdol(c *gin.Context) {
 	}
 
 	if req.SocialLinks != nil {
-		cmd := *req.SocialLinks
-		cmd.ID = id
+		sl := req.SocialLinks
+		cmd := idol.UpdateSocialLinksCommand{
+			ID:              id,
+			Twitter:         sl.Twitter,
+			Instagram:       sl.Instagram,
+			TikTok:          sl.TikTok,
+			YouTube:         sl.YouTube,
+			Facebook:        sl.Facebook,
+			OfficialWebsite: sl.OfficialWebsite,
+			FanClub:         sl.FanClub,
+		}
 		if err := h.usecase.UpdateSocialLinks(middleware.AuditContextFor(c), cmd); err != nil {
 			c.JSON(http.StatusBadRequest, middleware.NewBadRequestError(err.Error()))
 			return
