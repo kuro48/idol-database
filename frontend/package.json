@@ -11,7 +11,7 @@
     "gen-types": "npx swagger2openapi ../backend/docs/swagger.json -o /tmp/idol-api-openapi3.json && openapi-typescript /tmp/idol-api-openapi3.json -o src/api/schema.d.ts"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.100.9",
+    "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-table": "^8.21.3",
     "date-fns": "^4.1.0",
     "lucide-react": "^1.14.0",
