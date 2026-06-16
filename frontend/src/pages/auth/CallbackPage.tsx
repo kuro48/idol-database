@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { userManager } from '../../auth/oidcClient'
 import { useAuthStore } from '../../auth/authStore'
+import type { OshiEntry } from '../../auth/authStore'
 import { applyOshiTheme } from '../../lib/applyTheme'
 import { Skeleton } from '../../components/ui/Skeleton'
 
@@ -13,6 +14,7 @@ interface MeResponse {
   email: string
   display_name: string
   oshi_color: string
+  oshis: OshiEntry[]
   scopes: string[]
   can_write: boolean
   can_admin: boolean
@@ -72,6 +74,7 @@ export default function CallbackPage() {
           me.can_write,
           me.can_admin,
         )
+        useAuthStore.setState({ oshis: me.oshis ?? [] })
         applyOshiTheme(oshiColor)
         navigate(userManager.consumeReturnTo() ?? '/idols', { replace: true })
       } catch (err) {

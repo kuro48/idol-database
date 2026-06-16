@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
+export interface OshiEntry {
+  idol_id: string
+  fan_since?: string
+}
+
 interface AuthState {
   accessToken: string | null
   idToken: string | null
@@ -9,6 +14,7 @@ interface AuthState {
   email: string | null
   displayName: string | null
   oshiColor: string | null
+  oshis: OshiEntry[]
   canWrite: boolean
   isAdmin: boolean
   setAuth: (
@@ -23,6 +29,7 @@ interface AuthState {
     isAdmin: boolean,
   ) => void
   setOshiColor: (color: string) => void
+  setOshis: (oshis: OshiEntry[]) => void
   logout: () => void
 }
 
@@ -36,6 +43,7 @@ export const useAuthStore = create<AuthState>()(
       email: null,
       displayName: null,
       oshiColor: null,
+      oshis: [],
       canWrite: false,
       isAdmin: false,
       setAuth: (
@@ -61,6 +69,7 @@ export const useAuthStore = create<AuthState>()(
           isAdmin,
         }),
       setOshiColor: (color) => set({ oshiColor: color }),
+      setOshis: (oshis) => set({ oshis }),
       logout: () =>
         set({
           accessToken: null,
@@ -70,6 +79,7 @@ export const useAuthStore = create<AuthState>()(
           email: null,
           displayName: null,
           oshiColor: null,
+          oshis: [],
           canWrite: false,
           isAdmin: false,
         }),
@@ -85,6 +95,7 @@ export const useAuthStore = create<AuthState>()(
         email: state.email,
         displayName: state.displayName,
         oshiColor: state.oshiColor,
+        oshis: state.oshis,
         canWrite: state.canWrite,
         isAdmin: state.isAdmin,
       }),
@@ -99,6 +110,7 @@ export const useAuthStore = create<AuthState>()(
           email: saved.email ?? null,
           displayName: saved.displayName ?? null,
           oshiColor: saved.oshiColor ?? null,
+          oshis: saved.oshis ?? [],
           canWrite: saved.canWrite ?? false,
           isAdmin: saved.isAdmin ?? false,
         }

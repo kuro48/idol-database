@@ -63,16 +63,22 @@ type jwtHeader struct {
 	Kid string `json:"kid"`
 }
 
+type oshiEntryClaim struct {
+	IdolID   string `json:"idol_id"`
+	FanSince string `json:"fan_since,omitempty"`
+}
+
 type idTokenClaims struct {
-	Issuer      string          `json:"iss"`
-	Subject     string          `json:"sub"`
-	Audience    json.RawMessage `json:"aud"`
-	ExpiresAt   int64           `json:"exp"`
-	NotBefore   int64           `json:"nbf"`
-	Email       string          `json:"email"`
-	DisplayName string          `json:"display_name"`
-	OshiColor   string          `json:"oshi_color"`
-	Roles       []string        `json:"roles"`
+	Issuer      string           `json:"iss"`
+	Subject     string           `json:"sub"`
+	Audience    json.RawMessage  `json:"aud"`
+	ExpiresAt   int64            `json:"exp"`
+	NotBefore   int64            `json:"nbf"`
+	Email       string           `json:"email"`
+	DisplayName string           `json:"display_name"`
+	OshiColor   string           `json:"oshi_color"`
+	Oshis       []oshiEntryClaim `json:"oshis"`
+	Roles       []string         `json:"roles"`
 }
 
 func (v *IDTokenVerifier) Verify(ctx context.Context, rawToken string) (*domainAuth.Principal, error) {
@@ -124,11 +130,17 @@ func (v *IDTokenVerifier) Verify(ctx context.Context, rawToken string) (*domainA
 		return nil, errors.New("IDトークンaudienceが一致しません")
 	}
 
+	oshis := make([]domainAuth.OshiEntry, len(claims.Oshis))
+	for i, o := range claims.Oshis {
+		oshis[i] = domainAuth.OshiEntry{IdolID: o.IdolID, FanSince: o.FanSince}
+	}
+
 	return &domainAuth.Principal{
 		SubjectID:   claims.Subject,
 		Email:       claims.Email,
 		DisplayName: claims.DisplayName,
 		OshiColor:   claims.OshiColor,
+		Oshis:       oshis,
 		Roles:       claims.Roles,
 	}, nil
 }
