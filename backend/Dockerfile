@@ -19,7 +19,7 @@ RUN swag init -g cmd/api/main.go -o docs
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o main ./cmd/api
 
 # 実行ステージ
-FROM alpine:3.21
+FROM alpine:3.24
 
 RUN apk --no-cache add ca-certificates \
     && addgroup -S appgroup \
