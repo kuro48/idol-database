@@ -1,5 +1,5 @@
 # MongoDBの公式イメージを使用
-FROM mongo:6
+FROM mongo:8
 
 # 作業ディレクトリを設定
 WORKDIR /data/db
